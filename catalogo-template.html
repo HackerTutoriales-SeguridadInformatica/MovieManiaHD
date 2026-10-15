@@ -920,9 +920,9 @@ a{color:inherit;text-decoration:none}
     gap: 10px;
     margin-bottom: 14px;
   }
+  /* Ocultar el título de sección en móvil */
   .topbar h1{
-    font-size: 20px;
-    font-weight: 800;
+    display: none !important;
   }
 
   .search{
@@ -935,25 +935,10 @@ a{color:inherit;text-decoration:none}
   .search input{ font-size: 16px; }
   .search input::placeholder{ font-size: 13px; }
 
-  /* ---------- TABS (scroll horizontal) ---------- */
+  /* Ocultar tabs en móvil (ya están en la barra inferior) */
   .tabs{
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    margin: 0 -12px;
-    padding: 2px 12px 4px;
-    gap: 6px;
+    display: none !important;
   }
-  .tabs::-webkit-scrollbar{ display: none; }
-  .tab{
-    padding: 6px 12px;
-    font-size: 11px;
-    flex-shrink: 0;
-    border-radius: 16px;
-    gap: 5px;
-  }
-  .tab i{ font-size: 10px; }
 
   /* ---------- HERO ---------- */
   .hero{
@@ -1316,8 +1301,8 @@ a{color:inherit;text-decoration:none}
 
     <nav class="nav">
       <div class="nav-item active" data-filter="all">
-        <i class="fa-solid fa-table-cells-large"></i>
-        <span>Todos</span>
+        <i class="fa-solid fa-house"></i>
+        <span>Inicio</span>
         <span class="badge" id="badgeAll"></span>
       </div>
       <div class="nav-item" data-filter="movie">
@@ -1354,7 +1339,7 @@ a{color:inherit;text-decoration:none}
 
   <main class="main">
     <div class="topbar">
-      <h1 id="pageTitle">Todos</h1>
+      <h1 id="pageTitle">Inicio</h1>
 
       <div class="search">
         <i class="fa-solid fa-magnifying-glass"></i>
@@ -1362,7 +1347,7 @@ a{color:inherit;text-decoration:none}
       </div>
 
       <div class="tabs" id="tabsContainer">
-        <div class="tab active" data-tab="all"><i class="fa-solid fa-table-cells-large"></i> Todos</div>
+        <div class="tab active" data-tab="all"><i class="fa-solid fa-house"></i> Inicio</div>
         <div class="tab" data-tab="movie"><i class="fa-solid fa-film"></i> Películas</div>
         <div class="tab" data-tab="series"><i class="fa-solid fa-tv"></i> Series</div>
       </div>
@@ -1395,8 +1380,8 @@ a{color:inherit;text-decoration:none}
 <!-- BARRA DE NAVEGACIÓN INFERIOR (SOLO MÓVIL) -->
 <nav class="mobile-bottom-nav" id="mobileBottomNav">
   <div class="mobile-nav-item active" data-filter="all">
-    <i class="fa-solid fa-table-cells-large"></i>
-    <span>Todos</span>
+    <i class="fa-solid fa-house"></i>
+    <span>Inicio</span>
     <span class="badge" id="mobileBadgeAll"></span>
   </div>
   <div class="mobile-nav-item" data-filter="movie">
@@ -1863,8 +1848,9 @@ function renderAll(){
     el.classList.toggle("active", el.dataset.tab === state.filter);
   });
 
-  const titles = { all:"Todos", movie:"Películas", series:"Series", mylist:"Mi Lista", downloads:"Descargas" };
-  $("pageTitle").textContent = titles[state.filter] || "Todos";
+  const titles = { all:"Inicio", movie:"Películas", series:"Series", mylist:"Mi Lista", downloads:"Descargas" };
+  const pageTitleEl = $("pageTitle");
+  if (pageTitleEl) pageTitleEl.textContent = titles[state.filter] || "Inicio";
 }
 
 /* ============================================================
