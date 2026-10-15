@@ -788,26 +788,6 @@ a{color:inherit;text-decoration:none}
   color:#fff;
 }
 
-@media(max-width:600px){
-  .update-banner{
-    left:12px;right:12px;
-    transform:translateY(120%);
-    padding:11px 12px;
-    font-size:12px;
-    gap:9px;
-  }
-  .update-banner.show{
-    transform:translateY(0);
-  }
-  .update-banner > span{
-    display:none;
-  }
-  .update-banner::before{
-    content:"Nueva versión";
-    flex:1;
-  }
-}
-
 @media(max-width:900px){
   .app{grid-template-columns:64px 1fr}
   .main{padding:16px 14px 80px}
@@ -851,6 +831,25 @@ a{color:inherit;text-decoration:none}
   .detail-btn{height:44px;font-size:12.5px}
   .player-modal{padding:6px}
   .player-box{height:94vh;border-radius:10px}
+
+  /* Banner en móvil */
+  .update-banner{
+    left:12px;right:12px;
+    transform:translateY(120%);
+    padding:11px 12px;
+    font-size:12px;
+    gap:9px;
+  }
+  .update-banner.show{
+    transform:translateY(0);
+  }
+  .update-banner > span{
+    display:none;
+  }
+  .update-banner::before{
+    content:"Nueva versión";
+    flex:1;
+  }
 }
 </style>
 </head>
@@ -1584,97 +1583,6 @@ function closePlayer(){
 }
 
 /* ============================================================
-   EVENTOS
-   ============================================================ */
-document.querySelectorAll(".nav-item[data-filter]").forEach(el => {
-  el.addEventListener("click", () => {
-    state.filter = el.dataset.filter;
-    state.search = "";
-    $("searchInput").value = "";
-    renderAll();
-  });
-});
-
-document.querySelectorAll(".tab[data-tab]").forEach(el => {
-  el.addEventListener("click", () => {
-    state.filter = el.dataset.tab;
-    state.search = "";
-    $("searchInput").value = "";
-    renderAll();
-  });
-});
-
-$("searchInput").addEventListener("input", e => {
-  state.search = e.target.value;
-  renderGrid();
-});
-
-$("btnRefresh").addEventListener("click", async () => {
-  const icon = $("btnRefresh").querySelector("i");
-  icon.style.transition = "transform .8s";
-  icon.style.transform = "rotate(720deg)";
-
-  // Revisa si hay versión nueva en el servidor
-  const hasUpdate = await checkForUpdate();
-
-  setTimeout(() => {
-    if (hasUpdate) {
-      // Hay versión nueva → recarga con cache-buster y guarda estado
-      reloadWithState();
-    } else {
-      // No hay nada nuevo → solo re-renderiza
-      icon.style.transform = "rotate(0deg)";
-      renderAll();
-      // Feedback visual breve
-      showToast("Ya tienes la última versión");
-    }
-  }, 800);
-});
-
-$("btnExit").addEventListener("click", () => {
-  if (confirm("¿Cerrar la aplicación?")) {
-    closeDetail();
-    closePlayer();
-    window.close();
-    document.body.innerHTML = '<div style="display:grid;place-items:center;height:100vh;background:#0a0a12;color:#6f7484;font-family:Inter,Arial;font-size:14px">Sesión cerrada</div>';
-  }
-});
-
-$("btnDetailBack").addEventListener("click", closeDetail);
-$("btnPlay").addEventListener("click", () => openPlayer(state.currentMovie));
-$("btnDownload").addEventListener("click", showDownloadBox);
-$("btnWatched").addEventListener("click", toggleWatched);
-$("btnMyList").addEventListener("click", () => toggleMyList());
-
-$("btnReadMore").addEventListener("click", () => {
-  const ov = $("detailOverview");
-  ov.classList.toggle("expanded");
-  $("btnReadMore").textContent = ov.classList.contains("expanded") ? "Leer menos" : "Leer más";
-});
-
-$("btnPlayerClose").addEventListener("click", closePlayer);
-$("playerModal").addEventListener("click", e => {
-  if (e.target === $("playerModal")) closePlayer();
-});
-
-document.addEventListener("keydown", e => {
-  if (e.key === "Escape"){
-    if ($("playerModal").classList.contains("show")) closePlayer();
-    else if ($("detailScreen").classList.contains("show")) closeDetail();
-  }
-});
-
-window.addEventListener("popstate", () => {
-  if ($("playerModal").classList.contains("show")) closePlayer();
-  else if ($("detailScreen").classList.contains("show")) closeDetail();
-});
-
-if (location.hash.startsWith("#movie-")){
-  const id = Number(location.hash.replace("#movie-", ""));
-  if (MOVIES.some(m => m.id === id)) openDetail(id);
-}
-
-/* ============================================================
    ACTUALIZACIÓN DE VERSIÓN (ETag + banner + restaurar estado)
    ============================================================ */
 
@@ -1830,9 +1738,9 @@ function hideUpdateBanner() {
 }
 
 /* ============================================================
-   EVENTOS DEL BANNER
+   EVENTOS DEL BANNER (ejecución directa, el DOM ya está listo)
    ============================================================ */
-document.addEventListener("DOMContentLoaded", () => {
+(() => {
   const banner = $("updateBanner");
   if (!banner) return;
 
@@ -1844,7 +1752,7 @@ document.addEventListener("DOMContentLoaded", () => {
     sessionStorage.setItem(LS_UPDATE_DISMISSED, "1");
     hideUpdateBanner();
   });
-});
+})();
 
 /* ============================================================
    CHEQUEO PERIÓDICO SILENCIOSO (cada 5 min)
@@ -1883,6 +1791,93 @@ document.addEventListener("visibilitychange", () => {
     if (etag) localStorage.setItem(LS_ETAG, etag);
   } catch {}
 })();
+
+/* ============================================================
+   EVENTOS
+   ============================================================ */
+document.querySelectorAll(".nav-item[data-filter]").forEach(el => {
+  el.addEventListener("click", () => {
+    state.filter = el.dataset.filter;
+    state.search = "";
+    $("searchInput").value = "";
+    renderAll();
+  });
+});
+
+document.querySelectorAll(".tab[data-tab]").forEach(el => {
+  el.addEventListener("click", () => {
+    state.filter = el.dataset.tab;
+    state.search = "";
+    $("searchInput").value = "";
+    renderAll();
+  });
+});
+
+$("searchInput").addEventListener("input", e => {
+  state.search = e.target.value;
+  renderGrid();
+});
+
+$("btnRefresh").addEventListener("click", async () => {
+  const icon = $("btnRefresh").querySelector("i");
+  icon.style.transition = "transform .8s";
+  icon.style.transform = "rotate(720deg)";
+
+  const hasUpdate = await checkForUpdate();
+
+  setTimeout(() => {
+    if (hasUpdate) {
+      reloadWithState();
+    } else {
+      icon.style.transform = "rotate(0deg)";
+      renderAll();
+      showToast("Ya tienes la última versión");
+    }
+  }, 800);
+});
+
+$("btnExit").addEventListener("click", () => {
+  if (confirm("¿Cerrar la aplicación?")) {
+    closeDetail();
+    closePlayer();
+    window.close();
+    document.body.innerHTML = '<div style="display:grid;place-items:center;height:100vh;background:#0a0a12;color:#6f7484;font-family:Inter,Arial;font-size:14px">Sesión cerrada</div>';
+  }
+});
+
+$("btnDetailBack").addEventListener("click", closeDetail);
+$("btnPlay").addEventListener("click", () => openPlayer(state.currentMovie));
+$("btnDownload").addEventListener("click", showDownloadBox);
+$("btnWatched").addEventListener("click", toggleWatched);
+$("btnMyList").addEventListener("click", () => toggleMyList());
+
+$("btnReadMore").addEventListener("click", () => {
+  const ov = $("detailOverview");
+  ov.classList.toggle("expanded");
+  $("btnReadMore").textContent = ov.classList.contains("expanded") ? "Leer menos" : "Leer más";
+});
+
+$("btnPlayerClose").addEventListener("click", closePlayer);
+$("playerModal").addEventListener("click", e => {
+  if (e.target === $("playerModal")) closePlayer();
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape"){
+    if ($("playerModal").classList.contains("show")) closePlayer();
+    else if ($("detailScreen").classList.contains("show")) closeDetail();
+  }
+});
+
+window.addEventListener("popstate", () => {
+  if ($("playerModal").classList.contains("show")) closePlayer();
+  else if ($("detailScreen").classList.contains("show")) closeDetail();
+});
+
+if (location.hash.startsWith("#movie-")){
+  const id = Number(location.hash.replace("#movie-", ""));
+  if (MOVIES.some(m => m.id === id)) openDetail(id);
+}
 
 /* ============================================================
    INIT
