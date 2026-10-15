@@ -1113,19 +1113,12 @@ a{color:inherit;text-decoration:none}
     font-size: 10px;
   }
 
-  /* En móvil, botón play siempre visible sutilmente */
-  @media (hover: none){
-    .card-play span{
-      opacity: .85;
-      transform: scale(1);
-      width: 40px;
-      height: 40px;
-      font-size: 13px;
-    }
-    .card-play{
-      background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,.5) 100%);
-    }
+/* En móvil, ocultar el botón de play */
+@media (hover: none){
+  .card-play{
+    display: none;
   }
+}
 
   /* ---------- DETALLE ---------- */
   .detail-backdrop{
