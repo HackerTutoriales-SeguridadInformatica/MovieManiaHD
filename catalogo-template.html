@@ -469,6 +469,39 @@ a{color:inherit;text-decoration:none}
 .empty-state h3{margin:0 0 6px;font-size:15px;color:#8a8e9c}
 .empty-state p{margin:0;font-size:12px}
 
+/* ============ LOADER (scroll infinito) ============ */
+.grid-loader{
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px 20px;
+  color: #6f7484;
+  font-size: 13px;
+  font-weight: 600;
+}
+.grid-loader .spinner{
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid #242434;
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin{
+  to { transform: rotate(360deg); }
+}
+
+.grid-end{
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 24px 20px;
+  color: #4a4a60;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 /* ============ PANTALLA DETALLE ============ */
 .detail{
   display:none;
@@ -1009,27 +1042,22 @@ a{color:inherit;text-decoration:none}
     overflow-x: hidden;
   }
 
-  /* Ocultar sidebar */
   .sidebar {
     display: none !important;
   }
 
-  /* Cambiar layout de grid a bloque */
   .app {
     display: block !important;
   }
 
-  /* Ajustar padding del main para que no tape la barra inferior */
   .main {
     padding: 12px 12px 80px 12px !important;
   }
 
-  /* Mostrar barra inferior */
   .mobile-bottom-nav {
     display: flex;
   }
 
-  /* ---------- TOPBAR ---------- */
   .topbar{
     gap: 10px;
     margin-bottom: 14px;
@@ -1038,17 +1066,14 @@ a{color:inherit;text-decoration:none}
     display: none !important;
   }
 
-  /* OCULTAR barra de búsqueda superior en móvil */
   .topbar .search {
     display: none !important;
   }
 
-  /* Ocultar tabs en móvil */
   .tabs{
     display: none !important;
   }
 
-  /* ---------- HERO ---------- */
   .hero{
     height: 280px;
     border-radius: 14px;
@@ -1115,7 +1140,6 @@ a{color:inherit;text-decoration:none}
     width: 18px;
   }
 
-  /* ---------- SECCIONES ---------- */
   .section{
     margin-bottom: 24px;
   }
@@ -1137,7 +1161,6 @@ a{color:inherit;text-decoration:none}
     font-size: 8px;
   }
 
-  /* ---------- CONTINUAR VIENDO ---------- */
   .continue-row{
     gap: 10px;
     margin: 0 -12px;
@@ -1171,7 +1194,6 @@ a{color:inherit;text-decoration:none}
     font-size: 10px;
   }
 
-  /* ---------- GRID (4 columnas) ---------- */
   .grid{
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
@@ -1216,7 +1238,6 @@ a{color:inherit;text-decoration:none}
     font-size: 9px;
   }
 
-  /* ---------- DETALLE ---------- */
   .detail-backdrop{
     height: 220px;
   }
@@ -1299,7 +1320,6 @@ a{color:inherit;text-decoration:none}
     font-size: 11px;
   }
 
-  /* ---------- PLAYER MODAL ---------- */
   .player-modal{
     padding: 0;
     align-items: stretch;
@@ -1323,7 +1343,6 @@ a{color:inherit;text-decoration:none}
     height: 34px;
   }
 
-  /* ---------- BANNER UPDATE ---------- */
   .update-banner{
     left: 10px;
     right: 10px;
@@ -1626,6 +1645,11 @@ const MOVIES = __MOVIES_JSON__;
 const PLAYER_B64_LIST = __PLAYERS_JSON__;
 
 /* ============================================================
+   CONFIGURACIÓN DE PAGINACIÓN (SCROLL INFINITO)
+   ============================================================ */
+const PAGE_SIZE = 40;
+
+/* ============================================================
    ESTADO LOCAL (localStorage)
    ============================================================ */
 const LS_MYLIST = "mmhd_mylist";
@@ -1660,7 +1684,11 @@ const state = {
   heroIndex: 0,
   heroTimer: null,
   continueList: [],
-  mobileSearch: ""
+  mobileSearch: "",
+  // Paginación
+  visibleCount: PAGE_SIZE,
+  filteredCache: [],
+  isLoadingMore: false
 };
 
 const $ = id => document.getElementById(id);
@@ -1745,6 +1773,9 @@ function renderMobileSearchResults(){
 
   if (!state.mobileSearch.trim()) {
     emptyEl.style.display = "flex";
+    emptyEl.querySelector("i").className = "fa-solid fa-magnifying-glass";
+    emptyEl.querySelector("i").style.color = "#2563eb";
+    emptyEl.querySelector("p").textContent = "Escribe para buscar en todo el catálogo";
     resultsEl.innerHTML = "";
     return;
   }
@@ -1792,7 +1823,6 @@ function openMobileSearch(){
   screen.classList.add("show");
   document.body.style.overflow = "hidden";
   hideMobileNav();
-  // Reset
   state.mobileSearch = "";
   $("mobileSearchInput").value = "";
   $("mobileSearchEmpty").style.display = "flex";
@@ -1800,7 +1830,6 @@ function openMobileSearch(){
   $("mobileSearchEmpty").querySelector("i").style.color = "#2563eb";
   $("mobileSearchEmpty").querySelector("p").textContent = "Escribe para buscar en todo el catálogo";
   $("mobileSearchResults").innerHTML = "";
-  // Focus al input
   setTimeout(() => $("mobileSearchInput").focus(), 100);
 }
 
@@ -1959,25 +1988,12 @@ function renderContinue(){
 }
 
 /* ============================================================
-   GRID
+   GRID CON SCROLL INFINITO
    ============================================================ */
-function renderGrid(){
-  const list = getFiltered();
-  const grid = $("catalogGrid");
-  const count = $("gridCount");
-  count.textContent = list.length;
 
-  if (!list.length){
-    grid.innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-film"></i>
-        <h3>No hay películas para mostrar</h3>
-        <p>Prueba con otro filtro o término de búsqueda.</p>
-      </div>`;
-    return;
-  }
-
-  grid.innerHTML = list.map(m => `
+// Crea el HTML de una tarjeta
+function cardHTML(m){
+  return `
     <article class="card" data-id="${m.id}" tabindex="0" role="button" aria-label="Ver ${esc(m.title)}">
       <div class="card-poster">
         <img src="${esc(m.poster || placeholderPoster(m.title))}"
@@ -1996,9 +2012,13 @@ function renderGrid(){
         <div class="card-year">${esc(m.year)}</div>
       </div>
     </article>
-  `).join("");
+  `;
+}
 
-  grid.querySelectorAll(".card").forEach(card => {
+// Asigna los listeners a las tarjetas recién añadidas
+function bindCardEvents(container){
+  container.querySelectorAll(".card:not([data-bound])").forEach(card => {
+    card.dataset.bound = "1";
     card.addEventListener("click", () => openDetail(Number(card.dataset.id)));
     card.addEventListener("keydown", e => {
       if (e.key === "Enter" || e.key === " "){
@@ -2009,8 +2029,136 @@ function renderGrid(){
   });
 }
 
+// Actualiza el loader / fin de lista al final del grid
+function updateGridFooter(){
+  const grid = $("catalogGrid");
+  const oldLoader = grid.querySelector(".grid-loader");
+  const oldEnd = grid.querySelector(".grid-end");
+  if (oldLoader) oldLoader.remove();
+  if (oldEnd) oldEnd.remove();
+
+  const total = state.filteredCache.length;
+  const visible = state.visibleCount;
+
+  if (total === 0) return;
+
+  if (visible < total) {
+    const loader = document.createElement("div");
+    loader.className = "grid-loader";
+    loader.innerHTML = `<div class="spinner"></div><span>Cargando más...</span>`;
+    grid.appendChild(loader);
+  } else {
+    const end = document.createElement("div");
+    end.className = "grid-end";
+    end.textContent = `— Has visto todo (${total}) —`;
+    grid.appendChild(end);
+  }
+}
+
+// Renderiza el grid con la cantidad visible actual
+function renderGrid(reset = false){
+  const grid = $("catalogGrid");
+  const count = $("gridCount");
+
+  if (reset) {
+    state.filteredCache = getFiltered();
+    state.visibleCount = PAGE_SIZE;
+    grid.innerHTML = "";
+  }
+
+  const list = state.filteredCache;
+  count.textContent = list.length;
+
+  if (!list.length){
+    grid.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-film"></i>
+        <h3>No hay películas para mostrar</h3>
+        <p>Prueba con otro filtro o término de búsqueda.</p>
+      </div>`;
+    return;
+  }
+
+  // Si ya se renderizó todo lo visible, no hacer nada
+  const currentCards = grid.querySelectorAll(".card").length;
+  if (currentCards >= state.visibleCount && !reset) return;
+
+  if (reset) {
+    // Render inicial: solo los primeros PAGE_SIZE
+    const slice = list.slice(0, state.visibleCount);
+    grid.innerHTML = slice.map(cardHTML).join("");
+    bindCardEvents(grid);
+  } else {
+    // Añadir solo los nuevos
+    const slice = list.slice(currentCards, state.visibleCount);
+    const temp = document.createElement("div");
+    temp.innerHTML = slice.map(cardHTML).join("");
+    while (temp.firstChild) grid.appendChild(temp.firstChild);
+    bindCardEvents(grid);
+  }
+
+  updateGridFooter();
+}
+
+// Carga más elementos (llamado por el observer)
+function loadMoreItems(){
+  if (state.isLoadingMore) return;
+  const total = state.filteredCache.length;
+  if (state.visibleCount >= total) return;
+
+  state.isLoadingMore = true;
+
+  // Pequeño delay para que se vea el spinner (sensación de carga)
+  setTimeout(() => {
+    state.visibleCount = Math.min(state.visibleCount + PAGE_SIZE, total);
+    renderGrid(false);
+    state.isLoadingMore = false;
+  }, 250);
+}
+
+// IntersectionObserver para detectar cuando el usuario llega al final
+function setupInfiniteScroll(){
+  if (state.gridObserver) state.gridObserver.disconnect();
+
+  const sentinelTarget = document.querySelector(".main"); // Contenedor con scroll (body)
+  const grid = $("catalogGrid");
+
+  state.gridObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        loadMoreItems();
+      }
+    });
+  }, {
+    root: null,
+    rootMargin: "300px 0px", // Empieza a cargar 300px antes de llegar al final
+    threshold: 0
+  });
+
+  // Observamos un elemento "centinela" que se coloca al final del grid.
+  // Lo creamos dinámicamente cada vez que se renderiza.
+  observeGridFooter();
+}
+
+function observeGridFooter(){
+  if (!state.gridObserver) return;
+  const grid = $("catalogGrid");
+  const loader = grid.querySelector(".grid-loader");
+  if (loader) {
+    state.gridObserver.disconnect();
+    state.gridObserver.observe(loader);
+  }
+}
+
+// Hook al render para volver a observar
+const _origUpdateGridFooter = updateGridFooter;
+updateGridFooter = function(){
+  _origUpdateGridFooter();
+  observeGridFooter();
+};
+
 function renderAll(){
-  renderGrid();
+  renderGrid(true);
   renderContinue();
 
   // Badges sidebar
@@ -2051,17 +2199,14 @@ function renderAll(){
     mobileBadgeDownloads.classList.toggle("show", dlCount > 0);
   }
 
-  // Estado activo en sidebar
   document.querySelectorAll(".nav-item[data-filter]").forEach(el => {
     el.classList.toggle("active", el.dataset.filter === state.filter);
   });
 
-  // Estado activo en barra inferior móvil (solo los que tienen data-filter)
   document.querySelectorAll(".mobile-nav-item[data-filter]").forEach(el => {
     el.classList.toggle("active", el.dataset.filter === state.filter);
   });
 
-  // Estado activo en tabs
   document.querySelectorAll(".tab").forEach(el => {
     el.classList.toggle("active", el.dataset.tab === state.filter);
   });
@@ -2319,6 +2464,7 @@ document.querySelectorAll(".nav-item[data-filter]").forEach(el => {
     state.search = "";
     $("searchInput").value = "";
     renderAll();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 });
 
@@ -2338,12 +2484,14 @@ document.querySelectorAll(".tab[data-tab]").forEach(el => {
     state.search = "";
     $("searchInput").value = "";
     renderAll();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 });
 
 $("searchInput").addEventListener("input", e => {
   state.search = e.target.value;
-  renderGrid();
+  renderGrid(true);
+  window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
 /* ============================================================
@@ -2487,7 +2635,7 @@ function restoreStateIfAny() {
   if (saved.search) {
     state.search = saved.search;
     $("searchInput").value = saved.search;
-    renderGrid();
+    renderGrid(true);
   }
   if (saved.openMovieId) {
     const m = MOVIES.find(x => x.id === Number(saved.openMovieId));
@@ -2595,6 +2743,7 @@ document.addEventListener("DOMContentLoaded", () => {
    ============================================================ */
 renderHero();
 renderAll();
+setupInfiniteScroll();
 restoreStateIfAny();
 </script>
 </body>
