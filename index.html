@@ -729,7 +729,7 @@ a{color:inherit;text-decoration:none}
 .update-banner{
   position:fixed;
   bottom:20px;left:50%;
-  transform:translateX(-50%) translateY(120%);
+  transform:translateX(-50%) translateY(150%);
   background:linear-gradient(135deg,#1e3a8a,#2563eb);
   color:#fff;
   padding:12px 14px 12px 18px;
@@ -925,7 +925,8 @@ a{color:inherit;text-decoration:none}
     gap: 8px;
   }
   .search i{ font-size: 13px; }
-  .search input{ font-size: 13px; }
+  .search input{ font-size: 16px; } /* evita zoom iOS */
+  .search input::placeholder{ font-size: 13px; }
 
   /* ---------- TABS (scroll horizontal) ---------- */
   .tabs{
@@ -1070,55 +1071,50 @@ a{color:inherit;text-decoration:none}
     font-size: 10px;
   }
 
-  /* ---------- GRID (2 columnas) ---------- */
+  /* ---------- GRID (4 columnas) ---------- */
   .grid{
     grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
+    gap: 6px;
   }
   .card{
-    border-radius: 10px;
+    border-radius: 8px;
   }
   .card:hover{
     transform: none;
   }
   .card:active{
-    transform: scale(.98);
+    transform: scale(.96);
   }
   .card-poster{
     aspect-ratio: 2/3;
   }
   .card-rating{
-    font-size: 10px;
-    padding: 3px 6px;
-    top: 6px;
-    right: 6px;
-    gap: 3px;
+    font-size: 8px;
+    padding: 2px 4px;
+    top: 4px;
+    right: 4px;
+    gap: 2px;
+    border-radius: 4px;
   }
-  .card-rating i{ font-size: 9px; }
+  .card-rating i{ font-size: 7px; }
   .card-play span{
-    width: 42px;
-    height: 42px;
-    font-size: 14px;
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
   }
   .card-body{
-    padding: 8px 9px 10px;
+    padding: 5px 6px 7px;
   }
   .card-title{
-    font-size: 11.5px;
-    line-height: 1.25;
-    min-height: 28px;
+    font-size: 9.5px;
+    line-height: 1.2;
+    min-height: 24px;
     margin-bottom: 2px;
+    -webkit-line-clamp: 2;
   }
   .card-year{
-    font-size: 10px;
+    font-size: 8.5px;
   }
-
-/* En móvil, ocultar el botón de play */
-@media (hover: none){
-  .card-play{
-    display: none;
-  }
-}
 
   /* ---------- DETALLE ---------- */
   .detail-backdrop{
@@ -1255,7 +1251,7 @@ a{color:inherit;text-decoration:none}
 }
 
 /* ============================================
-   MÓVILES MUY PEQUEÑOS (≤380px)
+   MÓVIL MUY PEQUEÑO (≤380px)
    ============================================ */
 @media (max-width: 380px){
   .app{
@@ -1268,18 +1264,25 @@ a{color:inherit;text-decoration:none}
   .nav-item i{ font-size: 14px; }
   .sfa-logo{ width: 32px; height: 32px; font-size: 9px; }
   .hero-title{ font-size: 20px; }
-  .card-title{ font-size: 11px; }
+
+  /* Grid aún más compacto */
+  .grid{
+    gap: 5px;
+  }
+  .card-title{ font-size: 9px; min-height: 22px; }
+  .card-year{ font-size: 8px; }
+  .card-body{ padding: 4px 5px 6px; }
+  .card-rating{ font-size: 7px; padding: 1px 3px; }
+  .card-rating i{ font-size: 6px; }
 }
 
 /* ============================================
-   EVITAR ZOOM AUTOMÁTICO EN iOS
+   OCULTAR BOTÓN DE PLAY EN DISPOSITIVOS TÁCTILES
+   (solo en el grid, no en el hero)
    ============================================ */
-@media (max-width: 600px){
-  .search input{
-    font-size: 16px;
-  }
-  .search input::placeholder{
-    font-size: 13px;
+@media (hover: none), (max-width: 600px){
+  .card .card-play{
+    display: none;
   }
 }
 
@@ -1772,7 +1775,6 @@ function renderAll(){
   renderGrid();
   renderContinue();
 
-  // Badges
   const badgeAll = $("badgeAll");
   const badgeList = $("badgeList");
   badgeAll.textContent = MOVIES.length;
@@ -1780,7 +1782,6 @@ function renderAll(){
   badgeList.textContent = myList.size;
   badgeList.classList.toggle("show", myList.size > 0);
 
-  // Badge de descargas
   const badgeDownloads = $("badgeDownloads");
   if (badgeDownloads) {
     const dlCount = Object.keys(downloads).length;
@@ -1788,17 +1789,14 @@ function renderAll(){
     badgeDownloads.classList.toggle("show", dlCount > 0);
   }
 
-  // Actualizar estado activo del sidebar según filtro
   document.querySelectorAll(".nav-item[data-filter]").forEach(el => {
     el.classList.toggle("active", el.dataset.filter === state.filter);
   });
 
-  // Actualizar tabs
   document.querySelectorAll(".tab").forEach(el => {
     el.classList.toggle("active", el.dataset.tab === state.filter);
   });
 
-  // Título de página
   const titles = { all:"Todos", movie:"Películas", series:"Series", mylist:"Mi Lista", downloads:"Descargas" };
   $("pageTitle").textContent = titles[state.filter] || "Todos";
 }
@@ -1836,7 +1834,6 @@ function openDetail(id){
   ov.classList.remove("expanded");
   $("btnReadMore").style.display = (m.overview || "").length > 180 ? "inline-block" : "none";
 
-  // Resetear caja de descarga al abrir una peli nueva
   const box = $("downloadBox");
   box.classList.remove("show", "done", "error");
 
@@ -1902,7 +1899,7 @@ function toggleMyList(id, fromHero = false){
 }
 
 /* ============================================================
-   DESCARGA — directa con <a download> + progreso simulado
+   DESCARGA
    ============================================================ */
 function showDownloadBox(){
   const m = state.currentMovie;
@@ -1915,12 +1912,10 @@ function showDownloadBox(){
   }
   const downloadUrl = sourceUrl.replace(/=m\d+$/, "=dv");
 
-  // Detectar calidad
   let quality = "1080p";
   if (sourceUrl.includes("=m22")) quality = "720p";
   else if (sourceUrl.includes("=m18")) quality = "420p";
 
-  // Registrar en historial
   downloads[m.id] = {
     id: m.id, title: m.title, poster: m.poster, backdrop: m.backdrop,
     year: m.year, quality, date: new Date().toISOString()
@@ -1940,7 +1935,6 @@ function showDownloadBox(){
   status.textContent = "Preparando descarga...";
   label.textContent = "Descargando...";
 
-  // Disparar descarga directa (sin fetch, sin CORS)
   const a = document.createElement("a");
   a.href = downloadUrl;
   a.download = (m.title || "video") + ".mp4";
@@ -1950,7 +1944,6 @@ function showDownloadBox(){
   a.click();
   a.remove();
 
-  // Progreso simulado: rápido al inicio, frena al final
   let p = 0;
   let lastStep = 12;
   const t = setInterval(() => {
@@ -1982,7 +1975,7 @@ function showDownloadBox(){
 }
 
 /* ============================================================
-   REPRODUCTOR — usa HTML inyectado en base64
+   REPRODUCTOR
    ============================================================ */
 function openPlayer(movie){
   if (!movie) return;
@@ -2051,6 +2044,9 @@ $("searchInput").addEventListener("input", e => {
   renderGrid();
 });
 
+/* ============================================================
+   REFRESCAR: solo aquí se muestra el toast
+   ============================================================ */
 $("btnRefresh").addEventListener("click", async () => {
   const icon = $("btnRefresh").querySelector("i");
   icon.style.transition = "transform .8s";
@@ -2113,7 +2109,7 @@ if (location.hash.startsWith("#movie-")){
 }
 
 /* ============================================================
-   ACTUALIZACIÓN DE VERSIÓN
+   ACTUALIZACIÓN DE VERSIÓN (solo bajo demanda)
    ============================================================ */
 const LS_ETAG = "mmhd_etag";
 const LS_UPDATE_DISMISSED = "mmhd_update_dismissed";
@@ -2188,30 +2184,53 @@ function restoreStateIfAny() {
   }
 }
 
+/* ============================================================
+   TOAST (solo aparece al presionar Refrescar)
+   ============================================================ */
 function showToast(msg) {
   let toast = document.getElementById("mmToast");
   if (!toast) {
     toast = document.createElement("div");
     toast.id = "mmToast";
     toast.style.cssText = `
-      position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(120%);
-      background:#1b1b28;color:#fff;padding:10px 18px;border-radius:10px;
-      font-size:12.5px;font-weight:700;z-index:9999;
-      box-shadow:0 8px 24px rgba(0,0,0,.5);border:1px solid #2f2f45;
-      transition:transform .3s ease;
+      position:fixed;
+      bottom: 24px;
+      left:50%;
+      transform: translateX(-50%) translateY(200px);
+      background:#1b1b28;
+      color:#fff;
+      padding:10px 18px;
+      border-radius:10px;
+      font-size:12.5px;
+      font-weight:700;
+      z-index:99999;
+      box-shadow:0 8px 24px rgba(0,0,0,.5);
+      border:1px solid #2f2f45;
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .25s;
+      opacity: 0;
+      pointer-events: none;
+      max-width: calc(100vw - 32px);
+      text-align: center;
     `;
     document.body.appendChild(toast);
   }
   toast.textContent = msg;
+
   requestAnimationFrame(() => {
     toast.style.transform = "translateX(-50%) translateY(0)";
+    toast.style.opacity = "1";
   });
+
   clearTimeout(toast._t);
   toast._t = setTimeout(() => {
-    toast.style.transform = "translateX(-50%) translateY(120%)";
-  }, 2200);
+    toast.style.transform = "translateX(-50%) translateY(200px)";
+    toast.style.opacity = "0";
+  }, 2500);
 }
 
+/* ============================================================
+   BANNER (solo aparece si el usuario lo pide)
+   ============================================================ */
 function showUpdateBanner() {
   const banner = $("updateBanner");
   if (!banner) return;
@@ -2244,27 +2263,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-let _updateTimer = null;
-
-function startUpdateWatcher() {
-  checkForUpdate();
-  if (_updateTimer) clearInterval(_updateTimer);
-  _updateTimer = setInterval(async () => {
-    const hasUpdate = await checkForUpdate();
-    if (hasUpdate) {
-      showUpdateBanner();
-    }
-  }, 5 * 60 * 1000);
-}
-
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    if (_updateTimer) { clearInterval(_updateTimer); _updateTimer = null; }
-  } else {
-    if (!_updateTimer) startUpdateWatcher();
-  }
-});
-
+/* ============================================================
+   GUARDAR ETAG INICIAL (una sola vez, sin watcher)
+   ============================================================ */
 (async () => {
   try {
     const res = await fetch(location.pathname, { method: "HEAD", cache: "no-store" });
@@ -2279,7 +2280,8 @@ document.addEventListener("visibilitychange", () => {
 renderHero();
 renderAll();
 restoreStateIfAny();
-startUpdateWatcher();
+/* startUpdateWatcher(); ← DESACTIVADO: el banner ya no aparece solo.
+   Solo se comprueba la versión cuando el usuario presiona "Refrescar". */
 </script>
 </body>
 </html>
