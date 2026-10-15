@@ -794,69 +794,513 @@ a{color:inherit;text-decoration:none}
   color:#fff;
 }
 
-@media(max-width:600px){
+/* ============================================
+   TABLET (≤900px)
+   ============================================ */
+@media (max-width: 900px){
+  .app{
+    grid-template-columns: 64px 1fr;
+  }
+  .main{
+    padding: 16px 14px 90px;
+  }
+  .topbar h1{ font-size: 18px; }
+  .hero{ height: 340px; }
+  .hero-content{ padding: 28px 24px; }
+  .hero-title{ font-size: 34px; letter-spacing: -1px; }
+  .hero-overview{ font-size: 12.5px; -webkit-line-clamp: 3; }
+  .btn{ padding: 10px 16px; font-size: 12px; }
+  .grid{
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .continue-card{ flex: 0 0 240px; }
+  .detail-backdrop{ height: 260px; }
+  .detail-inner{ padding: 0 18px 60px; margin-top: -140px; }
+  .detail-poster{ width: 140px; }
+  .detail-title{ font-size: 28px; }
+  .detail-subtitle{ font-size: 12px; letter-spacing: 2px; }
+  .detail-meta{ font-size: 12px; }
+}
+
+/* ============================================
+   MÓVIL (≤600px) — DISEÑO OPTIMIZADO
+   ============================================ */
+@media (max-width: 600px){
+
+  /* ---------- LAYOUT ---------- */
+  html, body{
+    font-size: 13px;
+    overflow-x: hidden;
+  }
+  .app{
+    grid-template-columns: 52px 1fr;
+  }
+
+  /* ---------- SIDEBAR ---------- */
+  .sidebar{
+    padding: 10px 4px;
+    gap: 4px;
+    height: 100dvh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+  }
+  .sidebar::-webkit-scrollbar{ display: none; }
+
+  .sfa-logo{
+    width: 36px;
+    height: 36px;
+    font-size: 10px;
+    margin-bottom: 8px;
+    letter-spacing: 0;
+  }
+
+  .nav{
+    gap: 2px;
+  }
+  .nav-item{
+    height: 48px;
+    gap: 2px;
+    font-size: 7.5px;
+    border-radius: 8px;
+    padding: 4px 2px;
+    line-height: 1;
+  }
+  .nav-item i{
+    font-size: 15px;
+  }
+  .nav-item span{
+    display: block;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    font-size: 7.5px;
+    font-weight: 700;
+  }
+  .nav-item .badge{
+    top: 4px;
+    right: 4px;
+    font-size: 7px;
+    padding: 1px 4px;
+    min-width: 14px;
+  }
+
+  .nav-exit{
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 15px;
+  }
+  #btnRefresh{
+    height: 42px;
+  }
+  #btnRefresh i{ font-size: 14px; }
+  #btnRefresh span{ display: none; }
+
+  /* ---------- MAIN ---------- */
+  .main{
+    padding: 12px 10px 80px;
+    min-width: 0;
+  }
+
+  /* ---------- TOPBAR ---------- */
+  .topbar{
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .topbar h1{
+    font-size: 17px;
+    font-weight: 800;
+  }
+
+  .search{
+    height: 40px;
+    border-radius: 10px;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .search i{ font-size: 13px; }
+  .search input{ font-size: 13px; }
+
+  /* ---------- TABS (scroll horizontal) ---------- */
+  .tabs{
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -10px;
+    padding: 2px 10px 4px;
+    gap: 6px;
+  }
+  .tabs::-webkit-scrollbar{ display: none; }
+  .tab{
+    padding: 6px 12px;
+    font-size: 11px;
+    flex-shrink: 0;
+    border-radius: 16px;
+    gap: 5px;
+  }
+  .tab i{ font-size: 10px; }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    height: 240px;
+    border-radius: 14px;
+    margin-bottom: 18px;
+  }
+  .hero-content{
+    padding: 18px 16px;
+    justify-content: flex-end;
+    max-width: 100%;
+  }
+  .hero-tag{
+    font-size: 9px;
+    padding: 4px 10px;
+    margin-bottom: 8px;
+    gap: 5px;
+  }
+  .hero-tag i{ font-size: 9px; }
+  .hero-title{
+    font-size: 24px;
+    letter-spacing: -.5px;
+    line-height: 1.05;
+    margin-bottom: 6px;
+  }
+  .hero-meta{
+    gap: 8px;
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+  .hero-meta .cert{
+    font-size: 9px;
+    padding: 1px 6px;
+  }
+  .hero-genres{
+    font-size: 11px;
+    margin-bottom: 8px;
+    color: #a8acb7;
+  }
+  .hero-overview{
+    font-size: 11.5px;
+    line-height: 1.5;
+    -webkit-line-clamp: 2;
+    margin-bottom: 12px;
+    max-width: 100%;
+  }
+  .hero-actions{
+    gap: 6px;
+  }
+  .btn{
+    padding: 8px 14px;
+    font-size: 11.5px;
+    border-radius: 8px;
+    gap: 6px;
+  }
+  .btn i{ font-size: 11px; }
+
+  .hero-dots{
+    bottom: 12px;
+  }
+  .hero-dot{
+    width: 6px;
+    height: 6px;
+  }
+  .hero-dot.active{
+    width: 18px;
+  }
+
+  /* ---------- SECCIONES ---------- */
+  .section{
+    margin-bottom: 24px;
+  }
+  .section-head{
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .section-head h2{
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .section-head .count{
+    font-size: 10px;
+    padding: 2px 7px;
+  }
+  .section-head .play-icon{
+    width: 18px;
+    height: 18px;
+    font-size: 8px;
+  }
+
+  /* ---------- CONTINUAR VIENDO ---------- */
+  .continue-row{
+    gap: 10px;
+    margin: 0 -10px;
+    padding: 0 10px 6px;
+  }
+  .continue-card{
+    flex: 0 0 210px;
+    border-radius: 10px;
+  }
+  .continue-tag{
+    font-size: 8px;
+    padding: 3px 7px;
+    top: 8px;
+    left: 8px;
+  }
+  .continue-close{
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
+    top: 8px;
+    right: 8px;
+  }
+  .continue-info{
+    padding: 8px 10px;
+  }
+  .continue-title{
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .continue-remain{
+    font-size: 10px;
+  }
+
+  /* ---------- GRID (2 columnas) ---------- */
+  .grid{
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .card{
+    border-radius: 10px;
+  }
+  .card:hover{
+    transform: none;
+  }
+  .card:active{
+    transform: scale(.98);
+  }
+  .card-poster{
+    aspect-ratio: 2/3;
+  }
+  .card-rating{
+    font-size: 10px;
+    padding: 3px 6px;
+    top: 6px;
+    right: 6px;
+    gap: 3px;
+  }
+  .card-rating i{ font-size: 9px; }
+  .card-play span{
+    width: 42px;
+    height: 42px;
+    font-size: 14px;
+  }
+  .card-body{
+    padding: 8px 9px 10px;
+  }
+  .card-title{
+    font-size: 11.5px;
+    line-height: 1.25;
+    min-height: 28px;
+    margin-bottom: 2px;
+  }
+  .card-year{
+    font-size: 10px;
+  }
+
+  /* En móvil, botón play siempre visible sutilmente */
+  @media (hover: none){
+    .card-play span{
+      opacity: .85;
+      transform: scale(1);
+      width: 40px;
+      height: 40px;
+      font-size: 13px;
+    }
+    .card-play{
+      background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,.5) 100%);
+    }
+  }
+
+  /* ---------- DETALLE ---------- */
+  .detail-backdrop{
+    height: 220px;
+  }
+  .detail-back{
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+    top: 12px;
+    left: 12px;
+  }
+  .detail-inner{
+    padding: 0 14px 50px;
+    margin-top: -100px;
+  }
+  .detail-poster{
+    width: 120px;
+    border-radius: 10px;
+  }
+  .detail-poster-wrap{
+    margin-bottom: 16px;
+  }
+  .detail-titles{
+    margin-bottom: 12px;
+  }
+  .detail-title{
+    font-size: 22px;
+    letter-spacing: -.5px;
+    margin-bottom: 4px;
+  }
+  .detail-subtitle{
+    font-size: 10.5px;
+    letter-spacing: 2px;
+  }
+  .detail-meta{
+    font-size: 11.5px;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .detail-meta .cert{
+    font-size: 10px;
+    padding: 1px 7px;
+  }
+  .detail-genres{
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  .detail-actions{
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .detail-btn{
+    height: 42px;
+    font-size: 12px;
+    gap: 6px;
+    border-radius: 8px;
+  }
+  .detail-btn i{ font-size: 12px; }
+
+  .detail-synopsis h3{
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .detail-synopsis p{
+    font-size: 12.5px;
+    line-height: 1.6;
+    -webkit-line-clamp: 5;
+  }
+
+  .detail-download{
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+  }
+  .detail-download-head{
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .detail-download-status{
+    font-size: 11px;
+  }
+
+  /* ---------- PLAYER MODAL ---------- */
+  .player-modal{
+    padding: 0;
+    align-items: stretch;
+  }
+  .player-box{
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: 0;
+  }
+  .player-head{
+    height: 48px;
+    padding: 0 12px;
+  }
+  .player-head-title{
+    font-size: 12.5px;
+  }
+  .player-close{
+    width: 34px;
+    height: 34px;
+  }
+
+  /* ---------- BANNER UPDATE ---------- */
   .update-banner{
-    left:12px;right:12px;
-    transform:translateY(120%);
-    padding:11px 12px;
-    font-size:12px;
-    gap:9px;
+    left: 10px;
+    right: 10px;
+    transform: translateY(150%);
+    padding: 10px;
+    gap: 8px;
+    font-size: 11.5px;
+    border-radius: 10px;
   }
   .update-banner.show{
-    transform:translateY(0);
+    transform: translateY(0);
   }
   .update-banner > span{
-    display:none;
+    display: none;
   }
   .update-banner::before{
-    content:"Nueva versión";
-    flex:1;
+    content: "Nueva versión";
+    flex: 1;
+    font-weight: 700;
+  }
+  .update-banner #btnUpdateNow{
+    padding: 6px 12px;
+    font-size: 11px;
   }
 }
 
-@media(max-width:900px){
-  .app{grid-template-columns:64px 1fr}
-  .main{padding:16px 14px 80px}
-  .topbar h1{font-size:18px}
-  .hero{height:360px}
-  .hero-content{padding:28px 24px}
-  .hero-title{font-size:34px;letter-spacing:-1px}
-  .hero-overview{font-size:12.5px;-webkit-line-clamp:2}
-  .btn{padding:10px 16px;font-size:12px}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
-  .continue-card{flex:0 0 260px}
-  .detail-backdrop{height:260px}
-  .detail-inner{padding:0 18px 60px;margin-top:-140px}
-  .detail-poster{width:140px}
-  .detail-title{font-size:28px}
-  .detail-subtitle{font-size:12px;letter-spacing:2px}
-  .detail-meta{font-size:12px}
+/* ============================================
+   MÓVILES MUY PEQUEÑOS (≤380px)
+   ============================================ */
+@media (max-width: 380px){
+  .app{
+    grid-template-columns: 46px 1fr;
+  }
+  .nav-item{
+    height: 44px;
+    font-size: 7px;
+  }
+  .nav-item i{ font-size: 14px; }
+  .sfa-logo{ width: 32px; height: 32px; font-size: 9px; }
+  .hero-title{ font-size: 20px; }
+  .card-title{ font-size: 11px; }
 }
 
-@media(max-width:600px){
-  .app{grid-template-columns:56px 1fr}
-  .sfa-logo{width:40px;height:40px;font-size:12px}
-  .nav-item{height:56px;font-size:8px}
-  .nav-item i{font-size:16px}
-  .main{padding:14px 12px 80px}
-  .hero{height:300px;border-radius:14px}
-  .hero-content{padding:22px 20px}
-  .hero-title{font-size:26px}
-  .hero-meta{font-size:11px;gap:10px}
-  .hero-genres{font-size:11.5px}
-  .hero-overview{font-size:12px}
-  .hero-actions{gap:8px}
-  .btn{padding:9px 14px;font-size:11.5px}
-  .section-head h2{font-size:14px}
-  .grid{grid-template-columns:repeat(2,1fr);gap:10px}
-  .card-title{font-size:11.5px;min-height:30px}
-  .card-year{font-size:10px}
-  .card-play span{width:44px;height:44px;font-size:16px}
-  .detail-title{font-size:22px}
-  .detail-actions{grid-template-columns:1fr;gap:8px}
-  .detail-btn{height:44px;font-size:12.5px}
-  .player-modal{padding:6px}
-  .player-box{height:94vh;border-radius:10px}
+/* ============================================
+   EVITAR ZOOM AUTOMÁTICO EN iOS
+   ============================================ */
+@media (max-width: 600px){
+  .search input{
+    font-size: 16px;
+  }
+  .search input::placeholder{
+    font-size: 13px;
+  }
+}
+
+/* ============================================
+   SAFE AREA (iPhone con notch)
+   ============================================ */
+@supports (padding: env(safe-area-inset-top)){
+  .sidebar{
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .main{
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
 }
 </style>
 </head>
@@ -1305,6 +1749,7 @@ function renderGrid(){
         <img src="${esc(m.poster || placeholderPoster(m.title))}"
              alt="${esc(m.title)}"
              loading="lazy"
+             decoding="async"
              onerror="this.src='${placeholderPoster(m.title)}'">
         ${m.rating > 0 ? `
           <div class="card-rating">
@@ -1516,7 +1961,6 @@ function showDownloadBox(){
   let p = 0;
   let lastStep = 12;
   const t = setInterval(() => {
-    // Va frenando conforme se acerca al final
     if (p < 30)       lastStep = 8  + Math.random() * 4;
     else if (p < 65)  lastStep = 4  + Math.random() * 3;
     else if (p < 88)  lastStep = 1.8 + Math.random() * 1.5;
@@ -1561,7 +2005,6 @@ function openPlayer(movie){
     return;
   }
 
-  // Revocar blob anterior si existe
   const prev = $("playerFrame").dataset.blobUrl;
   if (prev) URL.revokeObjectURL(prev);
 
@@ -1620,18 +2063,14 @@ $("btnRefresh").addEventListener("click", async () => {
   icon.style.transition = "transform .8s";
   icon.style.transform = "rotate(720deg)";
 
-  // Revisa si hay versión nueva en el servidor
   const hasUpdate = await checkForUpdate();
 
   setTimeout(() => {
     if (hasUpdate) {
-      // Hay versión nueva → recarga con cache-buster y guarda estado
       reloadWithState();
     } else {
-      // No hay nada nuevo → solo re-renderiza
       icon.style.transform = "rotate(0deg)";
       renderAll();
-      // Feedback visual breve
       showToast("Ya tienes la última versión");
     }
   }, 800);
@@ -1681,47 +2120,32 @@ if (location.hash.startsWith("#movie-")){
 }
 
 /* ============================================================
-   ACTUALIZACIÓN DE VERSIÓN (ETag + banner + restaurar estado)
+   ACTUALIZACIÓN DE VERSIÓN
    ============================================================ */
-
 const LS_ETAG = "mmhd_etag";
 const LS_UPDATE_DISMISSED = "mmhd_update_dismissed";
 
-/**
- * Compara el ETag del servidor con el guardado.
- * Devuelve true si hay versión nueva.
- */
 async function checkForUpdate() {
   try {
-    // HEAD request: solo cabeceras, muy liviano
     const res = await fetch(location.pathname, {
       method: "HEAD",
       cache: "no-store"
     });
-
     const serverETag = res.headers.get("etag");
-    if (!serverETag) return false; // El servidor no envía ETag, no podemos comparar
+    if (!serverETag) return false;
 
     const localETag = localStorage.getItem(LS_ETAG);
-
-    // Primera vez: guarda el ETag actual y considera que NO hay update
     if (!localETag) {
       localStorage.setItem(LS_ETAG, serverETag);
       return false;
     }
-
     return serverETag !== localETag;
   } catch {
-    return false; // Si falla la red, no molestamos
+    return false;
   }
 }
 
-/**
- * Recarga la página con cache-buster y guarda el estado
- * para restaurarlo al volver.
- */
 function reloadWithState() {
-  // Guarda el estado actual en sessionStorage
   const stateToRestore = {
     filter: state.filter,
     search: state.search,
@@ -1733,16 +2157,11 @@ function reloadWithState() {
     sessionStorage.setItem("mmhd_restore", JSON.stringify(stateToRestore));
   } catch {}
 
-  // Recarga con cache-buster
   const url = new URL(location.href);
   url.searchParams.set("v", Date.now());
   location.replace(url.toString());
 }
 
-/**
- * Restaura el estado guardado (si venimos de un refresh).
- * Se llama al final del init.
- */
 function restoreStateIfAny() {
   let saved;
   try {
@@ -1750,36 +2169,25 @@ function restoreStateIfAny() {
   } catch { return; }
 
   if (!saved) return;
-
-  // Solo restaura si fue en los últimos 60 segundos (evita estados rancios)
   if (Date.now() - saved.ts > 60000) {
     sessionStorage.removeItem("mmhd_restore");
     return;
   }
-
-  // Limpia el estado guardado para no volver a restaurarlo
   sessionStorage.removeItem("mmhd_restore");
 
-  // 1) Filtro
   if (saved.filter && saved.filter !== state.filter) {
     state.filter = saved.filter;
     renderAll();
   }
-
-  // 2) Búsqueda
   if (saved.search) {
     state.search = saved.search;
     $("searchInput").value = saved.search;
     renderGrid();
   }
-
-  // 3) Reabrir detalle si estaba abierto
   if (saved.openMovieId) {
     const m = MOVIES.find(x => x.id === Number(saved.openMovieId));
     if (m) openDetail(m.id);
   }
-
-  // 4) Scroll (después de un pequeño delay para que el DOM esté listo)
   if (saved.scrollY > 0) {
     setTimeout(() => {
       window.scrollTo({ top: saved.scrollY, behavior: "instant" });
@@ -1787,9 +2195,6 @@ function restoreStateIfAny() {
   }
 }
 
-/**
- * Muestra un toast breve en pantalla (para feedback).
- */
 function showToast(msg) {
   let toast = document.getElementById("mmToast");
   if (!toast) {
@@ -1814,38 +2219,24 @@ function showToast(msg) {
   }, 2200);
 }
 
-/**
- * Muestra el banner de actualización disponible.
- */
 function showUpdateBanner() {
   const banner = $("updateBanner");
   if (!banner) return;
-
-  // Respeta si el usuario ya lo cerró en esta sesión
   if (sessionStorage.getItem(LS_UPDATE_DISMISSED) === "1") return;
-
   banner.style.display = "flex";
-  // Fuerza un reflow para que la animación se dispare
   void banner.offsetHeight;
   banner.classList.add("show");
 }
 
-/**
- * Oculta el banner.
- */
 function hideUpdateBanner() {
   const banner = $("updateBanner");
   if (!banner) return;
   banner.classList.remove("show");
-  // Espera a que termine la animación y lo oculta del todo
   setTimeout(() => {
     banner.style.display = "none";
   }, 400);
 }
 
-/* ============================================================
-   EVENTOS DEL BANNER
-   ============================================================ */
 document.addEventListener("DOMContentLoaded", () => {
   const banner = $("updateBanner");
   if (!banner) return;
@@ -1860,25 +2251,19 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* ============================================================
-   CHEQUEO PERIÓDICO SILENCIOSO (cada 5 min)
-   ============================================================ */
 let _updateTimer = null;
 
 function startUpdateWatcher() {
-  // Primero guarda el ETag inicial
   checkForUpdate();
-
   if (_updateTimer) clearInterval(_updateTimer);
   _updateTimer = setInterval(async () => {
     const hasUpdate = await checkForUpdate();
     if (hasUpdate) {
       showUpdateBanner();
     }
-  }, 5 * 60 * 1000); // 5 minutos
+  }, 5 * 60 * 1000);
 }
 
-// Pausa el chequeo cuando la pestaña está oculta (ahorra recursos)
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     if (_updateTimer) { clearInterval(_updateTimer); _updateTimer = null; }
@@ -1887,9 +2272,6 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-/* ============================================================
-   AL VOLVER DE UN REFRESH: guarda el ETag actual
-   ============================================================ */
 (async () => {
   try {
     const res = await fetch(location.pathname, { method: "HEAD", cache: "no-store" });
