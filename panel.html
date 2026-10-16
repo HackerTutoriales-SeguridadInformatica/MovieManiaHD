@@ -408,6 +408,11 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
         <span class="badge" id="collectionBadge">0</span>
       </div>
       <div id="collectionList"></div>
+      <div class="actions" style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" id="btnBackupCollection" class="secondary"><i class="fa-solid fa-file-export"></i> Respaldar colección</button>
+        <button type="button" id="btnRestoreCollection" class="secondary"><i class="fa-solid fa-file-import"></i> Importar respaldo</button>
+        <input type="file" id="backupCollectionFile" accept=".json,application/json" hidden>
+      </div>
       <button id="btnGenerateCollection" class="primary full">
         <i class="fa-solid fa-box-archive"></i> Generar catálogo completo
       </button>
@@ -1089,10 +1094,11 @@ async function generateCollection(){
       m18: String(item.m18 || "")
     }));
 
-    const players = state.collection.map(buildPlayer).map(encodeBase64Utf8);
+    // Una sola plantilla compartida; cada película conserva sus enlaces en MOVIES.
+    const sharedPlayerTemplate = encodeBase64Utf8(playerTemplate);
 
     const safeMovies  = JSON.stringify(movies).replace(/</g,"\\u003c").replace(/>/g,"\\u003e").replace(/&/g,"\\u0026");
-    const safePlayers = JSON.stringify(players).replace(/</g,"\\u003c").replace(/>/g,"\\u003e").replace(/&/g,"\\u0026");
+    const safePlayers = JSON.stringify(sharedPlayerTemplate);
 
     catalogHtml = catalogHtml
       .split("__MOVIES_JSON__").join(safeMovies)
@@ -1132,6 +1138,24 @@ $("btnClear").addEventListener("click", ()=>{
 $("btnExtract").addEventListener("click", extractFromGooglePhotos);
 $("btnAddMovie").addEventListener("click", addMovieToCollection);
 $("btnGenerate").addEventListener("click", generateMoviePage);
+$("btnBackupCollection").addEventListener("click", () => {
+  const backup = {format:"mmhd-collection", version:1, createdAt:new Date().toISOString(), count:state.collection.length, collection:state.collection};
+  const url = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
+  const a=document.createElement("a"); a.href=url; a.download="mmhd-respaldo-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+$("btnRestoreCollection").addEventListener("click",()=>$("backupCollectionFile").click());
+$("backupCollectionFile").addEventListener("change",async e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  try{
+    const data=JSON.parse(await file.text());
+    if(data.format!=="mmhd-collection"||data.version!==1||!Array.isArray(data.collection))throw Error("Formato de respaldo no válido");
+    if(!data.collection.every(m=>m && typeof m==="object" && typeof m.title==="string"))throw Error("El respaldo contiene registros inválidos");
+    if(!confirm(`¿Reemplazar las ${state.collection.length} películas actuales por ${data.collection.length} del respaldo? Haz antes una copia de seguridad.`))return;
+    state.collection=data.collection;saveCollection();renderCollection();
+    alert(`Respaldo importado: ${state.collection.length} títulos.`);
+  }catch(err){alert("No se pudo importar el respaldo: "+err.message)}finally{e.target.value=""}
+});
 $("btnGenerateCollection").addEventListener("click", generateCollection);
 $("btnImportJson").addEventListener("click", importJsonCatalog);
 apiKey.addEventListener("input", ()=>{ state.validated=false; $("keyStatus").className="status"; $("keyStatus").textContent=""; });
