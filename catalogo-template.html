@@ -48,6 +48,7 @@ button{border:0;font-family:inherit;cursor:pointer;background:none;color:inherit
 input{border:0;outline:0;background:none;color:inherit;font-family:inherit}
 a{color:inherit;text-decoration:none}
 
+/* ============ LAYOUT PRINCIPAL ============ */
 .app{
   display:grid;
   grid-template-columns:76px 1fr;
@@ -55,6 +56,7 @@ a{color:inherit;text-decoration:none}
   background:var(--bg);
 }
 
+/* ============ SIDEBAR ============ */
 .sidebar{
   position:sticky;top:0;height:100vh;
   background:#0c0c15;
@@ -125,11 +127,13 @@ a{color:inherit;text-decoration:none}
 }
 .nav-exit:hover{background:#2a0a12;border-color:#5a1a28}
 
+/* ============ MAIN ============ */
 .main{
   min-width:0;
   padding:20px 24px 60px;
 }
 
+/* ============ TOPBAR ============ */
 .topbar{
   display:flex;flex-direction:column;
   margin-bottom:20px;
@@ -155,6 +159,7 @@ a{color:inherit;text-decoration:none}
 }
 .search input::placeholder{color:#5c6270}
 
+/* ============ TABS ============ */
 .tabs{
   display: none;
 }
@@ -176,6 +181,7 @@ a{color:inherit;text-decoration:none}
   box-shadow:0 4px 12px rgba(59,130,246,.35);
 }
 
+/* ============ HERO CARRUSEL ============ */
 .hero{
   position:relative;
   width:100%;
@@ -291,6 +297,7 @@ a{color:inherit;text-decoration:none}
   background:#fff;width:24px;border-radius:4px;
 }
 
+/* ============ SECCIONES ============ */
 .section{margin-bottom:36px}
 
 .section-head{
@@ -312,6 +319,7 @@ a{color:inherit;text-decoration:none}
   display:grid;place-items:center;font-size:9px;
 }
 
+/* ============ CONTINUAR VIENDO ============ */
 .continue-row{
   display:flex;gap:14px;overflow-x:auto;
   padding-bottom:6px;
@@ -430,6 +438,7 @@ a{color:inherit;text-decoration:none}
   transition:width .3s;
 }
 
+/* ============ GRID PÓSTERS ============ */
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(155px,1fr));
@@ -514,6 +523,7 @@ a{color:inherit;text-decoration:none}
 .empty-state h3{margin:0 0 6px;font-size:15px;color:#8a8e9c}
 .empty-state p{margin:0;font-size:12px}
 
+/* ============ LOADER (scroll infinito) ============ */
 .grid-loader{
   grid-column: 1 / -1;
   display: flex;
@@ -546,6 +556,7 @@ a{color:inherit;text-decoration:none}
   font-weight: 600;
 }
 
+/* ============ PANTALLA DETALLE ============ */
 .detail{
   display:none;
   position:fixed;inset:0;
@@ -685,6 +696,7 @@ a{color:inherit;text-decoration:none}
   cursor:not-allowed;
 }
 
+/* ============ CAJA DE DESCARGA ============ */
 .detail-download{
   max-width:520px;margin:0 auto 26px;
   background:#14141f;
@@ -803,6 +815,7 @@ a{color:inherit;text-decoration:none}
   flex:1;border:0;width:100%;background:#000;
 }
 
+/* ============ BANNER DE ACTUALIZACIÓN ============ */
 .update-banner{
   position:fixed;
   bottom:20px;left:50%;
@@ -871,6 +884,9 @@ a{color:inherit;text-decoration:none}
   color:#fff;
 }
 
+/* ============================================
+   BARRA DE NAVEGACIÓN INFERIOR (MÓVIL)
+   ============================================ */
 .mobile-bottom-nav {
   display: none;
   position: fixed;
@@ -939,6 +955,9 @@ a{color:inherit;text-decoration:none}
   display: block;
 }
 
+/* ============================================
+   PANTALLA DE BÚSQUEDA (MÓVIL)
+   ============================================ */
 .mobile-search-screen {
   display: none;
   position: fixed;
@@ -1041,6 +1060,9 @@ a{color:inherit;text-decoration:none}
   gap: 8px;
 }
 
+/* ============================================
+   PANTALLA DE BÚSQUEDA — ESCRITORIO (≥601px)
+   ============================================ */
 @media (min-width: 601px) {
   .mobile-search-header {
     max-width: 900px;
@@ -1072,6 +1094,9 @@ a{color:inherit;text-decoration:none}
   }
 }
 
+/* ============================================
+   TABLET (≤900px)
+   ============================================ */
 @media (max-width: 900px){
   .app{
     grid-template-columns: 64px 1fr;
@@ -1097,6 +1122,9 @@ a{color:inherit;text-decoration:none}
   .detail-meta{ font-size: 12px; }
 }
 
+/* ============================================
+   MÓVIL (≤600px)
+   ============================================ */
 @media (max-width: 600px){
 
   html, body{
@@ -1437,6 +1465,9 @@ a{color:inherit;text-decoration:none}
   }
 }
 
+/* ============================================
+   MÓVIL MUY PEQUEÑO (≤380px)
+   ============================================ */
 @media (max-width: 380px){
   .mobile-nav-item {
     font-size: 8px;
@@ -1461,12 +1492,18 @@ a{color:inherit;text-decoration:none}
   .card-rating i{ font-size: 6px; }
 }
 
+/* ============================================
+   OCULTAR BOTÓN DE PLAY EN DISPOSITIVOS TÁCTILES
+   ============================================ */
 @media (hover: none), (max-width: 600px){
   .card .card-play{
     display: none;
   }
 }
 
+/* ============================================
+   SAFE AREA (iPhone con notch)
+   ============================================ */
 @supports (padding: env(safe-area-inset-top)){
   .sidebar{
     padding-top: max(10px, env(safe-area-inset-top));
@@ -1476,21 +1513,17 @@ a{color:inherit;text-decoration:none}
     padding-top: max(12px, env(safe-area-inset-top));
   }
 }
+
+/* Chromecast integrado */
+.mmhd-cast-area{max-width:620px;margin:0 auto 20px;background:#14141f;border:1px solid #2f2f45;border-radius:12px;padding:12px 15px;color:#b8bcc7;font-size:12px}
+#mmhdCastStatus{overflow-wrap:anywhere;line-height:1.5}
+#mmhdCastPanel[hidden]{display:none!important}
+.mmhd-cast-label{color:#fff;font-weight:800;margin:12px 0 10px}
+.mmhd-cast-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mmhd-cast-buttons button{background:#242434;border:1px solid #3a3a50;border-radius:8px;padding:11px 6px;font-size:12px;color:#fff}
+.mmhd-cast-buttons button:hover{background:#2563eb}
+@media(max-width:380px){.mmhd-cast-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
-<!-- Google Cast SDK -->
-<script>
-  window.__castDisponible = false;
-  window.__onGCastApiAvailable = function (disponible) {
-    if (disponible) {
-      window.__castDisponible = true;
-      if (typeof window.__initCast === "function") window.__initCast();
-    } else {
-      window.__castDisponible = false;
-      if (typeof window.__onCastError === "function") window.__onCastError();
-    }
-  };
-</script>
-<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 </head>
 <body>
 
@@ -1588,6 +1621,7 @@ a{color:inherit;text-decoration:none}
   </main>
 </div>
 
+<!-- BARRA DE NAVEGACIÓN INFERIOR (SOLO MÓVIL) -->
 <nav class="mobile-bottom-nav" id="mobileBottomNav">
   <button class="mobile-nav-item" id="mobileNavSearch" type="button">
     <i class="fa-solid fa-magnifying-glass"></i>
@@ -1618,6 +1652,7 @@ a{color:inherit;text-decoration:none}
   </div>
 </nav>
 
+<!-- PANTALLA DE BÚSQUEDA (MÓVIL + ESCRITORIO) -->
 <div class="mobile-search-screen" id="mobileSearchScreen">
   <div class="mobile-search-header">
     <div class="mobile-search-input-wrap">
@@ -1673,9 +1708,6 @@ a{color:inherit;text-decoration:none}
       <button class="detail-btn detail-btn-secondary" id="btnCast">
         <i class="fa-solid fa-tv"></i> Transmitir
       </button>
-      <button class="detail-btn detail-btn-secondary" id="btnAirPlay" style="display:none">
-        <i class="fa-brands fa-apple"></i> AirPlay
-      </button>
       <button class="detail-btn detail-btn-secondary" id="btnDownload">
         <i class="fa-solid fa-download"></i> Descargar
       </button>
@@ -1685,6 +1717,21 @@ a{color:inherit;text-decoration:none}
       <button class="detail-btn detail-btn-secondary" id="btnMyList">
         <i class="fa-solid fa-plus"></i> Mi Lista
       </button>
+    </div>
+
+    <div id="mmhdCastArea" class="mmhd-cast-area">
+      <div id="mmhdCastStatus" role="status">Iniciando Google Cast…</div>
+      <div id="mmhdCastPanel" hidden>
+        <div class="mmhd-cast-label"><i class="fa-solid fa-tv"></i> Control remoto Chromecast</div>
+        <div class="mmhd-cast-buttons">
+          <button id="mmhdCastBack" type="button"><i class="fa-solid fa-backward"></i> -10 s</button>
+          <button id="mmhdCastPause" type="button"><i class="fa-solid fa-pause"></i> Pausar</button>
+          <button id="mmhdCastForward" type="button"><i class="fa-solid fa-forward"></i> +10 s</button>
+          <button id="mmhdCastVolDown" type="button"><i class="fa-solid fa-volume-low"></i> Vol -</button>
+          <button id="mmhdCastVolUp" type="button"><i class="fa-solid fa-volume-high"></i> Vol +</button>
+          <button id="mmhdCastStop" type="button"><i class="fa-solid fa-stop"></i> Detener</button>
+        </div>
+      </div>
     </div>
 
     <div class="detail-download" id="downloadBox">
@@ -1704,6 +1751,7 @@ a{color:inherit;text-decoration:none}
   </div>
 </div>
 
+<!-- Banner de actualización -->
 <div id="updateBanner" class="update-banner" style="display:none">
   <i class="fa-solid fa-rotate-right"></i>
   <span>Hay una versión nueva del catálogo</span>
@@ -1802,27 +1850,6 @@ function placeholderBackdrop(){
     <rect width='100%' height='100%' fill='url(#g)'/>
   </svg>`;
   return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
-}
-
-/* ============================================================
-   DETECCIÓN DE FORMATO (MIME) POR EXTENSIÓN DE URL
-   ============================================================ */
-function detectarFormato(url) {
-  try {
-    const ruta = new URL(url, location.href).pathname.toLowerCase();
-
-    if (ruta.endsWith(".mkv"))  return "video/x-matroska";
-    if (ruta.endsWith(".webm")) return "video/webm";
-    if (ruta.endsWith(".m3u8")) return "application/x-mpegurl";
-    if (ruta.endsWith(".mpd"))  return "application/dash+xml";
-    if (ruta.endsWith(".mov"))  return "video/quicktime";
-    if (ruta.endsWith(".avi"))  return "video/x-msvideo";
-    if (ruta.endsWith(".ogv"))  return "video/ogg";
-
-    return "video/mp4";
-  } catch {
-    return "video/mp4";
-  }
 }
 
 /* ============================================================
@@ -2614,212 +2641,122 @@ function showMobileNav() {
 }
 
 /* ============================================================
-   CAST / TRANSMITIR A TV (Google Cast SDK + AirPlay)
+   GOOGLE CAST SDK — Movie Mania HD
    ============================================================ */
-let castListo = false;
-let castInitTried = false;
-
-function initCast() {
-  if (castInitTried) return;
-  castInitTried = true;
-
-  if (typeof cast === "undefined" || typeof chrome === "undefined" || !chrome.cast) {
-    castListo = false;
-    updateCastButton();
-    return;
+let castReady = false;
+let castMediaObserved = null;
+let castTimeout = null;
+const castStatus = () => document.getElementById('mmhdCastStatus');
+const castPanel = () => document.getElementById('mmhdCastPanel');
+function castMessage(message) { if (castStatus()) castStatus().textContent = message; }
+function castSession() {
+  return castReady ? cast.framework.CastContext.getInstance().getCurrentSession() : null;
+}
+function castMedia() { return castSession()?.getMediaSession() || null; }
+function castSync() {
+  const m = castMedia();
+  if (!m) { if (castPanel()) castPanel().hidden = true; return; }
+  const active = m.playerState !== 'IDLE';
+  if (castPanel()) castPanel().hidden = !active;
+  if (m.playerState === 'PLAYING') castMessage('✅ Reproduciendo en la TV');
+  else if (m.playerState === 'PAUSED') castMessage('⏸ Video pausado');
+  else if (m.playerState === 'IDLE') castMessage('Transmisión detenida');
+  else castMessage('Estado: ' + m.playerState);
+  const pauseBtn = document.getElementById('mmhdCastPause');
+  if (pauseBtn) pauseBtn.innerHTML = m.playerState === 'PAUSED' ? '<i class="fa-solid fa-play"></i> Reanudar' : '<i class="fa-solid fa-pause"></i> Pausar';
+}
+function castObserve() {
+  const m = castMedia();
+  if (m && m !== castMediaObserved) {
+    castMediaObserved = m;
+    m.addUpdateListener(castSync);
   }
-
+  castSync();
+}
+window.__onGCastApiAvailable = function(available) {
+  if (!available) { castMessage('Google Cast no está disponible en este navegador.'); return; }
   try {
-    cast.framework.CastContext.getInstance().setOptions({
+    const ctx = cast.framework.CastContext.getInstance();
+    ctx.setOptions({
       receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
       autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
     });
-    castListo = true;
-    console.log("[Cast] Google Cast inicializado");
-  } catch (err) {
-    console.error("[Cast] Error inicializando:", err);
-    castListo = false;
-  }
-  updateCastButton();
-}
-
-window.__initCast = initCast;
-window.__onCastError = () => {
-  castListo = false;
-  updateCastButton();
+    ctx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, castObserve);
+    castReady = true;
+    castMessage('Google Cast listo');
+    updateCastButton();
+    castObserve();
+  } catch(e) { castMessage('Error al iniciar Cast: ' + e.message); }
 };
-
-if (window.__castDisponible) initCast();
-
-function isCastAvailable() {
-  return typeof cast !== "undefined" &&
-         typeof chrome !== "undefined" &&
-         !!chrome.cast &&
-         castListo;
-}
-
+(function loadCastSDK() {
+  const script = document.createElement('script');
+  script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+  script.onerror = () => castMessage('No se pudo cargar el SDK de Google Cast.');
+  document.head.appendChild(script);
+})();
+function prepareCastVideo(movie) { updateCastButton(); }
 function updateCastButton() {
-  const btn = $("btnCast");
+  const btn = document.getElementById('btnCast');
   if (!btn) return;
-
-  const soportado = typeof cast !== "undefined" ||
-                    "PresentationRequest" in window ||
-                    "remote" in HTMLVideoElement.prototype;
-
-  if (!soportado) {
-    btn.disabled = true;
-    btn.style.opacity = "0.4";
-    btn.title = "Tu navegador no soporta transmisión";
-    return;
-  }
-
-  btn.disabled = false;
-  btn.style.opacity = "";
-  btn.title = castListo ? "Transmitir a TV" : "Preparando Cast...";
+  btn.disabled = !castReady;
+  btn.title = castReady ? 'Transmitir a Chromecast' : 'Esperando Google Cast';
 }
-
-function getCastUrl(movie) {
-  if (!movie) return "";
-  const sourceUrl = movie.m37 || movie.m22 || movie.m18 || "";
-  if (!sourceUrl) return "";
-  return sourceUrl.replace(/=m\d+$/, "=dv");
-}
-
 async function handleCast(movie) {
   if (!movie) return;
-
-  const videoUrl = getCastUrl(movie);
-  if (!videoUrl) {
-    showToast("Esta película no tiene URL de video");
-    return;
-  }
-
-  // 🔍 Detectar MIME automáticamente según la URL
-  const mimeType = detectarFormato(videoUrl);
-
-  // 🚫 Aviso previo si el receptor por defecto no soporta el formato
-  if (mimeType === "video/x-matroska" || mimeType === "video/x-msvideo") {
-    const continuar = confirm(
-      "⚠️ El receptor por defecto de Chromecast puede no reproducir " +
-      (mimeType === "video/x-matroska" ? "archivos MKV" : "archivos AVI") +
-      ".\n\n¿Quieres intentar transmitir de todos modos?"
-    );
-    if (!continuar) return;
-  }
-
-  if (!isCastAvailable()) {
-    // Fallback: Remote Playback API (Chrome desktop sin SDK)
-    if ("remote" in HTMLVideoElement.prototype) {
-      try {
-        const v = document.createElement("video");
-        v.src = videoUrl;
-        v.muted = true;
-        v.playsInline = true;
-        v.style.position = "fixed";
-        v.style.width = "320px";
-        v.style.height = "180px";
-        v.style.opacity = "0.001";
-        v.style.pointerEvents = "none";
-        v.style.bottom = "-200px";
-        v.style.right = "-320px";
-        v.style.zIndex = "-1";
-        document.body.appendChild(v);
-        await v.remote.prompt();
-        showToast("Transmitiendo...");
-        setTimeout(() => v.remove(), 60000);
-        return;
-      } catch (err) {
-        console.warn("[Cast] Remote Playback falló:", err);
-      }
-    }
-    showToast("Cast no disponible. Usa Chrome/Edge en la misma red WiFi.");
-    return;
-  }
-
+  if (!castReady) { castMessage('Google Cast todavía no está disponible. Abre la web desde Chrome por HTTP o HTTPS.'); return; }
+  let url = (movie.m37 || movie.m22 || movie.m18 || '').trim();
+  if (!url) { castMessage('Esta película no tiene enlace de video.'); return; }
+  url = url.replace(/=m\d+(?=($|[&#]))/, '=dv');
   try {
-    const contexto = cast.framework.CastContext.getInstance();
-    let sesion = contexto.getCurrentSession();
-    if (!sesion) {
-      await contexto.requestSession();
-      sesion = contexto.getCurrentSession();
-    }
-    if (!sesion) throw new Error("No se obtuvo sesión Cast");
-
-    // ✅ MIME dinámico detectado
-    const mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, mimeType);
-    mediaInfo.streamType = chrome.cast.media.StreamType.BUFFERED;
-
-    mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-    mediaInfo.metadata.title = movie.title || "Movie Mania HD";
-    if (movie.subtitle) mediaInfo.metadata.subtitle = movie.subtitle;
-    if (movie.poster) {
-      try {
-        mediaInfo.metadata.images = [new chrome.cast.Image(movie.poster)];
-      } catch(e){}
-    }
-
-    const solicitud = new chrome.cast.media.LoadRequest(mediaInfo);
-    solicitud.autoplay = true;
-    solicitud.currentTime = 0;
-    await sesion.loadMedia(solicitud);
-
-    showToast("📡 Reproduciendo en la TV");
-  } catch (err) {
-    console.error("[Cast] Error:", err);
-    const detalle = (err && (err.description || err.message || err.code)) || String(err);
-
-    if (err && err.name === "NotAllowedError") {
-      showToast("Permiso denegado (necesitas HTTPS)");
-    } else if (err && err.name === "NotFoundError") {
-      showToast("No hay dispositivos Cast disponibles");
-    } else if (err && err.name === "AbortError") {
-      showToast("Transmisión cancelada");
-    } else if (err && err.code === "session_error") {
-      showToast("Error de sesión Cast");
-    } else if (err && err.code === "media_error") {
-      showToast("La TV no pudo reproducir el formato");
-    } else {
-      showToast("Error al transmitir: " + detalle);
-    }
+    const parsed = new URL(url, location.href);
+    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('El enlace debe usar HTTP o HTTPS.');
+    if (['localhost', '127.0.0.1'].includes(parsed.hostname)) throw new Error('La TV no puede acceder a localhost. Usa una IP LAN o URL pública.');
+    url = parsed.href;
+    castMessage('Selecciona tu TV…');
+    const ctx = cast.framework.CastContext.getInstance();
+    let session = castSession();
+    if (!session) { await ctx.requestSession(); session = castSession(); }
+    if (!session) throw new Error('No se pudo conectar con la TV.');
+    const info = new chrome.cast.media.MediaInfo(url, 'video/mp4');
+    info.streamType = chrome.cast.media.StreamType.BUFFERED;
+    info.metadata = new chrome.cast.media.GenericMediaMetadata();
+    info.metadata.title = movie.title || 'Movie Mania HD';
+    if (movie.poster) info.metadata.images = [new chrome.cast.Image(movie.poster)];
+    const request = new chrome.cast.media.LoadRequest(info);
+    request.autoplay = true;
+    castMessage('Enviando película a la TV…');
+    await session.loadMedia(request);
+    castObserve();
+    clearTimeout(castTimeout);
+    castTimeout = setTimeout(() => {
+      if (castMedia()?.playerState !== 'PLAYING') castMessage('⚠️ La TV no inició el video. Comprueba acceso al enlace, códecs y permisos del servidor.');
+    }, 20000);
+  } catch(e) {
+    castMessage('❌ ' + (e.description || e.message || e.code || String(e)));
   }
 }
-
-function handleAirPlay(movie) {
-  if (!movie) return;
-  const url = getCastUrl(movie);
-  if (!url) {
-    showToast("Esta película no tiene URL de video");
-    return;
-  }
-
-  const tmp = document.createElement("video");
-  tmp.src = url;
-  tmp.setAttribute("x-webkit-airplay", "allow");
-  tmp.setAttribute("playsinline", "");
-  tmp.style.display = "none";
-  document.body.appendChild(tmp);
-
-  if (typeof tmp.webkitShowPlaybackTargetPicker === "function") {
-    tmp.webkitShowPlaybackTargetPicker();
-    showToast("🍎 Elige tu dispositivo AirPlay");
-    setTimeout(() => tmp.remove(), 30000);
-    return;
-  }
-
-  if (navigator.share) {
-    navigator.share({
-      title: movie.title || "Video",
-      url: url
-    }).catch(() => {});
-    showToast("Comparte el enlace con tu TV");
-    tmp.remove();
-    return;
-  }
-
-  showToast("AirPlay requiere Safari + Apple TV / TV compatible");
-  tmp.remove();
+function castSeek(delta) {
+  const m = castMedia(); if (!m) return;
+  const req = new chrome.cast.media.SeekRequest();
+  const time = m.getEstimatedTime?.() ?? m.currentTime ?? 0;
+  req.currentTime = Math.max(0, Math.min(Number.isFinite(m.media?.duration) ? m.media.duration : Infinity, time + delta));
+  m.seek(req, castSync, e => castMessage('Error al cambiar posición: ' + JSON.stringify(e)));
 }
-
+function castPause() {
+  const m = castMedia(); if (!m) return;
+  const action = m.playerState === 'PLAYING' ? 'pause' : 'play';
+  m[action](null, castSync, e => castMessage('Error: ' + JSON.stringify(e)));
+}
+async function castVolume(delta) {
+  const s = castSession(); if (!s) return;
+  const current = s.getSessionObj()?.receiver?.volume?.level ?? 0.5;
+  try { await s.setVolume(Math.max(0, Math.min(1, current + delta))); }
+  catch(e) { castMessage('Error de volumen: ' + e.message); }
+}
+function castStop() {
+  const m = castMedia(); if (!m) return;
+  m.stop(null, () => { castSync(); castMessage('Transmisión detenida'); }, e => castMessage('Error: ' + JSON.stringify(e)));
+}
 /* ============================================================
    DETALLE
    ============================================================ */
@@ -2866,6 +2803,7 @@ function openDetail(id){
   updateWatchedBtn();
   updateMyListBtn();
   updateCastButton();
+  prepareCastVideo(m);
 
   $("detailScreen").classList.add("show");
   $("detailScreen").scrollTop = 0;
@@ -3100,6 +3038,9 @@ $("searchInput").addEventListener("input", e => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
+/* ============================================================
+   EVENTOS BÚSQUEDA (MÓVIL + ESCRITORIO)
+   ============================================================ */
 $("mobileNavSearch").addEventListener("click", openMobileSearch);
 $("mobileSearchBack").addEventListener("click", closeMobileSearch);
 
@@ -3113,6 +3054,9 @@ $("mobileSearchInput").addEventListener("input", e => {
   renderMobileSearchResults();
 });
 
+/* ============================================================
+   REFRESCAR
+   ============================================================ */
 $("btnRefresh").addEventListener("click", async () => {
   const icon = $("btnRefresh").querySelector("i");
   icon.style.transition = "transform .8s";
@@ -3144,21 +3088,16 @@ $("btnExit").addEventListener("click", () => {
 $("btnDetailBack").addEventListener("click", closeDetail);
 $("btnPlay").addEventListener("click", () => openPlayer(state.currentMovie));
 $("btnCast").addEventListener("click", () => handleCast(state.currentMovie));
+$("mmhdCastBack").addEventListener("click", () => castSeek(-10));
+$("mmhdCastForward").addEventListener("click", () => castSeek(10));
+$("mmhdCastPause").addEventListener("click", castPause);
+$("mmhdCastVolDown").addEventListener("click", () => castVolume(-0.1));
+$("mmhdCastVolUp").addEventListener("click", () => castVolume(0.1));
+$("mmhdCastStop").addEventListener("click", castStop);
+
 $("btnDownload").addEventListener("click", showDownloadBox);
 $("btnWatched").addEventListener("click", toggleWatched);
 $("btnMyList").addEventListener("click", () => toggleMyList());
-
-// AirPlay: mostrar solo si el navegador lo soporta
-(function setupAirPlayButton(){
-  const btn = $("btnAirPlay");
-  if (!btn) return;
-  const testVideo = document.createElement("video");
-  const soportaAirPlay = typeof testVideo.webkitShowPlaybackTargetPicker === "function";
-  if (soportaAirPlay) {
-    btn.style.display = "";
-    btn.addEventListener("click", () => handleAirPlay(state.currentMovie));
-  }
-})();
 
 $("btnReadMore").addEventListener("click", () => {
   const ov = $("detailOverview");
