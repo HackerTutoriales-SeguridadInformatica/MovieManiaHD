@@ -1805,6 +1805,27 @@ function placeholderBackdrop(){
 }
 
 /* ============================================================
+   DETECCIÓN DE FORMATO (MIME) POR EXTENSIÓN DE URL
+   ============================================================ */
+function detectarFormato(url) {
+  try {
+    const ruta = new URL(url, location.href).pathname.toLowerCase();
+
+    if (ruta.endsWith(".mkv"))  return "video/x-matroska";
+    if (ruta.endsWith(".webm")) return "video/webm";
+    if (ruta.endsWith(".m3u8")) return "application/x-mpegurl";
+    if (ruta.endsWith(".mpd"))  return "application/dash+xml";
+    if (ruta.endsWith(".mov"))  return "video/quicktime";
+    if (ruta.endsWith(".avi"))  return "video/x-msvideo";
+    if (ruta.endsWith(".ogv"))  return "video/ogg";
+
+    return "video/mp4";
+  } catch {
+    return "video/mp4";
+  }
+}
+
+/* ============================================================
    DECODIFICADOR BASE64 → HTML DEL REPRODUCTOR
    ============================================================ */
 function b64ToUtf8(b64){
@@ -2667,12 +2688,31 @@ function getCastUrl(movie) {
 async function handleCast(movie) {
   if (!movie) return;
 
+  const videoUrl = getCastUrl(movie);
+  if (!videoUrl) {
+    showToast("Esta película no tiene URL de video");
+    return;
+  }
+
+  // 🔍 Detectar MIME automáticamente según la URL
+  const mimeType = detectarFormato(videoUrl);
+
+  // 🚫 Aviso previo si el receptor por defecto no soporta el formato
+  if (mimeType === "video/x-matroska" || mimeType === "video/x-msvideo") {
+    const continuar = confirm(
+      "⚠️ El receptor por defecto de Chromecast puede no reproducir " +
+      (mimeType === "video/x-matroska" ? "archivos MKV" : "archivos AVI") +
+      ".\n\n¿Quieres intentar transmitir de todos modos?"
+    );
+    if (!continuar) return;
+  }
+
   if (!isCastAvailable()) {
     // Fallback: Remote Playback API (Chrome desktop sin SDK)
     if ("remote" in HTMLVideoElement.prototype) {
       try {
         const v = document.createElement("video");
-        v.src = getCastUrl(movie);
+        v.src = videoUrl;
         v.muted = true;
         v.playsInline = true;
         v.style.position = "fixed";
@@ -2696,12 +2736,6 @@ async function handleCast(movie) {
     return;
   }
 
-  const videoUrl = getCastUrl(movie);
-  if (!videoUrl) {
-    showToast("Esta película no tiene URL de video");
-    return;
-  }
-
   try {
     const contexto = cast.framework.CastContext.getInstance();
     let sesion = contexto.getCurrentSession();
@@ -2711,7 +2745,8 @@ async function handleCast(movie) {
     }
     if (!sesion) throw new Error("No se obtuvo sesión Cast");
 
-    const mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, "video/mp4");
+    // ✅ MIME dinámico detectado
+    const mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, mimeType);
     mediaInfo.streamType = chrome.cast.media.StreamType.BUFFERED;
 
     mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
@@ -2739,6 +2774,10 @@ async function handleCast(movie) {
       showToast("No hay dispositivos Cast disponibles");
     } else if (err && err.name === "AbortError") {
       showToast("Transmisión cancelada");
+    } else if (err && err.code === "session_error") {
+      showToast("Error de sesión Cast");
+    } else if (err && err.code === "media_error") {
+      showToast("La TV no pudo reproducir el formato");
     } else {
       showToast("Error al transmitir: " + detalle);
     }
