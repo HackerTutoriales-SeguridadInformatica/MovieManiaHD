@@ -1873,6 +1873,18 @@ function buildProgressScript(movieId){
   var lastSent = 0;
   var restored = false;
   var savedSeconds = 0;
+  // Diagnóstico pasivo: no modifica src, load(), play() ni el progreso.
+  var diagOrigin = performance.now();
+  var diagLastSource = '';
+  function diag(event, extra){
+    var payload = {event:event, elapsedMs:Math.round(performance.now()-diagOrigin),
+      readyState:video ? video.readyState : null,
+      networkState:video ? video.networkState : null};
+    if (video && Number.isFinite(video.currentTime)) payload.currentTime = Math.round(video.currentTime*10)/10;
+    if (extra) Object.assign(payload,extra);
+    send('mmhd-diagnostic',payload);
+  }
+  diag('iframe-script-ready');
 
   function send(type, extra){
     try { window.parent.postMessage(Object.assign({type:type,id:MOVIE_ID},extra||{}),'*'); } catch(e){}
@@ -1895,6 +1907,14 @@ function buildProgressScript(movieId){
     var found=document.querySelector('video');
     if(!found || found===video) return !!video;
     video=found;
+    diag('video-detected');
+    ['loadstart','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','stalled','seeking','seeked','pause','error','emptied'].forEach(function(name){
+      video.addEventListener(name,function(){
+        var extra = {};
+        if (name==='error' && video.error) extra.errorCode=video.error.code;
+        diag(name,extra);
+      });
+    });
     try { video.disableRemotePlayback=true; video.setAttribute('disableRemotePlayback',''); }catch(e){}
     video.addEventListener('loadedmetadata',restore);
     video.addEventListener('durationchange',restore);
@@ -2760,33 +2780,9 @@ function castStop() {
 /* ============================================================
    DETALLE
    ============================================================ */
-// Prepara conexiones y descarga el motor del reproductor al abrir la ficha.
-// No solicita el video anticipadamente (evita transferencias innecesarias).
-let playerWarmupDone = false;
-function warmupPlayer(){
-  if (playerWarmupDone) return;
-  playerWarmupDone = true;
-  const head = document.head;
-  const connect = host => {
-    const link = document.createElement("link");
-    link.rel = "preconnect";
-    link.href = host;
-    link.crossOrigin = "anonymous";
-    head.appendChild(link);
-  };
-  connect("https://lh3.googleusercontent.com");
-  connect("https://cdn.jsdelivr.net");
-  const script = document.createElement("link");
-  script.rel = "preload";
-  script.as = "script";
-  script.href = "https://cdn.jsdelivr.net/gh/HackerTutoriales-SeguridadInformatica/ReproductorGooglePhotos@main/GooglePhotosPlayer/start/java/Player.js";
-  head.appendChild(script);
-}
-
 function openDetail(id){
   const m = MOVIES.find(x => x.id === id);
   if (!m) return;
-  warmupPlayer();
   state.currentMovie = m;
 
   $("detailBackdrop").style.backgroundImage =
@@ -2992,13 +2988,13 @@ async function showDownloadBox(){
    ============================================================ */
 function openPlayer(movie){
   if (!movie) return;
-  warmupPlayer();
 
   if (!movie.m37 && !movie.m22 && !movie.m18){
     alert("Esta película aún no tiene URLs de video configuradas.");
     return;
   }
 
+  mmhdDiagStart(movie);
   const playerHtml = getPlayerHtml(movie);
   if (!playerHtml){
     alert("No se encontró la plantilla del reproductor para esta película.");
@@ -3013,6 +3009,7 @@ function openPlayer(movie){
 
   $("playerTitle").textContent = movie.title + (movie.subtitle ? " — " + movie.subtitle : "");
   $("playerFrame").src = url;
+  mmhdDiagRecord('iframe-src-assigned');
   $("playerModal").classList.add("show");
   document.body.style.overflow = "hidden";
   hideMobileNav();
@@ -3341,6 +3338,40 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 /* ============================================================
+   DIAGNÓSTICO PASIVO DE CARGA — sin alterar el reproductor
+   ============================================================ */
+let mmhdDiagSession = null;
+function mmhdDiagStart(movie){
+  mmhdDiagSession = {title: String(movie.title || ''), start: performance.now(), events: []};
+  mmhdDiagRecord('openPlayer-called');
+  let panel = document.getElementById('mmhdDiagPanel');
+  if (!panel) {
+    panel = document.createElement('aside');
+    panel.id = 'mmhdDiagPanel';
+    panel.style.cssText = 'position:fixed;bottom:12px;left:12px;z-index:999999;width:min(390px,calc(100vw - 24px));max-height:40vh;overflow:auto;background:rgba(7,12,24,.94);color:#e5efff;border:1px solid #49607c;border-radius:10px;padding:10px;font:12px/1.5 monospace;box-shadow:0 8px 32px #0009';
+    panel.innerHTML = '<div style="display:flex;gap:8px;align-items:center;justify-content:space-between"><strong>Diagnóstico de carga MMHD</strong><div><button type="button" id="mmhdDiagCopy" style="color:#fff;border:1px solid #70849d;padding:4px 7px;border-radius:5px">Copiar</button> <button type="button" id="mmhdDiagHide" style="color:#fff;border:1px solid #70849d;padding:4px 7px;border-radius:5px">Ocultar</button></div></div><div id="mmhdDiagLines" style="white-space:pre-wrap;margin-top:8px"></div>';
+    document.body.appendChild(panel);
+    document.getElementById('mmhdDiagCopy').onclick = function(){
+      const t = mmhdDiagSession ? ['Película: '+mmhdDiagSession.title, ...mmhdDiagSession.events.map(x => x.t+' ms — '+x.event+' (ready='+x.ready+', network='+x.network+')')].join('\n') : '';
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(()=>prompt('Copia el diagnóstico:',t));
+      else prompt('Copia el diagnóstico:',t);
+    };
+    document.getElementById('mmhdDiagHide').onclick = () => panel.style.display='none';
+  }
+  panel.style.display='block';
+  document.getElementById('mmhdDiagLines').textContent='Esperando eventos del video…';
+}
+function mmhdDiagRecord(event, detail){
+  if (!mmhdDiagSession) return;
+  const item = {t:Math.round(performance.now()-mmhdDiagSession.start),event:String(event),
+    ready:detail?.readyState ?? '-', network:detail?.networkState ?? '-'};
+  mmhdDiagSession.events.push(item);
+  if (mmhdDiagSession.events.length > 120) mmhdDiagSession.events.shift();
+  const lines = document.getElementById('mmhdDiagLines');
+  if (lines) lines.textContent = mmhdDiagSession.events.slice(-24).map(x=>x.t+' ms  '+x.event).join('\n');
+}
+
+/* ============================================================
    ESCUCHAR PROGRESO REAL DEL REPRODUCTOR (postMessage)
    ============================================================ */
 window.addEventListener("message", (e) => {
@@ -3353,6 +3384,11 @@ window.addEventListener("message", (e) => {
 
   const movieId = Number(data.id);
   if (!movieId) return;
+
+  if (data.type === "mmhd-diagnostic") {
+    mmhdDiagRecord(data.event, data);
+    return;
+  }
 
   if (data.type === "mmhd-request-restore") {
     frame.contentWindow.postMessage({
