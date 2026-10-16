@@ -125,6 +125,16 @@
             button { padding: 12px 22px; font-size: 0.9rem; }
             .instrucciones { padding: 15px; }
         }
+
+        .control-remoto { display:none; width:min(560px,100%); margin:24px auto 0; padding:22px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); border-radius:18px; text-align:center; }
+        .control-remoto.visible { display:block; }
+        .control-remoto h2 { margin-bottom:12px; font-size:1.15rem; }
+        .control-remoto .fila { display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap; margin:14px 0; }
+        .control-remoto button { padding:12px 18px; }
+        .control-remoto input[type=range] { width:100%; accent-color:#e94560; cursor:pointer; }
+        .control-remoto .tiempos { display:flex; justify-content:space-between; color:#c0c0d0; font-size:.85rem; margin-top:5px; }
+        .control-remoto .volumen { flex:1; min-width:120px; max-width:260px; }
+        .control-remoto .estado-remoto { font-size:.85rem; color:#c0c0d0; }
     </style>
 </head>
 <body>
@@ -140,6 +150,25 @@
     </div>
 
     <div class="estado" id="estado"></div>
+    <section id="controlRemoto" class="control-remoto" aria-label="Control de Chromecast">
+        <h2>📺 Control remoto de Chromecast</h2>
+        <div id="estadoRemoto" class="estado-remoto">Conectado</div>
+        <div class="fila">
+            <button id="retroceder" type="button" title="Retroceder 10 segundos">↶ 10 s</button>
+            <button id="pausa" type="button" title="Pausar o reproducir">⏸ Pausar</button>
+            <button id="adelantar" type="button" title="Adelantar 10 segundos">10 s ↷</button>
+        </div>
+        <input id="progreso" type="range" min="0" max="100" value="0" step="1" aria-label="Posición del video">
+        <div class="tiempos"><span id="tiempoActual">00:00</span><span id="duracion">00:00</span></div>
+        <div class="fila">
+            <button id="bajarVolumen" class="secundario" type="button">🔉 −</button>
+            <input id="volumen" class="volumen" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volumen">
+            <button id="subirVolumen" class="secundario" type="button">🔊 +</button>
+            <button id="silenciar" class="secundario" type="button">🔇 Silenciar</button>
+        </div>
+        <button id="detener" class="secundario" type="button">⏹ Detener transmisión</button>
+    </section>
+
 
     <div class="instrucciones">
         <h2>💡 ¿Cómo funciona?</h2>
@@ -160,7 +189,7 @@
         const toast = document.getElementById('toast');
         const btnCast = document.getElementById('btnCast');
         const btnAirPlay = document.getElementById('btnAirPlay');
-        const videoPreview = document.getElementById('preview');
+        const videoPreview = document.getElementById('preview'); // Opcional: este HTML no incluye vista previa.
 
         // ----- Toast -----
         let toastTimer;
@@ -189,6 +218,7 @@
                     autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
                 });
                 castListo = true;
+                configurarControlRemoto();
                 console.log('Google Cast inicializado');
             } catch (error) {
                 console.error('Error inicializando Cast:', error);
@@ -229,6 +259,7 @@
 
                 setEstado('Solicitud enviada a Chromecast. Comprueba que el video se reproduzca en la TV.');
                 mostrarToast('Solicitud de reproducción enviada');
+                actualizarRemoto();
             } catch (error) {
                 console.error('Error al cargar el video en Chromecast:', error);
                 const detalle = error?.description || error?.message || error?.code || String(error);
@@ -237,13 +268,106 @@
             }
         });
 
+
+        // Control remoto: utiliza el estado real del reproductor de Chromecast.
+        let reproductorRemoto = null;
+        let controladorRemoto = null;
+        let arrastrandoProgreso = false;
+        const $ = id => document.getElementById(id);
+        const formatoTiempo = segundos => {
+            if (!Number.isFinite(segundos) || segundos < 0) return '00:00';
+            const n = Math.floor(segundos);
+            const h = Math.floor(n / 3600), m = Math.floor(n % 3600 / 60), seg = n % 60;
+            return h ? `${h}:${String(m).padStart(2,'0')}:${String(seg).padStart(2,'0')}` : `${String(m).padStart(2,'0')}:${String(seg).padStart(2,'0')}`;
+        };
+        function actualizarRemoto() {
+            if (!castListo || !reproductorRemoto) return;
+            const sesion = cast.framework.CastContext.getInstance().getCurrentSession();
+            const activo = !!(sesion && reproductorRemoto.isMediaLoaded);
+            $('controlRemoto').classList.toggle('visible', activo);
+            if (!activo) return;
+            $('pausa').textContent = reproductorRemoto.isPaused ? '▶ Reproducir' : '⏸ Pausar';
+            $('estadoRemoto').textContent = reproductorRemoto.isPaused ? 'En pausa' : 'Reproduciendo en la TV';
+            const duracion = Number(reproductorRemoto.duration) || 0;
+            const actual = Number(reproductorRemoto.currentTime) || 0;
+            $('tiempoActual').textContent = formatoTiempo(actual);
+            $('duracion').textContent = formatoTiempo(duracion);
+            if (!arrastrandoProgreso) {
+                $('progreso').max = duracion || 1;
+                $('progreso').value = Math.min(actual, duracion || 1);
+            }
+            $('progreso').disabled = !reproductorRemoto.canSeek || duracion <= 0;
+            $('retroceder').disabled = !reproductorRemoto.canSeek;
+            $('adelantar').disabled = !reproductorRemoto.canSeek;
+            if (document.activeElement !== $('volumen')) $('volumen').value = reproductorRemoto.volumeLevel;
+            $('silenciar').textContent = reproductorRemoto.isMuted ? '🔊 Activar sonido' : '🔇 Silenciar';
+        }
+        function configurarControlRemoto() {
+            if (reproductorRemoto) return;
+            reproductorRemoto = new cast.framework.RemotePlayer();
+            controladorRemoto = new cast.framework.RemotePlayerController(reproductorRemoto);
+            controladorRemoto.addEventListener(cast.framework.RemotePlayerEventType.ANY_CHANGE, actualizarRemoto);
+            cast.framework.CastContext.getInstance().addEventListener(
+                cast.framework.CastContextEventType.SESSION_STATE_CHANGED, actualizarRemoto);
+            setInterval(() => {
+                if (reproductorRemoto && reproductorRemoto.isMediaLoaded) {
+                    actualizarRemoto();
+                }
+            }, 1000);
+            actualizarRemoto();
+        }
+        async function ejecutarControl(accion) {
+            if (!reproductorRemoto || !reproductorRemoto.isMediaLoaded) return;
+            try { await accion(); actualizarRemoto(); }
+            catch (e) { console.error('Error de control Cast:', e); setEstado('No se pudo ejecutar el control: ' + (e.message || e)); }
+        }
+        $('pausa').addEventListener('click', () => ejecutarControl(() => controladorRemoto.playOrPause()));
+        function saltar(segundos) {
+            ejecutarControl(() => {
+                if (!reproductorRemoto.canSeek) return;
+                const max = Number(reproductorRemoto.duration) || 0;
+                reproductorRemoto.currentTime = Math.max(0, Math.min(max, (Number(reproductorRemoto.currentTime) || 0) + segundos));
+                controladorRemoto.seek();
+            });
+        }
+        $('retroceder').addEventListener('click', () => saltar(-10));
+        $('adelantar').addEventListener('click', () => saltar(10));
+        $('progreso').addEventListener('pointerdown', () => { arrastrandoProgreso = true; });
+        $('progreso').addEventListener('input', () => { $('tiempoActual').textContent = formatoTiempo(Number($('progreso').value)); });
+        $('progreso').addEventListener('change', () => {
+            arrastrandoProgreso = false;
+            ejecutarControl(() => {
+                if (!reproductorRemoto.canSeek) return;
+                reproductorRemoto.currentTime = Number($('progreso').value);
+                controladorRemoto.seek();
+            });
+        });
+        function establecerVolumen(valor) {
+            ejecutarControl(() => {
+                reproductorRemoto.volumeLevel = Math.max(0, Math.min(1, valor));
+                controladorRemoto.setVolumeLevel();
+            });
+        }
+        $('bajarVolumen').addEventListener('click', () => establecerVolumen(Number(reproductorRemoto?.volumeLevel ?? 1) - .1));
+        $('subirVolumen').addEventListener('click', () => establecerVolumen(Number(reproductorRemoto?.volumeLevel ?? 0) + .1));
+        $('volumen').addEventListener('change', () => establecerVolumen(Number($('volumen').value)));
+        $('silenciar').addEventListener('click', () => ejecutarControl(() => controladorRemoto.muteOrUnmute()));
+        $('detener').addEventListener('click', async () => {
+            try {
+                const sesion = cast.framework.CastContext.getInstance().getCurrentSession();
+                if (sesion) await sesion.endSession(true);
+                actualizarRemoto();
+                setEstado('Transmisión detenida.');
+            } catch (e) { setEstado('No se pudo detener: ' + (e.message || e)); }
+        });
+
         // ==========================================
         // 2. AIRPLAY
         // ==========================================
         btnAirPlay.addEventListener('click', () => {
             setEstado('');
             // Safari soporta AirPlay en elementos <video> mediante webkitShowPlaybackTargetPicker
-            if (videoPreview.webkitShowPlaybackTargetPicker) {
+            if (videoPreview && videoPreview.webkitShowPlaybackTargetPicker) {
                 videoPreview.webkitShowPlaybackTargetPicker();
                 setEstado('Selecciona tu dispositivo AirPlay en el menú.');
                 mostrarToast('🍎 Elige AirPlay en el menú');
@@ -267,8 +391,8 @@
         });
 
         // Manejo de error del video
-        videoPreview.addEventListener('error', () => {
-            setEstado('⚠️ No se pudo cargar la vista previa del video. Puede que el enlace no sea accesible, haya expirado o no sea un MP4 válido.');
+        if (videoPreview) videoPreview.addEventListener('error', () => {
+            setEstado('⚠️ No se pudo cargar la vista previa del video.');
         });
 
     </script>
