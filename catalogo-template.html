@@ -1857,13 +1857,6 @@ function buildProgressScript(movieId){
         video.setAttribute('disableRemotePlayback', '');
       } catch(e){}
 
-      try {
-        var currentList = video.getAttribute('controlsList') || '';
-        if (currentList.indexOf('noremoteplayback') === -1) {
-          video.setAttribute('controlsList', (currentList + ' noremoteplayback').trim());
-        }
-      } catch(e){}
-
       video.addEventListener('loadedmetadata', function(){
         if (restored) return;
         try {
@@ -2619,7 +2612,8 @@ function showMobileNav() {
 }
 
 /* ============================================================
-   CAST / TRANSMITIR A TV (usa el enlace dv)
+   CAST / TRANSMITIR A TV
+   Usa EXACTAMENTE la misma URL dv que el botón Descargar
    ============================================================ */
 let castVideoEl = null;
 
@@ -2637,26 +2631,32 @@ function ensureCastVideoElement() {
   return castVideoEl;
 }
 
-function getCastUrl(movie) {
-  const base = movie.m37 || movie.m22 || movie.m18 || "";
-  if (!base) return "";
-  return base.replace(/=m\d+$/, "=dv");
-}
-
 async function handleCast(movie) {
   if (!movie) return;
+
+  console.log("=== CAST DEBUG ===");
+  console.log("Protocolo:", location.protocol);
+  console.log("¿Tiene remote?", "remote" in HTMLVideoElement.prototype);
 
   if (!("remote" in HTMLVideoElement.prototype)) {
     showToast("Tu navegador no soporta transmisión a TV");
     return;
   }
 
-  const dvUrl = getCastUrl(movie);
-  if (!dvUrl) {
-    showToast("Este título no tiene enlace de transmisión");
+  // 👇 MISMA lógica exacta que el botón Descargar
+  const sourceUrl = movie.m37 || movie.m22 || movie.m18 || "";
+  if (!sourceUrl){
+    showToast("Este título no tiene URLs configuradas");
     return;
   }
+  const dvUrl = sourceUrl.replace(/=m\d+$/, "=dv");
 
+  console.log("URL m37:", movie.m37);
+  console.log("URL m22:", movie.m22);
+  console.log("URL m18:", movie.m18);
+  console.log("URL final para Cast:", dvUrl);
+
+  // Preparar el video oculto con la URL dv
   const v = ensureCastVideoElement();
   v.pause();
   v.removeAttribute("src");
@@ -2664,16 +2664,31 @@ async function handleCast(movie) {
   v.src = dvUrl;
   v.load();
 
+  console.log("Video.src asignado:", v.src);
+
+  // Esperar un momento a que el video intente cargar
+  await new Promise(resolve => setTimeout(resolve, 300));
+  console.log("Después de 300ms — readyState:", v.readyState, "error:", v.error);
+
+  // Abrir el selector de Cast
   try {
+    console.log("Llamando a remote.prompt()...");
     await v.remote.prompt();
+    console.log("✅ prompt() OK");
     showToast("Transmitiendo a TV...");
   } catch (err) {
+    console.error("❌ Error en prompt():", err);
+    console.error("err.name:", err && err.name);
+    console.error("err.message:", err && err.message);
+
     if (err && err.name === "NotFoundError") {
       showToast("No se encontraron dispositivos Cast");
     } else if (err && err.name === "NotAllowedError") {
-      showToast("Permiso denegado");
+      showToast("Permiso denegado — necesitas HTTPS");
+    } else if (err && err.name === "NotSupportedError") {
+      showToast("Cast no soportado en este navegador");
     } else {
-      showToast("No se pudo iniciar la transmisión");
+      showToast("No se pudo iniciar: " + ((err && err.message) || "desconocido"));
     }
   }
 }
