@@ -1617,6 +1617,37 @@ a{color:inherit;text-decoration:none}
   .detail-similar-nav{display:flex}
 }
 @media(prefers-reduced-motion:reduce){.genre-chip,.similar-card{transition:none}}
+
+/* ===== Fase 5B: logo original de TMDB y reparto ===== */
+.detail-logo{display:block;max-width:min(100%,530px);width:auto;max-height:160px;object-fit:contain;margin:0 auto 12px;filter:drop-shadow(0 6px 18px rgba(0,0,0,.6))}
+.detail-logo[hidden]{display:none!important}
+.detail-titles.has-logo .detail-title{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* Text fallback if TMDB has no official logo */
+.detail-title{color:#f5f6fa;text-shadow:0 3px 18px rgba(0,0,0,.65)}
+.detail-subtitle{color:#c8d4ee;opacity:.95;letter-spacing:1.5px}
+.detail-titles.has-logo .detail-subtitle{display:none!important}
+.detail-cast{margin-top:34px;max-width:100%;min-width:0}
+.detail-cast[hidden]{display:none!important}
+.detail-cast h3{font-size:18px;font-weight:800;margin:0 0 17px}
+.detail-cast-row{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;
+  padding:3px 2px 9px;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+.detail-cast-row::-webkit-scrollbar{display:none}
+.detail-cast-person{flex:0 0 112px;text-align:center;scroll-snap-align:start;min-width:0}
+.detail-cast-face{width:92px;height:92px;display:grid;place-items:center;margin:0 auto 10px;
+  border-radius:50%;overflow:hidden;background:#212334;border:2px solid #33364a;color:#8f97ab;font-size:28px}
+.detail-cast-face img{width:100%;height:100%;object-fit:cover;display:block}
+.detail-cast-name{font-size:12px;font-weight:800;line-height:1.35;color:#f0f1f6;overflow-wrap:anywhere}
+.detail-cast-role{font-size:11px;color:#9298aa;line-height:1.4;margin-top:5px;overflow-wrap:anywhere}
+@media(max-width:600px){
+  .detail-logo{max-width:min(95%,360px);max-height:120px;margin-bottom:10px}
+  .detail-cast{margin-top:29px}
+  .detail-cast h3{font-size:16px;margin-bottom:13px}
+  .detail-cast-row{gap:14px}
+  .detail-cast-person{flex-basis:93px}
+  .detail-cast-face{width:76px;height:76px;margin-bottom:8px;font-size:24px}
+  .detail-cast-name{font-size:11px}
+  .detail-cast-role{font-size:10px}
+}
 </style>
 </head>
 <body>
@@ -1799,6 +1830,7 @@ a{color:inherit;text-decoration:none}
     </div>
 
     <div class="detail-titles">
+      <img id="detailLogo" class="detail-logo" alt="" hidden>
       <h1 class="detail-title" id="detailTitle"></h1>
       <p class="detail-subtitle" id="detailSubtitle"></p>
     </div>
@@ -1859,6 +1891,11 @@ a{color:inherit;text-decoration:none}
       <p id="detailOverview"></p>
       <span class="read-more" id="btnReadMore">Leer más</span>
     </div>
+
+    <section class="detail-cast" id="detailCast" aria-label="Reparto" hidden>
+      <h3>Reparto</h3>
+      <div class="detail-cast-row" id="detailCastRow"></div>
+    </section>
 
     <section class="detail-similar" id="detailSimilar" aria-label="Películas similares" hidden>
       <div class="detail-similar-head">
@@ -3187,6 +3224,46 @@ function setupSimilarRowNav(){
     requestAnimationFrame(() => row._updateSimilarArrows());
   }
 }
+function renderMovieLogo(movie){
+  const image=$("detailLogo"), container=document.querySelector(".detail-titles");
+  const logo=String(movie.logo||"");
+  const hasLogo=/^https:\/\/image\.tmdb\.org\/t\/p\/(?:w500|original)\/[A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|svg)$/i.test(logo);
+  image.hidden=!hasLogo;
+  container.classList.toggle("has-logo",hasLogo);
+  // Accessible title remains as an H1; text is visually hidden only when logo works.
+  image.onerror=()=>{
+    image.hidden=true;
+    container.classList.remove("has-logo");
+    $("detailSubtitle").style.display=movie.subtitle?"":"none";
+  };
+  if(hasLogo)image.src=logo;
+  else image.removeAttribute("src");
+}
+function renderDetailCast(movie){
+  const section=$("detailCast"),row=$("detailCastRow");
+  row.replaceChildren();
+  const cast=Array.isArray(movie.cast)?movie.cast.slice(0,15):[];
+  section.hidden=!cast.length;
+  for(const actor of cast){
+    if(!actor?.name)continue;
+    const card=document.createElement("div");card.className="detail-cast-person";
+    const face=document.createElement("div");face.className="detail-cast-face";
+    const photo=String(actor.photo||"");
+    if(/^https:\/\/image\.tmdb\.org\/t\/p\/w185\/[A-Za-z0-9_./-]+\.(?:png|jpe?g|webp)$/i.test(photo)){
+      const img=document.createElement("img");img.src=photo;img.alt="";img.loading="lazy";img.decoding="async";
+      img.onerror=()=>{img.remove();const icon=document.createElement("i");icon.className="fa-solid fa-user";face.appendChild(icon);};
+      face.appendChild(img);
+    }else{
+      const icon=document.createElement("i");icon.className="fa-solid fa-user";face.appendChild(icon);
+    }
+    const name=document.createElement("div");name.className="detail-cast-name";name.textContent=String(actor.name).slice(0,120);
+    const role=document.createElement("div");role.className="detail-cast-role";role.textContent=String(actor.character||"").slice(0,160);
+    card.append(face,name,role);row.appendChild(card);
+  }
+  section.hidden=!row.children.length;
+  row.scrollLeft=0;
+}
+
 /* ============================================================
    DETALLE
    ============================================================ */
@@ -3206,6 +3283,8 @@ function openDetail(id){
   $("detailTitle").textContent = m.title;
   $("detailSubtitle").textContent = m.subtitle || "";
   $("detailSubtitle").style.display = m.subtitle ? "block" : "none";
+  renderMovieLogo(m);
+  renderDetailCast(m);
 
   $("detailCert").textContent = m.cert || "—";
   $("detailCert").style.display = (m.cert && m.cert !== "—") ? "" : "none";
