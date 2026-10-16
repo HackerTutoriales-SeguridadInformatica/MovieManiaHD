@@ -3,13 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transmitir a TV</title>
+    <title>Transmitir video MP4 a la TV</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -33,19 +29,15 @@
             background-clip: text;
         }
 
-        p.subtitulo {
-            color: #a0a0b0;
-            margin-bottom: 30px;
-            font-size: 1rem;
-        }
+        p.subtitulo { color: #a0a0b0; margin-bottom: 30px; font-size: 1rem; }
 
-        .preview {
+        video.preview {
             max-width: 90vw;
-            max-height: 40vh;
+            max-height: 45vh;
             border-radius: 12px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             margin-bottom: 30px;
-            object-fit: contain;
+            background: #000;
             border: 2px solid rgba(255, 255, 255, 0.1);
         }
 
@@ -73,29 +65,15 @@
             box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
         }
 
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(233, 69, 96, 0.6);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(233, 69, 96, 0.6); }
+        button:active { transform: translateY(0); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
         button.secundario {
             background: #0f3460;
             box-shadow: 0 4px 15px rgba(15, 52, 96, 0.5);
         }
-
-        button.secundario:hover {
-            box-shadow: 0 6px 20px rgba(15, 52, 96, 0.7);
-        }
+        button.secundario:hover { box-shadow: 0 6px 20px rgba(15, 52, 96, 0.7); }
 
         .estado {
             margin-top: 25px;
@@ -118,23 +96,10 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .instrucciones h2 {
-            font-size: 1.1rem;
-            color: #f5a623;
-            margin-bottom: 12px;
-        }
-
-        .instrucciones ul {
-            padding-left: 20px;
-        }
-
-        .instrucciones li {
-            margin-bottom: 8px;
-        }
-
-        .instrucciones strong {
-            color: #fff;
-        }
+        .instrucciones h2 { font-size: 1.1rem; color: #f5a623; margin-bottom: 12px; }
+        .instrucciones ul { padding-left: 20px; }
+        .instrucciones li { margin-bottom: 8px; }
+        .instrucciones strong { color: #fff; }
 
         .toast {
             position: fixed;
@@ -153,9 +118,7 @@
             pointer-events: none;
         }
 
-        .toast.visible {
-            transform: translateX(-50%) translateY(0);
-        }
+        .toast.visible { transform: translateX(-50%) translateY(0); }
 
         @media (max-width: 500px) {
             h1 { font-size: 1.5rem; }
@@ -166,28 +129,24 @@
 </head>
 <body>
 
-    <h1>📺 Transmitir a la TV</h1>
-    <p class="subtitulo">Envía esta imagen directamente a tu televisor</p>
+    <h1>📺 Transmitir video MP4 a la TV</h1>
+    <p class="subtitulo">Envía este video directamente a tu televisor</p>
 
-    <!-- Vista previa de la imagen -->
-    <img
+    <!-- Vista previa del VIDEO (no imagen) -->
+    <video
         id="preview"
         class="preview"
-        src="https://lh3.googleusercontent.com/IxJbAmoKhng2HbBhfTiAGmvc94iPDpUXE5sWPtsl7YQcL9a9VbEj1NQeWOFQyZuIH0TpfIQ42oxWN8iDeHwH3mfKqq5_0TtVN5Sz-F6FgiJe4SQdMtL4qAPgbaczhBjTKaq-vbFMpg=37"
-        alt="Imagen para transmitir"
+        src="https://lh3.googleusercontent.com/IxJbAmoKhng2HbBhfTiAGmvc94iPDpUXE5sWPtsl7YQcL9a9VbEj1NQeWOFQyZuIH0TpfIQ42oxWN8iDeHwH3mfKqq5_0TtVN5Sz-F6FgiJe4SQdMtL4qAPgbaczhBjTKaq-vbFMpg=dv"
+        controls
+        preload="metadata"
+        playsinline
         crossorigin="anonymous"
-    >
+    ></video>
 
     <div class="botones">
-        <button id="btnCast" title="Usar Google Cast (Chromecast)">
-            📡 Transmitir a TV
-        </button>
-        <button id="btnAirPlay" class="secundario" title="Usar AirPlay (Apple TV)">
-            🍎 AirPlay
-        </button>
-        <button id="btnDescargar" class="secundario" title="Descargar y abrir en la TV">
-            ⬇️ Descargar
-        </button>
+        <button id="btnCast">📡 Transmitir a TV (Cast)</button>
+        <button id="btnAirPlay" class="secundario">🍎 AirPlay</button>
+        <button id="btnDescargar" class="secundario">⬇️ Descargar MP4</button>
     </div>
 
     <div class="estado" id="estado"></div>
@@ -195,27 +154,27 @@
     <div class="instrucciones">
         <h2>💡 ¿Cómo funciona?</h2>
         <ul>
-            <li><strong>Google Cast (Chromecast):</strong> Requiere tener instalado el SDK de Cast y un dispositivo Chromecast o Android TV en la misma red WiFi. Abre la página con Chrome.</li>
-            <li><strong>AirPlay (Apple):</strong> Disponible en Safari (macOS/iOS) con un Apple TV o smart TV compatible en la misma red.</li>
-            <li><strong>Descargar:</strong> Descarga la imagen y ábrela en la TV mediante una app como VLC, Galería, o el navegador del televisor.</li>
-            <li><strong>Alternativa manual:</strong> También puedes usar el menú <em>Compartir → Transmitir</em> de tu navegador (Chrome/Edge) o duplicar pantalla desde tu sistema operativo.</li>
+            <li><strong>Google Cast (Chromecast):</strong> Reproduce el MP4 en Chromecast, Android TV o Google TV usando el receptor por defecto (acepta video/mp4).</li>
+            <li><strong>AirPlay (Apple):</strong> Usa el menú nativo de compartir o el botón AirPlay del propio reproductor si estás en Safari.</li>
+            <li><strong>Descargar:</strong> Baja el MP4 y ábrelo en la TV con VLC, el reproductor del televisor o vía USB/DLNA.</li>
+            <li>También puedes usar <em>Compartir → Transmitir</em> del navegador o duplicar pantalla desde el sistema operativo.</li>
         </ul>
     </div>
 
-    <!-- Toast de notificaciones -->
     <div class="toast" id="toast"></div>
 
     <script>
-        // URL de la imagen
-        const IMAGEN_URL = 'https://lh3.googleusercontent.com/IxJbAmoKhng2HbBhfTiAGmvc94iPDpUXE5sWPtsl7YQcL9a9VbEj1NQeWOFQyZuIH0TpfIQ42oxWN8iDeHwH3mfKqq5_0TtVN5Sz-F6FgiJe4SQdMtL4qAPgbaczhBjTKaq-vbFMpg=dv';
+        const VIDEO_URL = 'https://lh3.googleusercontent.com/IxJbAmoKhng2HbBhfTiAGmvc94iPDpUXE5sWPtsl7YQcL9a9VbEj1NQeWOFQyZuIH0TpfIQ42oxWN8iDeHwH3mfKqq5_0TtVN5Sz-F6FgiJe4SQdMtL4qAPgbaczhBjTKaq-vbFMpg=dv';
+        const MIME_TYPE = 'video/mp4'; // ← Aquí se especifica que es un MP4
 
         const estado = document.getElementById('estado');
         const toast = document.getElementById('toast');
         const btnCast = document.getElementById('btnCast');
         const btnAirPlay = document.getElementById('btnAirPlay');
         const btnDescargar = document.getElementById('btnDescargar');
+        const videoPreview = document.getElementById('preview');
 
-        // ----- Utilidad: mostrar toast -----
+        // ----- Toast -----
         let toastTimer;
         function mostrarToast(msg) {
             toast.textContent = msg;
@@ -224,48 +183,22 @@
             toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);
         }
 
-        // ----- Utilidad: setEstado -----
-        function setEstado(msg) {
-            estado.textContent = msg;
-        }
+        function setEstado(msg) { estado.textContent = msg; }
 
         // ==========================================
-        // 1. GOOGLE CAST (Chromecast / Android TV)
+        // 1. GOOGLE CAST (video/mp4)
         // ==========================================
-        // Nota: El SDK de Cast requiere una App ID válida y que el receptor
-        // acepte el contenido. Para imágenes genéricas, el receptor por defecto
-        // (CC1AD845) solo reproduce media (video/audio), no imágenes sueltas.
-        // Por eso, además del Cast nativo, ofrecemos alternativas.
-
-        let castDisponible = false;
-        let castContext = null;
-
-        // Cargar el SDK de Cast dinámicamente si no está
         (function cargarCastSDK() {
-            if (window.cast && window.cast.framework) {
-                inicializarCast();
-                return;
-            }
+            if (window.cast && window.cast.framework) { inicializarCast(); return; }
             const script = document.createElement('script');
             script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
             script.onload = () => {
-                // El SDK carga de forma asíncrona; esperamos el evento
                 window.__onGCastApiAvailable = function (isAvailable) {
-                    if (isAvailable) {
-                        inicializarCast();
-                    } else {
-                        castDisponible = false;
-                    }
+                    if (isAvailable) inicializarCast();
                 };
-                // Si ya está disponible tras cargar
-                if (window.cast && window.cast.framework) {
-                    inicializarCast();
-                }
+                if (window.cast && window.cast.framework) inicializarCast();
             };
-            script.onerror = () => {
-                castDisponible = false;
-                console.warn('No se pudo cargar el SDK de Cast');
-            };
+            script.onerror = () => console.warn('No se pudo cargar el SDK de Cast');
             document.head.appendChild(script);
         })();
 
@@ -275,171 +208,102 @@
                     receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
                     autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
                 });
-                castDisponible = true;
                 console.log('✅ Google Cast SDK listo');
             } catch (e) {
-                castDisponible = false;
                 console.warn('Cast no disponible:', e);
             }
         }
 
         btnCast.addEventListener('click', async () => {
             setEstado('');
-
-            // Verificar si el SDK de Cast está cargado
             if (!window.cast || !window.cast.framework) {
                 mostrarToast('⚠️ Google Cast no está disponible. Usa Chrome o Edge.');
-                setEstado('Google Cast no disponible. Prueba con Chrome/Edge o usa otra opción.');
+                setEstado('Google Cast no disponible. Prueba con Chrome/Edge.');
                 return;
             }
-
             try {
                 const castContext = cast.framework.CastContext.getInstance();
-                // Solicitar sesión de Cast (abre el diálogo de selección de dispositivo)
                 const session = await castContext.requestSession();
-                console.log('Sesión Cast iniciada:', session);
 
-                // Mostrar botón nativo de Cast (opcional)
-                // Aquí intentamos enviar la imagen como media.
-                // ADVERTENCIA: el receptor por defecto (CC1AD845) no muestra imágenes
-                // sueltas; solo vídeo/audio. Si falla, se notifica al usuario.
-                const mediaInfo = new chrome.cast.media.MediaInfo(IMAGEN_URL, 'image/jpeg');
+                // Aquí se especifica que el contenido es video/mp4
+                const mediaInfo = new chrome.cast.media.MediaInfo(VIDEO_URL, MIME_TYPE);
                 mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-                mediaInfo.metadata.title = 'Imagen transmitida';
-                mediaInfo.metadata.images = [{ url: IMAGEN_URL }];
+                mediaInfo.metadata.title = 'Video MP4 transmitido';
+                mediaInfo.metadata.images = [{ url: VIDEO_URL }];
+                mediaInfo.streamType = chrome.cast.media.StreamType.BUFFERED;
 
                 const request = new chrome.cast.media.LoadRequest(mediaInfo);
                 await session.loadMedia(request);
 
-                setEstado('✅ Imagen enviada al dispositivo Cast.');
-                mostrarToast('📡 Transmitiendo a la TV...');
+                setEstado('✅ Video MP4 enviado al dispositivo Cast.');
+                mostrarToast('📡 Transmitiendo video a la TV...');
             } catch (err) {
                 console.warn('Error en Cast:', err);
-                // Errores comunes: cancelación del usuario, sin dispositivos, receptor incompatible
-                if (err.code === 'cancel') {
-                    setEstado('Transmisión cancelada.');
-                } else if (err.code === 'timeout') {
-                    setEstado('No se encontraron dispositivos Cast en la red.');
-                    mostrarToast('⚠️ No hay dispositivos disponibles');
-                } else {
-                    setEstado('No se pudo transmitir. El receptor podría no aceptar imágenes. Prueba "Descargar" o duplicar pantalla.');
-                    mostrarToast('⚠️ Prueba otra opción (Descargar / AirPlay)');
-                }
+                if (err.code === 'cancel') setEstado('Transmisión cancelada.');
+                else if (err.code === 'timeout') setEstado('No se encontraron dispositivos Cast.');
+                else setEstado('No se pudo transmitir. Verifica que el enlace sea un MP4 accesible públicamente.');
             }
         });
 
         // ==========================================
-        // 2. AIRPLAY (Apple TV / Safari)
+        // 2. AIRPLAY
         // ==========================================
         btnAirPlay.addEventListener('click', () => {
             setEstado('');
-
-            // AirPlay se activa mediante la API WebKit en Safari
-            if (window.WebKitPlaybackTargetAvailabilityEvent) {
-                // Para imágenes, AirPlay no soporta <img> directamente,
-                // pero podemos intentar con un elemento de video/imagen
-                // o usar la hoja de compartir nativa.
-                if (navigator.share) {
-                    navigator.share({
-                        title: 'Imagen para TV',
-                        text: 'Transmitir esta imagen a la TV',
-                        url: IMAGEN_URL
-                    }).then(() => {
-                        setEstado('✅ Menú de compartir abierto. Selecciona AirPlay o tu TV.');
-                        mostrarToast('🍎 Selecciona AirPlay en el menú');
-                    }).catch((err) => {
-                        if (err.name !== 'AbortError') {
-                            setEstado('Compartir cancelado o no disponible.');
-                        }
-                    });
-                } else {
-                    setEstado('AirPlay requiere Safari en macOS/iOS. Usa el menú Compartir → AirPlay.');
-                    mostrarToast('⚠️ AirPlay no disponible en este navegador');
-                }
+            // Safari soporta AirPlay en elementos <video> mediante webkitShowPlaybackTargetPicker
+            if (videoPreview.webkitShowPlaybackTargetPicker) {
+                videoPreview.webkitShowPlaybackTargetPicker();
+                setEstado('Selecciona tu dispositivo AirPlay en el menú.');
+                mostrarToast('🍎 Elige AirPlay en el menú');
+            } else if (navigator.share) {
+                navigator.share({
+                    title: 'Video MP4 para TV',
+                    url: VIDEO_URL
+                }).catch(() => {});
+                setEstado('Menú de compartir abierto. Selecciona AirPlay o tu TV.');
             } else {
-                // Fallback: intentar con el menú de compartir nativo
-                if (navigator.share) {
-                    navigator.share({
-                        title: 'Imagen para TV',
-                        url: IMAGEN_URL
-                    }).catch(() => {});
-                } else {
-                    setEstado('AirPlay no está soportado en este navegador. Usa Safari en un dispositivo Apple.');
-                    mostrarToast('⚠️ Usa Safari para AirPlay');
-                }
+                setEstado('AirPlay requiere Safari en macOS/iOS con un Apple TV o smart TV compatible.');
+                mostrarToast('⚠️ AirPlay no disponible');
             }
         });
 
         // ==========================================
-        // 3. DESCARGAR (para abrir en la TV manualmente)
+        // 3. DESCARGAR MP4
         // ==========================================
         btnDescargar.addEventListener('click', async () => {
             setEstado('');
             try {
-                // Intentar descargar la imagen
-                const response = await fetch(IMAGEN_URL, { mode: 'cors' });
+                const response = await fetch(VIDEO_URL, { mode: 'cors' });
                 if (!response.ok) throw new Error('Error al descargar');
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
 
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'imagen-para-tv.jpg';
+                a.download = 'video-para-tv.mp4';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
 
-                setEstado('✅ Imagen descargada. Ábrela en tu TV con VLC, Galería o el navegador.');
-                mostrarToast('⬇️ Imagen descargada');
+                setEstado('✅ MP4 descargado. Ábrelo en tu TV con VLC o el reproductor del televisor.');
+                mostrarToast('⬇️ Video descargado');
             } catch (err) {
-                // Si falla por CORS, abrir en nueva pestaña
-                console.warn('Descarga directa fallida, abriendo en nueva pestaña:', err);
-                window.open(IMAGEN_URL, '_blank');
-                setEstado('Se abrió la imagen en una nueva pestaña. Guárdala y ábrela en tu TV.');
-                mostrarToast('🔗 Imagen abierta en nueva pestaña');
+                console.warn('Descarga fallida, abriendo en nueva pestaña:', err);
+                window.open(VIDEO_URL, '_blank');
+                setEstado('Se abrió el MP4 en una nueva pestaña. Guárdalo y ábrelo en tu TV.');
+                mostrarToast('🔗 Video abierto en nueva pestaña');
             }
         });
 
-        // ==========================================
-        // 4. DETECCIÓN DE DISPOSITIVOS (opcional)
-        // ==========================================
-        // Mostrar si hay dispositivos Cast disponibles (requiere permisos)
-        if (window.chrome && chrome.cast) {
-            // El SDK de Cast emite eventos de disponibilidad
-            window.addEventListener('message', (event) => {
-                if (event.data && event.data.type === 'castAvailable') {
-                    // ...
-                }
-            });
-        }
-
-        // ==========================================
-        // 5. BOTÓN NATIVO DE CAST (si el navegador lo soporta)
-        // ==========================================
-        // Chrome muestra un botón de Cast nativo en la barra de herramientas
-        // cuando detecta el SDK. Aquí no añadimos nada extra.
-
-        // ==========================================
-        // 6. ATAJOS DE TECLADO (opcional)
-        // ==========================================
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'c' && e.ctrlKey) {
-                e.preventDefault();
-                btnCast.click();
-            }
-        });
-
-        // ==========================================
-        // 7. INFORMACIÓN INICIAL
-        // ==========================================
+        // ----- Estado inicial -----
         window.addEventListener('load', () => {
-            setEstado('Selecciona un método de transmisión. Asegúrate de estar en la misma red WiFi que tu TV.');
+            setEstado('Selecciona un método. Asegúrate de estar en la misma red WiFi que tu TV.');
         });
 
-        // Manejar errores de la imagen
-        document.getElementById('preview').addEventListener('error', () => {
-            setEstado('⚠️ No se pudo cargar la vista previa de la imagen. Puede que el enlace haya expirado.');
+        // Manejo de error del video
+        videoPreview.addEventListener('error', () => {
+            setEstado('⚠️ No se pudo cargar la vista previa del video. Puede que el enlace no sea accesible, haya expirado o no sea un MP4 válido.');
         });
 
     </script>
