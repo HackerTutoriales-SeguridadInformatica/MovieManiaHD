@@ -1938,7 +1938,7 @@ function getHeroMovies(){
   return MOVIES
     .filter(m => m.rating > 0)
     .sort((a, b) => b.rating - a.rating)
-    .slice(0, 60);
+    .slice(0, 6);
 }
 
 function renderHero(){
@@ -2142,7 +2142,7 @@ function renderContinue(){
   const list = ids
     .map(id => MOVIES.find(m => m.id === id))
     .filter(Boolean)
-    .slice(0, 5);
+    .slice(0, 60);
 
   state.continueList = list;
 
