@@ -2760,9 +2760,33 @@ function castStop() {
 /* ============================================================
    DETALLE
    ============================================================ */
+// Prepara conexiones y descarga el motor del reproductor al abrir la ficha.
+// No solicita el video anticipadamente (evita transferencias innecesarias).
+let playerWarmupDone = false;
+function warmupPlayer(){
+  if (playerWarmupDone) return;
+  playerWarmupDone = true;
+  const head = document.head;
+  const connect = host => {
+    const link = document.createElement("link");
+    link.rel = "preconnect";
+    link.href = host;
+    link.crossOrigin = "anonymous";
+    head.appendChild(link);
+  };
+  connect("https://lh3.googleusercontent.com");
+  connect("https://cdn.jsdelivr.net");
+  const script = document.createElement("link");
+  script.rel = "preload";
+  script.as = "script";
+  script.href = "https://cdn.jsdelivr.net/gh/HackerTutoriales-SeguridadInformatica/ReproductorGooglePhotos@main/GooglePhotosPlayer/start/java/Player.js";
+  head.appendChild(script);
+}
+
 function openDetail(id){
   const m = MOVIES.find(x => x.id === id);
   if (!m) return;
+  warmupPlayer();
   state.currentMovie = m;
 
   $("detailBackdrop").style.backgroundImage =
@@ -2968,6 +2992,7 @@ async function showDownloadBox(){
    ============================================================ */
 function openPlayer(movie){
   if (!movie) return;
+  warmupPlayer();
 
   if (!movie.m37 && !movie.m22 && !movie.m18){
     alert("Esta película aún no tiene URLs de video configuradas.");
