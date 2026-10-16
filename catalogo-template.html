@@ -1775,7 +1775,7 @@ a{color:inherit;text-decoration:none}
    DATOS INYECTADOS POR EL PANEL ADMIN
    ============================================================ */
 const MOVIES = __MOVIES_JSON__;
-const PLAYER_B64_LIST = __PLAYERS_JSON__;
+const SHARED_PLAYER_B64 = __PLAYERS_JSON__;
 
 /* ============================================================
    CONFIGURACIÓN DE PAGINACIÓN (SCROLL INFINITO)
@@ -1940,17 +1940,35 @@ function buildProgressScript(movieId){
 }
 
 function getPlayerHtml(movie){
-  const idx = MOVIES.findIndex(m => m.id === movie.id);
-  if (idx < 0 || !PLAYER_B64_LIST[idx]) return "";
-  let html = b64ToUtf8(PLAYER_B64_LIST[idx]);
-
-  const scriptTag = buildProgressScript(movie.id);
-  if (/<\/body\s*>/i.test(html)) {
-    html = html.replace(/<\/body\s*>/i, scriptTag + "</body>");
-  } else {
-    html += scriptTag;
-  }
-  return html;
+  if (!movie || !SHARED_PLAYER_B64) return "";
+  // Decodificar la plantilla solo al abrir un título, no 358 veces al cargar.
+  const cleanUrl = u => String(u ?? "").replace(/[\u0000-\u001F\u007F-\u009F\u00A0\u2000-\u200F\u2028\u2029\u202F\u205F\u3000\uFEFF\s]/g, "");
+  const jsValue = v => String(v ?? "").replace(/\\/g,"\\\\").replace(/"/g,'\\"')
+    .replace(/\n/g,"\\n").replace(/\r/g,"\\r").replace(/\t/g,"\\t")
+    .replace(/\u2028/g,"\\u2028").replace(/\u2029/g,"\\u2029")
+    .replace(/</g,"\\u003c");
+  const htmlValue = v => String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const m37=cleanUrl(movie.m37), m22=cleanUrl(movie.m22), m18=cleanUrl(movie.m18);
+  const reps = {
+    "__MOVIE_TITLE__":htmlValue(movie.title),
+    "__MOVIE_TITLE_JSON__":jsValue(movie.title),
+    "__MOVIE_YEAR__":jsValue(movie.year),
+    "__MOVIE_OVERVIEW_JSON__":jsValue(movie.overview),
+    "__POSTER_URL__":jsValue(movie.poster),
+    "__MOVIE_RATING__":jsValue(Number.isFinite(Number(movie.rating))?Number(movie.rating).toFixed(1):""),
+    "__BACKDROP_URL__":jsValue(movie.backdrop),
+    "__TMDB_ID__":jsValue(movie.tmdbId ?? movie.id ?? ""),
+    "__M37_URL__":jsValue(m37),
+    "__M22_URL__":jsValue(m22),
+    "__M18_URL__":jsValue(m18),
+    "__DOWNLOAD_URL__":jsValue(m37.replace(/=m\d+$/, "=dv")),
+    "__DV_URL__":jsValue(m37.replace(/=m\d+$/, "=dv"))
+  };
+  let html=b64ToUtf8(SHARED_PLAYER_B64);
+  for(const [marker,value] of Object.entries(reps))html=html.split(marker).join(value);
+  const scriptTag=buildProgressScript(movie.id);
+  return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"</body>") : html+scriptTag;
 }
 
 /* ============================================================
