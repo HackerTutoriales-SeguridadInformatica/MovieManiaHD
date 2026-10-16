@@ -137,7 +137,6 @@
     <div class="botones">
         <button id="btnCast">📡 Transmitir a TV (Cast)</button>
         <button id="btnAirPlay" class="secundario">🍎 AirPlay</button>
-        <button id="btnDescargar" class="secundario">⬇️ Descargar MP4</button>
     </div>
 
     <div class="estado" id="estado"></div>
@@ -147,7 +146,6 @@
         <ul>
             <li><strong>Google Cast (Chromecast):</strong> Reproduce el MP4 en Chromecast, Android TV o Google TV usando el receptor por defecto (acepta video/mp4).</li>
             <li><strong>AirPlay (Apple):</strong> Usa el menú nativo de compartir o el botón AirPlay del propio reproductor si estás en Safari.</li>
-            <li><strong>Descargar:</strong> Baja el MP4 y ábrelo en la TV con VLC, el reproductor del televisor o vía USB/DLNA.</li>
             <li>También puedes usar <em>Compartir → Transmitir</em> del navegador o duplicar pantalla desde el sistema operativo.</li>
         </ul>
     </div>
@@ -162,7 +160,6 @@
         const toast = document.getElementById('toast');
         const btnCast = document.getElementById('btnCast');
         const btnAirPlay = document.getElementById('btnAirPlay');
-        const btnDescargar = document.getElementById('btnDescargar');
         const videoPreview = document.getElementById('preview');
 
         // ----- Toast -----
