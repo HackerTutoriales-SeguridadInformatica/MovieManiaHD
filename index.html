@@ -2780,9 +2780,42 @@ function castStop() {
 /* ============================================================
    DETALLE
    ============================================================ */
+/* PRUEBA CONTROLADA: solo Terminator: Génesis.
+   Preconexión DNS/TLS y calentamiento de caché del script del reproductor.
+   No precarga los MP4 ni modifica el elemento video o su estado. */
+const MMHD_TEST_TITLE = 'terminator: génesis';
+const MMHD_TEST_PLAYER_JS = 'https://cdn.jsdelivr.net/gh/HackerTutoriales-SeguridadInformatica/ReproductorGooglePhotos@main/GooglePhotosPlayer/start/java/Player.js';
+function mmhdTestIsMovie(movie){
+  return !!movie && String(movie.title || '').trim().toLocaleLowerCase('es') === MMHD_TEST_TITLE;
+}
+function mmhdTestHint(rel, href, crossorigin){
+  if (!href || document.querySelector('link[data-mmhd-test][href="'+CSS.escape(href)+'"][rel="'+rel+'"]')) return;
+  const link = document.createElement('link');
+  link.rel = rel;
+  link.href = href;
+  link.dataset.mmhdTest = '1';
+  if (crossorigin) link.crossOrigin = 'anonymous';
+  document.head.appendChild(link);
+}
+function mmhdTestWarmup(movie){
+  if (!mmhdTestIsMovie(movie)) return;
+  const url = movie.m37 || movie.m22 || movie.m18;
+  if (url) {
+    try {
+      const origin = new URL(url).origin;
+      mmhdTestHint('dns-prefetch', origin);
+      mmhdTestHint('preconnect', origin);
+    } catch(e) {}
+  }
+  mmhdTestHint('preconnect', 'https://cdn.jsdelivr.net', true);
+  mmhdTestHint('prefetch', MMHD_TEST_PLAYER_JS, true);
+  // Sin peticiones adicionales al video para evitar consumo de ancho de banda.
+}
+
 function openDetail(id){
   const m = MOVIES.find(x => x.id === id);
   if (!m) return;
+  mmhdTestWarmup(m);
   state.currentMovie = m;
 
   $("detailBackdrop").style.backgroundImage =
@@ -2994,6 +3027,7 @@ function openPlayer(movie){
     return;
   }
 
+  mmhdTestWarmup(movie);
   mmhdDiagStart(movie);
   const playerHtml = getPlayerHtml(movie);
   if (!playerHtml){
