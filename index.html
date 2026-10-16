@@ -2765,8 +2765,15 @@ function handleCast(movie) {
       if (err && err.name === "NotFoundError") {
         showToast("No se encontraron dispositivos Cast");
       } else if (err && err.name === "NotAllowedError") {
-        showToast("Permiso denegado — necesitas HTTPS");
-      } else if (err && err.name === "NotSupportedError") {
+  const msg = (err.message || "").toLowerCase();
+  if (msg.includes("dismissed") || msg.includes("cancel")) {
+    // El usuario cerró el diálogo sin elegir dispositivo
+    showToast("Selecciona un dispositivo Cast para transmitir");
+  } else {
+    // Problema real: HTTPS o permisos
+    showToast("Permiso denegado — necesitas HTTPS");
+  }
+} else if (err && err.name === "NotSupportedError") {
         showToast("Cast no soportado en este navegador");
       } else if (err && err.name === "AbortError") {
         showToast("Transmisión cancelada");
