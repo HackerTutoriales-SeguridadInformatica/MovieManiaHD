@@ -514,10 +514,12 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
       <div id="collectionList"></div>
       <div class="actions" style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" id="btnBackupCollection" class="secondary"><i class="fa-solid fa-file-export"></i> Respaldar colección</button>
+        <button type="button" id="btnEnrichMedia" class="secondary"><i class="fa-solid fa-users"></i> Completar logos y reparto (TMDB)</button>
         <button type="button" id="btnRestoreCollection" class="secondary"><i class="fa-solid fa-file-import"></i> Importar respaldo</button>
         <button type="button" id="btnRecoverCollection" class="secondary"><i class="fa-solid fa-clock-rotate-left"></i> Deshacer último cambio</button>
         <input type="file" id="backupCollectionFile" accept=".json,application/json" hidden>
       </div>
+      <div id="mediaStatus" class="status" role="status" aria-live="polite"></div>
       <button id="btnPreviewCollection" class="secondary full"><i class="fa-solid fa-eye"></i> Vista previa del catálogo</button>
       <button id="btnGenerateCollection" class="primary full">
         <i class="fa-solid fa-box-archive"></i> Generar catálogo completo
@@ -719,6 +721,89 @@ async function validateCredential(){
 }
 
 /* ============================================================
+   FASE 5B: LOGOTIPOS Y REPARTO TMDB
+   Solo se guardan URLs públicas de imágenes y nombres/personajes.
+   Nunca se incluye la credencial TMDB en el catálogo generado.
+   ============================================================ */
+const TMDB_IMG = "https://image.tmdb.org/t/p/";
+function tmdbImagePath(path){
+  return typeof path === "string" && /^\/[A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|svg)$/i.test(path) ? path : "";
+}
+function chooseTmdbLogo(images){
+  const logos=Array.isArray(images?.logos) ? images.logos : [];
+  const languageWeight={es:4,en:3};
+  const ranked=logos.filter(l=>tmdbImagePath(l?.file_path))
+    .sort((a,b)=>{
+      const priority=l=>(languageWeight[String(l.iso_639_1||"").toLowerCase()]||1);
+      return priority(b)-priority(a) || (Number(b.vote_average)||0)-(Number(a.vote_average)||0) || (Number(b.width)||0)-(Number(a.width)||0);
+    });
+  const path=ranked[0]?.file_path;
+  return path ? TMDB_IMG+"w500"+path : "";
+}
+function castFromTmdb(credits){
+  const cast=Array.isArray(credits?.cast) ? credits.cast : [];
+  return cast.slice(0,18).map(person=>({
+    name:String(person?.name||"").trim().slice(0,120),
+    character:String(person?.character||"").trim().slice(0,160),
+    photo:tmdbImagePath(person?.profile_path) ? TMDB_IMG+"w185"+person.profile_path : ""
+  })).filter(person=>person.name).slice(0,15);
+}
+async function getTmdbMedia(id,key,imagesData=null){
+  const base="https://api.themoviedb.org/3/movie/"+encodeURIComponent(id);
+  const [images,credits]=await Promise.allSettled([
+    imagesData ? Promise.resolve(imagesData) : tmdbGet(base+"/images?include_image_language=es,es-MX,en,null",key),
+    tmdbGet(base+"/credits?language=es-MX",key)
+  ]);
+  // An error in one endpoint must not prevent the other one from loading.
+  if(images.status!=="fulfilled" && credits.status!=="fulfilled") throw Error("TMDB no devolvió imágenes ni reparto.");
+  return {
+    logo:images.status==="fulfilled" ? chooseTmdbLogo(images.value) : "",
+    cast:credits.status==="fulfilled" ? castFromTmdb(credits.value) : [],
+    gotImages:images.status==="fulfilled", gotCredits:credits.status==="fulfilled"
+  };
+}
+async function enrichSavedMovies(){
+  const key=credentialValue(), btn=$("btnEnrichMedia"), status=$("mediaStatus");
+  if(btn.disabled)return;
+  if(!key){status.className="status show err";status.textContent="Introduce una credencial TMDB para completar logos y reparto.";return;}
+  if(!state.validated && !await validateCredential()) return;
+  // Includes entries imported from older backups; does not fetch already processed entries.
+  const pending=state.collection.filter(m=>!m.mediaSynced && Boolean(m.tmdbId || m.id));
+  if(!pending.length){status.className="status show ok";status.textContent="Todas las películas ya fueron revisadas. Los títulos sin logo en TMDB conservarán su título de texto.";return;}
+  btn.disabled=true;status.className="status show";
+  snapshotCollection();
+  let done=0,failed=0, logos=0, photos=0;
+  try{
+    for(const entry of pending){
+      const id=entry.tmdbId || entry.id;
+      status.textContent=`Consultando TMDB: ${done+failed+1} de ${pending.length} · ${entry.title}`;
+      try{
+        const media=await getTmdbMedia(id,key);
+        const current=state.collection.find(m=>String(m.id)===String(entry.id));
+        if(current){
+          if(media.gotImages){current.logo=media.logo; if(media.logo)logos++;}
+          if(media.gotCredits){current.cast=media.cast; if(media.cast.some(p=>p.photo))photos++;}
+          current.mediaSynced=media.gotImages && media.gotCredits;
+        }
+        done++;
+      }catch(e){failed++;console.warn("TMDB",id,e);}
+      // Save incrementally, so an interruption does not lose the entire batch.
+      if((done+failed)%5===0 || done+failed===pending.length){
+        if(!saveCollection())throw Error("No hay espacio para guardar los datos. Descarga un respaldo.");
+        renderCollection();
+      }
+      // Evita ráfagas de solicitudes al completar colecciones grandes.
+      if(done+failed<pending.length) await new Promise(resolve=>setTimeout(resolve,250));
+    }
+    status.className="status show ok";
+    status.textContent=`Revisión finalizada: ${done} revisadas, ${logos} con logo, ${photos} con fotografías, ${failed} fallidas. Genera de nuevo index.html para publicar los cambios.`;
+  }catch(e){
+    status.className="status show err";
+    status.textContent="Actualización interrumpida: "+(e.message||e);
+  }finally{btn.disabled=false;}
+}
+
+/* ============================================================
    BUSCAR PELÍCULAS EN TMDB
    ============================================================ */
 async function searchMovies(){
@@ -833,7 +918,8 @@ function editSavedMovie(id){
   const movie={
     id:item.id, title:item.title || "", tagline:item.subtitle || "",
     release_date:String(item.year || ""), runtime:Number.isFinite(runtime)?runtime:0,
-    overview:item.overview || "", vote_average:Number(item.rating)||0
+    overview:item.overview || "", vote_average:Number(item.rating)||0,
+    logo:item.logo||"", cast:Array.isArray(item.cast)?item.cast:[], mediaSynced:item.mediaSynced===true
   };
   state.movie=movie;state.editingId=item.id;
   state.poster=String(item.poster||""); state.backdrop=String(item.backdrop||"");
@@ -889,11 +975,18 @@ async function loadMovie(id){
     if (requestId !== movieRequestId) return;
 
     // Si TMDB no devuelve imágenes, conserva los valores principales de la película.
-    let posters = [], backdrops = [];
+    let posters = [], backdrops = [], media={logo:"",cast:[],gotImages:false,gotCredits:false};
     try {
-      const images=await tmdbGet("https://api.themoviedb.org/3/movie/"+encodeURIComponent(movie.id)+"/images?include_image_language=es,es-ES,en,null",key);
+      // One images request supplies posters, backdrops and logos; credits runs in parallel.
+      const [imagesResult, creditsResult]=await Promise.allSettled([
+        tmdbGet("https://api.themoviedb.org/3/movie/"+encodeURIComponent(movie.id)+"/images?include_image_language=es,es-MX,en,null",key),
+        tmdbGet("https://api.themoviedb.org/3/movie/"+encodeURIComponent(movie.id)+"/credits?language=es-MX",key)
+      ]);
+      const images=imagesResult.status==="fulfilled"?imagesResult.value:null;
       posters=Array.isArray(images?.posters)?images.posters:[];
       backdrops=Array.isArray(images?.backdrops)?images.backdrops:[];
+      media={logo:chooseTmdbLogo(images),cast:creditsResult.status==="fulfilled"?castFromTmdb(creditsResult.value):[],
+        gotImages:imagesResult.status==="fulfilled",gotCredits:creditsResult.status==="fulfilled"};
     } catch (_) {}
     if (requestId !== movieRequestId) return;
     const posterPath = posters[3]?.file_path || movie.poster_path || "";
@@ -922,7 +1015,7 @@ async function loadMovie(id){
       }
     }catch(_){}
     if (requestId !== movieRequestId) return;
-    state.movie = movie;
+    state.movie = {...movie, logo:media.logo, cast:media.cast, mediaSynced:media.gotImages&&media.gotCredits};
     state.editingId = null;
     state.poster = selectedPoster;
     state.backdrop = selectedBackdrop;
@@ -1082,6 +1175,9 @@ function addMovieToCollection(){
     cert: state.cert || "",
     poster: state.poster || "",
     backdrop: state.backdrop || "",
+    logo:(oldItem?.mediaSynced && !state.movie.mediaSynced ? oldItem.logo : state.movie.logo) || oldItem?.logo || "",
+    cast:(oldItem?.mediaSynced && !state.movie.mediaSynced ? oldItem.cast : state.movie.cast) || oldItem?.cast || [],
+    mediaSynced:state.movie.mediaSynced===true || oldItem?.mediaSynced===true,
     tmdbId: state.movie.id != null ? state.movie.id : "",
     kind: "MOVIE", googleUrl: $("googleUrl").value.trim(),
     addedAt: oldItem?.addedAt || new Date().toISOString(),
@@ -1270,6 +1366,7 @@ async function importJsonCatalog(){
           cert,
           poster: posterPath   ? "https://image.tmdb.org/t/p/w500"+posterPath   : "",
           backdrop: backdropPath ? "https://image.tmdb.org/t/p/w1280"+backdropPath : "",
+          logo:"",cast:[],mediaSynced:false,
           tmdbId: movie.id,
           kind: "MOVIE",
           m37,
@@ -1470,6 +1567,10 @@ async function buildCollectionHtml(){
       runtime: String(item.runtime || ""),
       poster: String(item.poster || ""),
       backdrop: String(item.backdrop || ""),
+      logo: String(item.logo || ""),
+      cast: Array.isArray(item.cast) ? item.cast.slice(0,15).map(p=>({
+        name:String(p.name||"").slice(0,120),character:String(p.character||"").slice(0,160),photo:String(p.photo||"")
+      })) : [],
       rating: Number(item.rating) || 0,
       genres: String(item.genres || ""),
       cert: String(item.cert || ""),
@@ -1586,6 +1687,7 @@ $("googleUrl").addEventListener("input", ()=>{
 $("btnExtract").addEventListener("click", extractFromGooglePhotos);
 $("btnAddMovie").addEventListener("click", addMovieToCollection);
 $("btnGenerate").addEventListener("click", generateMoviePage);
+$("btnEnrichMedia").addEventListener("click",enrichSavedMovies);
 $("btnBackupCollection").addEventListener("click", () => {
   const backup = {format:"mmhd-collection", version:3, createdAt:new Date().toISOString(), count:state.collection.length, collection:state.collection, catalogSettings:state.catalogSettings};
   const url = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
