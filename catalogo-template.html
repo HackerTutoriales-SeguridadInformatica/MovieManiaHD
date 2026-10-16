@@ -1790,6 +1790,7 @@ const LS_WATCHED = "mmhd_watched";
 const LS_PROGRESS = "mmhd_progress";
 const LS_DOWNLOADS = "mmhd_downloads";
 const LS_PROGRESS_TS = "mmhd_progress_ts";
+const LS_PROGRESS_SECONDS = "mmhd_progress_seconds";
 
 function loadSet(key){
   try { return new Set(JSON.parse(localStorage.getItem(key) || "[]")); }
@@ -1809,6 +1810,7 @@ function saveObj(key, obj){
 const myList = loadSet(LS_MYLIST);
 const watched = loadSet(LS_WATCHED);
 const progress = loadObj(LS_PROGRESS);
+const progressSeconds = loadObj(LS_PROGRESS_SECONDS);
 const downloads = loadObj(LS_DOWNLOADS);
 
 const state = {
@@ -1861,79 +1863,66 @@ function b64ToUtf8(b64){
 }
 
 function buildProgressScript(movieId){
+  // El iframe usa blob:, por eso el progreso se guarda en el catálogo padre.
+  // El reproductor solo envía/recibe mensajes; no depende de localStorage del blob.
   return `
 <script>
 (function(){
-  try {
-    var MOVIE_ID = ${JSON.stringify(String(movieId))};
-    var KEY = 'mmhd_video_progress_' + MOVIE_ID;
-    var video = null;
-    var lastSaved = 0;
-    var restored = false;
+  var MOVIE_ID = ${JSON.stringify(String(movieId))};
+  var video = null;
+  var lastSent = 0;
+  var restored = false;
+  var savedSeconds = 0;
 
-    function findVideo(){
-      return document.querySelector('video');
+  function send(type, extra){
+    try { window.parent.postMessage(Object.assign({type:type,id:MOVIE_ID},extra||{}),'*'); } catch(e){}
+  }
+  function restore(){
+    if (!video || restored || !savedSeconds) return;
+    if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+    restored = true;
+    if (savedSeconds < video.duration - 5) {
+      try { video.currentTime = savedSeconds; } catch(e){}
     }
-
-    function tryRestore(){
-      video = findVideo();
-      if (!video) return false;
-
-      try {
-        video.disableRemotePlayback = true;
-        video.setAttribute('disableRemotePlayback', '');
-      } catch(e){}
-
-      video.addEventListener('loadedmetadata', function(){
-        if (restored) return;
-        try {
-          var saved = parseFloat(localStorage.getItem(KEY) || '0');
-          if (saved > 0 && (!video.duration || saved < video.duration - 5)) {
-            video.currentTime = saved;
-          }
-        } catch(e){}
-        restored = true;
-      });
-
-      video.addEventListener('timeupdate', function(){
-        var now = Date.now();
-        if (now - lastSaved < 3000) return;
-        lastSaved = now;
-        try {
-          localStorage.setItem(KEY, String(video.currentTime));
-          var pct = video.duration
-            ? Math.min(99, Math.round((video.currentTime / video.duration) * 100))
-            : 0;
-          window.parent.postMessage({
-            type: 'mmhd-progress',
-            id: MOVIE_ID,
-            currentTime: video.currentTime,
-            duration: video.duration || 0,
-            percent: pct
-          }, '*');
-        } catch(e){}
-      });
-
-      video.addEventListener('pause', function(){
-        try { localStorage.setItem(KEY, String(video.currentTime)); } catch(e){}
-      });
-
-      video.addEventListener('ended', function(){
-        try {
-          localStorage.removeItem(KEY);
-          window.parent.postMessage({ type: 'mmhd-ended', id: MOVIE_ID }, '*');
-        } catch(e){}
-      });
-
-      return true;
-    }
-
-    var tries = 0;
-    var timer = setInterval(function(){
-      tries++;
-      if (tryRestore() || tries > 50) clearInterval(timer);
-    }, 300);
-  } catch(e) {}
+  }
+  window.addEventListener('message',function(e){
+    if (e.source !== window.parent || !e.data || e.data.type !== 'mmhd-restore') return;
+    if (String(e.data.id) !== MOVIE_ID) return;
+    savedSeconds = Math.max(0,Number(e.data.currentTime)||0);
+    restore();
+  });
+  function attach(){
+    var found=document.querySelector('video');
+    if(!found || found===video) return !!video;
+    video=found;
+    try { video.disableRemotePlayback=true; video.setAttribute('disableRemotePlayback',''); }catch(e){}
+    video.addEventListener('loadedmetadata',restore);
+    video.addEventListener('durationchange',restore);
+    video.addEventListener('timeupdate',function(){
+      var now=Date.now();
+      if(now-lastSent<2500) return;
+      lastSent=now;
+      report();
+    });
+    video.addEventListener('pause',report);
+    video.addEventListener('pagehide',report);
+    video.addEventListener('ended',function(){send('mmhd-ended');});
+    send('mmhd-request-restore');
+    restore();
+    return true;
+  }
+  function report(){
+    if(!video || !Number.isFinite(video.currentTime)) return;
+    var duration=Number.isFinite(video.duration)?video.duration:0;
+    var pct=duration>0?Math.min(99,Math.round(video.currentTime/duration*100)):0;
+    send('mmhd-progress',{currentTime:video.currentTime,duration:duration,percent:pct});
+  }
+  var tries=0;
+  var timer=setInterval(function(){
+    tries++;
+    if(attach() || tries>100) clearInterval(timer);
+  },250);
+  attach();
 })();
 <\/script>
 `;
@@ -2350,6 +2339,8 @@ function renderContinue(){
       e.stopPropagation();
       const id = Number(btn.dataset.remove);
       delete progress[id];
+      delete progressSeconds[id];
+      saveObj(LS_PROGRESS_SECONDS, progressSeconds);
       saveObj(LS_PROGRESS, progress);
       try {
         const ts = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}");
@@ -3338,7 +3329,19 @@ window.addEventListener("message", (e) => {
   const movieId = Number(data.id);
   if (!movieId) return;
 
+  if (data.type === "mmhd-request-restore") {
+    frame.contentWindow.postMessage({
+      type: "mmhd-restore", id: movieId,
+      currentTime: Number(progressSeconds[movieId]) || 0
+    }, "*");
+    return;
+  }
+
   if (data.type === "mmhd-progress") {
+    if (Number.isFinite(Number(data.currentTime)) && Number(data.currentTime) >= 0) {
+      progressSeconds[movieId] = Number(data.currentTime);
+      saveObj(LS_PROGRESS_SECONDS, progressSeconds);
+    }
     const pct = Math.max(1, Math.min(99, Number(data.percent) || 0));
     progress[movieId] = pct;
     try {
@@ -3363,6 +3366,8 @@ window.addEventListener("message", (e) => {
   }
 
   if (data.type === "mmhd-ended") {
+    delete progressSeconds[movieId];
+    saveObj(LS_PROGRESS_SECONDS, progressSeconds);
     delete progress[movieId];
     saveObj(LS_PROGRESS, progress);
     renderContinue();
