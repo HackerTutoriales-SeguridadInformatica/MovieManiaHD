@@ -2621,17 +2621,27 @@ let castVideoEl = null;
 
 function ensureCastVideoElement() {
   if (castVideoEl && document.body.contains(castVideoEl)) return castVideoEl;
+
+  const old = document.getElementById("mmhdCastVideo");
+  if (old) old.remove();
+
   castVideoEl = document.createElement("video");
-  castVideoEl.style.position = "absolute";
+  castVideoEl.id = "mmhdCastVideo";
+  castVideoEl.style.position = "fixed";
   castVideoEl.style.width = "1px";
   castVideoEl.style.height = "1px";
-  castVideoEl.style.opacity = "0";
+  castVideoEl.style.opacity = "0.01";
   castVideoEl.style.pointerEvents = "none";
   castVideoEl.style.top = "0";
   castVideoEl.style.left = "0";
-  castVideoEl.style.zIndex = "-1";
+  castVideoEl.style.zIndex = "999999";
   castVideoEl.setAttribute("playsinline", "");
+  castVideoEl.setAttribute("muted", "");
+  castVideoEl.muted = true;
+  castVideoEl.preload = "auto";
   document.body.appendChild(castVideoEl);
+
+  console.log("[Cast] Elemento video oculto creado con ID mmhdCastVideo");
   return castVideoEl;
 }
 
@@ -2666,7 +2676,6 @@ function handleCast(movie) {
     return;
   }
 
-  // 👇 MISMA lógica exacta que el botón Descargar
   const sourceUrl = movie.m37 || movie.m22 || movie.m18 || "";
   if (!sourceUrl){
     showToast("Este título no tiene URLs configuradas");
@@ -2676,48 +2685,76 @@ function handleCast(movie) {
 
   console.log("URL final para Cast:", dvUrl);
 
-  // Preparar el video oculto (si no está pre-cargado, lo cargamos ahora)
+  const otherVideos = document.querySelectorAll("video:not(#mmhdCastVideo)");
+  otherVideos.forEach(v => {
+    try { v.pause(); } catch(e){}
+  });
+
   const v = ensureCastVideoElement();
-  if (v.src !== dvUrl) {
-    v.pause();
-    v.removeAttribute("src");
-    try { v.load(); } catch(e){}
-    v.src = dvUrl;
-    try { v.load(); } catch(e){}
-  }
 
-  console.log("Video.src:", v.src, "readyState:", v.readyState);
+  try { v.pause(); } catch(e){}
+  v.removeAttribute("src");
+  try { v.load(); } catch(e){}
+  v.src = dvUrl;
+  v.muted = true;
+  try { v.load(); } catch(e){}
 
-  // 👇 Llamada DIRECTA sin await previos (preserva el gesto del usuario)
-  const promise = v.remote.prompt();
+  console.log("Video.src:", v.src);
+  console.log("Video.readyState:", v.readyState);
+  console.log("Video.remote:", v.remote);
 
-  if (!promise || typeof promise.then !== "function") {
-    showToast("Tu navegador no soporta Cast");
-    return;
-  }
-
-  promise
-    .then(() => {
-      console.log("✅ prompt() OK");
-      showToast("Transmitiendo a TV...");
-    })
-    .catch(err => {
-      console.error("❌ Error en prompt():", err);
-      console.error("err.name:", err && err.name);
-      console.error("err.message:", err && err.message);
-
-      if (err && err.name === "NotFoundError") {
-        showToast("No se encontraron dispositivos Cast");
-      } else if (err && err.name === "NotAllowedError") {
-        showToast("Permiso denegado — haz clic directo en el botón");
-      } else if (err && err.name === "NotSupportedError") {
-        showToast("Cast no soportado en este navegador");
-      } else if (err && err.name === "AbortError") {
-        showToast("Transmisión cancelada");
-      } else {
-        showToast("No se pudo iniciar: " + ((err && err.message) || "desconocido"));
-      }
+  const playPromise = v.play();
+  if (playPromise && typeof playPromise.then === "function") {
+    playPromise.then(() => {
+      console.log("[Cast] Video reproduciendo (muted)");
+    }).catch(err => {
+      console.warn("[Cast] No se pudo reproducir:", err);
     });
+  }
+
+  let attempts = 0;
+  const tryPrompt = () => {
+    attempts++;
+    console.log(`Intento ${attempts} — readyState: ${v.readyState}`);
+
+    if (v.readyState >= 1 || attempts > 10) {
+      console.log("Llamando a remote.prompt()...");
+      const promise = v.remote.prompt();
+
+      if (!promise || typeof promise.then !== "function") {
+        showToast("Tu navegador no soporta Cast");
+        return;
+      }
+
+      promise
+        .then(() => {
+          console.log("✅ prompt() OK");
+          showToast("Transmitiendo a TV...");
+        })
+        .catch(err => {
+          console.error("❌ Error en prompt():", err);
+          console.error("err.name:", err && err.name);
+          console.error("err.message:", err && err.message);
+
+          if (err && err.name === "NotFoundError") {
+            showToast("No se encontraron dispositivos Cast");
+          } else if (err && err.name === "NotAllowedError") {
+            showToast("Permiso denegado — cierra el reproductor y reintenta");
+            console.warn("Sugerencia: cierra el reproductor si lo abriste antes");
+          } else if (err && err.name === "NotSupportedError") {
+            showToast("Cast no soportado en este navegador");
+          } else if (err && err.name === "AbortError") {
+            showToast("Transmisión cancelada");
+          } else {
+            showToast("No se pudo iniciar: " + ((err && err.message) || "desconocido"));
+          }
+        });
+    } else {
+      setTimeout(tryPrompt, 200);
+    }
+  };
+
+  setTimeout(tryPrompt, 100);
 }
 
 function updateCastButton() {
@@ -2777,12 +2814,9 @@ function openDetail(id){
     playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Reproducir`;
   }
 
-  updateWatchedBtn();
+    updateWatchedBtn();
   updateMyListBtn();
   updateCastButton();
-
-  // 👇 Pre-cargar el video oculto con la URL dv (para que remote.prompt() funcione)
-  preloadCastSource(m);
 
   $("detailScreen").classList.add("show");
   $("detailScreen").scrollTop = 0;
