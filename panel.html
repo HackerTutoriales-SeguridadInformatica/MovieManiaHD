@@ -457,6 +457,35 @@ const state = {
   collection: loadSavedCollection(), validated: false
 };
 
+// Evita que peticiones anteriores cambien la película o los enlaces seleccionados.
+let movieRequestId = 0;
+let extractRequestId = 0;
+function clearVideoFields(){
+  extractRequestId++;
+  for (const id of ["googleUrl", "m37", "m22", "m18"]) $(id).value = "";
+  $("extractStatus").className = "status";
+  $("extractStatus").textContent = "";
+  $("btnExtract").disabled = false;
+}
+function validateVideoLinks(){
+  let available = 0;
+  for (const [id, quality] of [["m37","m37"],["m22","m22"],["m18","m18"]]){
+    const value = $(id).value.trim();
+    if (!value) continue;
+    available++;
+    let url;
+    try { url = new URL(value); } catch { throw Error(`La URL de ${quality} no es válida.`); }
+    if (url.protocol !== "https:" || !/(^|\.)googleusercontent\.com$/i.test(url.hostname) || url.username || url.password || (url.port && url.port !== "443")) {
+      throw Error(`La URL de ${quality} debe ser HTTPS de Google Photos (googleusercontent.com).`);
+    }
+    if (!url.pathname.endsWith("=" + quality) || url.search || url.hash){
+      throw Error(`La URL de ${quality} debe terminar exactamente en =${quality}.`);
+    }
+  }
+  if (!available) throw Error("Extrae o introduce al menos una URL de vídeo.");
+}
+
+
 const savedKey = localStorage.getItem("movieManiaTmdbKey");
 const savedCredentialType = localStorage.getItem("movieManiaTmdbCredentialType");
 if (savedKey) apiKey.value = savedKey;
@@ -548,6 +577,9 @@ async function searchMovies(){
   if (!state.validated){ const ok = await validateCredential(); if (!ok) return; }
 
   showStatus("Buscando en TMDB…");
+  movieRequestId++;
+  state.movie = null;
+  clearVideoFields();
   $("results").innerHTML="";
   $("movieCard").style.display="none";
   $("linksGrid").style.display="none";
@@ -586,6 +618,11 @@ async function searchMovies(){
    CARGAR PELÍCULA SELECCIONADA
    ============================================================ */
 async function loadMovie(id){
+  const requestId = ++movieRequestId;
+  clearVideoFields();
+  state.movie = null;
+  $("movieCard").style.display="none";
+  $("linksGrid").style.display="none";
   const key = credentialValue();
   try{
     showStatus("Cargando información de la película…");
@@ -594,26 +631,24 @@ async function loadMovie(id){
       "https://api.themoviedb.org/3/movie/"+encodeURIComponent(id)+"?language=es-MX",
       key
     );
-    state.movie = movie;
+    if (requestId !== movieRequestId) return;
 
     const postersData   = await tmdbGet("https://api.themoviedb.org/3/movie/"+encodeURIComponent(movie.id)+"/images?language=es-ES", key);
     const backdropsData = await tmdbGet("https://api.themoviedb.org/3/movie/"+encodeURIComponent(movie.id)+"/images?language=es-ES&include_image_language=xx", key);
 
+    if (requestId !== movieRequestId) return;
     const posters   = Array.isArray(postersData?.posters)?postersData.posters:[];
     const backdrops = Array.isArray(backdropsData?.backdrops)?backdropsData.backdrops:[];
 
     const posterPath   = posters[3]?.file_path   || movie.poster_path   || "";
     const backdropPath = backdrops[6]?.file_path || movie.backdrop_path || "";
 
-    state.poster   = posterPath   ? "https://image.tmdb.org/t/p/w500"+posterPath   : "";
-    state.backdrop = backdropPath ? "https://image.tmdb.org/t/p/w1280"+backdropPath : null;
+    const selectedPoster   = posterPath   ? "https://image.tmdb.org/t/p/w500"+posterPath   : "";
+    const selectedBackdrop = backdropPath ? "https://image.tmdb.org/t/p/w1280"+backdropPath : null;
 
     const genres = Array.isArray(movie.genres)
       ? movie.genres.map(g => g.name).join(", ")
       : "";
-    state.genres = genres;
-
-    state.tagline = movie.tagline || "";
 
     let cert = "";
     try{
@@ -631,6 +666,12 @@ async function loadMovie(id){
         }
       }
     }catch(_){}
+    if (requestId !== movieRequestId) return;
+    state.movie = movie;
+    state.poster = selectedPoster;
+    state.backdrop = selectedBackdrop;
+    state.genres = genres;
+    state.tagline = movie.tagline || "";
     state.cert = cert || "";
 
     $("emptyState").style.display="none";
@@ -659,7 +700,7 @@ async function loadMovie(id){
     showStatus("Película seleccionada correctamente.","ok");
     updateSteps(3);
   }catch(e){
-    showStatus("✕ No se pudo cargar la película: "+(e.message||"Error desconocido."),"err");
+    if (requestId === movieRequestId) showStatus("✕ No se pudo cargar la película: "+(e.message||"Error desconocido."),"err");
   }
 }
 
@@ -676,6 +717,14 @@ async function extractFromGooglePhotos(){
     return;
   }
 
+  if (!state.movie){
+    box.className = "status show err";
+    box.textContent = "Selecciona una película antes de extraer enlaces.";
+    return;
+  }
+  const requestId = ++extractRequestId;
+  const movieId = state.movie.id;
+  for (const id of ["m37", "m22", "m18"]) $(id).value = "";
   box.className = "status show";
   box.textContent = "Extrayendo URLs desde Google Photos…";
   $("btnExtract").disabled = true;
@@ -688,6 +737,7 @@ async function extractFromGooglePhotos(){
     });
     const data = await res.json();
 
+    if (requestId !== extractRequestId || state.movie?.id !== movieId || $("googleUrl").value.trim() !== url) return;
     if (!data.ok) throw new Error(data.error || "No se pudieron extraer las URLs.");
 
     $("m37").value = data.m37 || "";
@@ -695,12 +745,14 @@ async function extractFromGooglePhotos(){
     $("m18").value = data.m18 || "";
 
     box.className = "status show ok";
-    box.textContent = "✓ URLs generadas correctamente (1080p / 720p / 420p).";
+    box.textContent = "✓ URLs generadas (1080p / 720p / 420p). No se ha comprobado la reproducción; pruébalas antes de publicar.";
   }catch(e){
-    box.className = "status show err";
-    box.textContent = "✕ "+(e.message||"Error al extraer las URLs.");
+    if (requestId === extractRequestId){
+      box.className = "status show err";
+      box.textContent = "✕ "+(e.message||"Error al extraer las URLs.");
+    }
   }finally{
-    $("btnExtract").disabled = false;
+    if (requestId === extractRequestId) $("btnExtract").disabled = false;
   }
 }
 
@@ -712,7 +764,7 @@ function addMovieToCollection(){
   const m37 = $("m37").value.trim();
   const m22 = $("m22").value.trim();
   const m18 = $("m18").value.trim();
-  if (!m37 && !m22 && !m18){ showStatus("Extrae primero las URLs desde Google Photos.","err"); return; }
+  try { validateVideoLinks(); } catch(e) { showStatus(e.message,"err"); return; }
 
   const item = {
     id: state.movie.id,
@@ -929,9 +981,9 @@ async function generateMoviePage(){
   const m37 = $("m37").value.trim();
   const m22 = $("m22").value.trim();
   const m18 = $("m18").value.trim();
-  if (!m37 && !m22 && !m18){
+  try { validateVideoLinks(); } catch(e) {
     $("generatedStatus").className="status show err";
-    $("generatedStatus").textContent="Agrega al menos una URL de vídeo.";
+    $("generatedStatus").textContent=e.message;
     return;
   }
   $("generatedStatus").className="status show";
@@ -941,7 +993,7 @@ async function generateMoviePage(){
     const bytes = Uint8Array.from(atob(PLAYER_TEMPLATE_B64), c=>c.charCodeAt(0));
     let html = new TextDecoder("utf-8").decode(bytes);
 
-    const requiredMarkers = ["__MOVIE_TITLE__","__MOVIE_TITLE_JSON__","__MOVIE_YEAR__","__MOVIE_OVERVIEW_JSON__","__POSTER_URL__","__MOVIE_RATING__","__BACKDROP_URL__","__TMDB_ID__","__M37_URL__","__M22_URL__","__M18_URL__"];
+    const requiredMarkers = ["__MOVIE_TITLE__","__MOVIE_TITLE_JSON__","__MOVIE_YEAR__","__MOVIE_OVERVIEW_JSON__","__POSTER_URL__","__MOVIE_RATING__","__BACKDROP_URL__","__TMDB_ID__","__DV_URL__"];
     const missing = requiredMarkers.filter(m=> !html.includes(m));
     if (missing.length) throw new Error("Faltan marcadores: "+missing.join(", "));
 
@@ -978,7 +1030,9 @@ async function generateMoviePage(){
       "__TMDB_ID__": jsonContent(tmdbId),
       "__M37_URL__": jsonContent(m37),
       "__M22_URL__": jsonContent(m22),
-      "__M18_URL__": jsonContent(m18)
+      "__M18_URL__": jsonContent(m18),
+      "__DV_URL__": jsonContent((m37 || m22 || m18).replace(/=m\d+$/, "=dv")),
+      "__DOWNLOAD_URL__": jsonContent((m37 || m22 || m18).replace(/=m\d+$/, "=dv"))
     };
     Object.keys(reps).forEach(k => { html = html.split(k).join(reps[k]); });
 
@@ -1070,7 +1124,8 @@ async function generateCollection(){
         "__M37_URL__": jsonContent(cleanUrl(item.m37)),
         "__M22_URL__": jsonContent(cleanUrl(item.m22)),
         "__M18_URL__": jsonContent(cleanUrl(item.m18)),
-        "__DOWNLOAD_URL__": jsonContent(buildDownloadUrl(cleanUrl(item.m37)))
+        "__DOWNLOAD_URL__": jsonContent(buildDownloadUrl(cleanUrl(item.m37 || item.m22 || item.m18))),
+        "__DV_URL__": jsonContent(buildDownloadUrl(cleanUrl(item.m37 || item.m22 || item.m18)))
       };
       Object.keys(r).forEach(k => { html = html.split(k).join(r[k]); });
       return html;
@@ -1131,9 +1186,19 @@ $("btnClear").addEventListener("click", ()=>{
   $("linksGrid").style.display="none";
   $("emptyState").style.display="block";
   $("status").className="status";
+  movieRequestId++;
   state.movie = state.backdrop = state.poster = null;
+  clearVideoFields();
+  $("btnExtract").disabled = false;
   state.genres = ""; state.cert = ""; state.tagline = "";
   updateSteps(1);
+});
+$("googleUrl").addEventListener("input", ()=>{
+  extractRequestId++;
+  $("btnExtract").disabled = false;
+  for (const id of ["m37", "m22", "m18"]) $(id).value = "";
+  $("extractStatus").className = "status";
+  $("extractStatus").textContent = "";
 });
 $("btnExtract").addEventListener("click", extractFromGooglePhotos);
 $("btnAddMovie").addEventListener("click", addMovieToCollection);
