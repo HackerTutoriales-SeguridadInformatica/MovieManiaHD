@@ -1575,8 +1575,20 @@ a{color:inherit;text-decoration:none}
 .detail-similar-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
 .detail-similar-head h3{font-size:18px;font-weight:800;margin:0;color:#f5f6fa}
 .detail-similar-count{font-size:12px;color:var(--muted)}
+.detail-similar-tools{display:flex;align-items:center;gap:10px;margin-left:auto}
+.detail-similar-nav{display:none;gap:6px}
+.detail-similar-nav-btn{
+  width:32px;height:32px;border-radius:8px;background:#181824;border:1px solid #242434;
+  color:#b8bcc7;display:grid;place-items:center;font-size:12px;cursor:pointer;transition:.18s;
+}
+.detail-similar-nav-btn:hover{background:#20202f;color:#fff;border-color:#3a3a55}
+.detail-similar-nav-btn:active{transform:scale(.94)}
+.detail-similar-nav-btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
 .detail-similar-row{display:flex;gap:12px;overflow-x:auto;overscroll-behavior-inline:contain;
-  scroll-snap-type:x proximity;padding:3px 2px 16px;-webkit-overflow-scrolling:touch}
+  scroll-snap-type:x proximity;padding:3px 2px 6px;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;-ms-overflow-style:none;touch-action:pan-x pan-y;cursor:grab}
+.detail-similar-row:active{cursor:grabbing}
+.detail-similar-row::-webkit-scrollbar{display:none}
 .similar-card{flex:0 0 142px;width:142px;min-width:0;padding:0;border:1px solid #292b41;
   background:#161622;border-radius:12px;text-align:left;overflow:hidden;scroll-snap-align:start;touch-action:pan-x pan-y}
 .similar-card:hover{border-color:#5485d5;background:#1c2337}
@@ -1599,6 +1611,10 @@ a{color:inherit;text-decoration:none}
   .similar-info{padding:7px 7px 10px}
   .similar-name{font-size:11px}
   .similar-year{font-size:10px}
+  .detail-similar-nav{display:none!important}
+}
+@media(min-width:601px){
+  .detail-similar-nav{display:flex}
 }
 @media(prefers-reduced-motion:reduce){.genre-chip,.similar-card{transition:none}}
 </style>
@@ -1847,7 +1863,17 @@ a{color:inherit;text-decoration:none}
     <section class="detail-similar" id="detailSimilar" aria-label="Películas similares" hidden>
       <div class="detail-similar-head">
         <h3 id="detailSimilarHeading">Películas similares</h3>
-        <span class="detail-similar-count" id="detailSimilarCount"></span>
+        <div class="detail-similar-tools">
+          <span class="detail-similar-count" id="detailSimilarCount"></span>
+          <div class="detail-similar-nav" aria-label="Desplazar películas similares">
+            <button class="detail-similar-nav-btn" id="similarPrev" type="button" aria-label="Anterior">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button class="detail-similar-nav-btn" id="similarNext" type="button" aria-label="Siguiente">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
       </div>
       <div class="detail-similar-row" id="detailSimilarRow"></div>
       <p class="detail-similar-empty" id="detailSimilarEmpty" hidden>No hay otros títulos del mismo género en tu catálogo.</p>
@@ -3082,6 +3108,84 @@ function renderSimilarMovies(movie){
     row.appendChild(button);
   });
   row.scrollLeft=0;
+  setupSimilarRowNav();
+}
+
+function setupSimilarRowNav(){
+  const row = $("detailSimilarRow");
+  const prevBtn = $("similarPrev");
+  const nextBtn = $("similarNext");
+  if (!row) return;
+
+  if (prevBtn && !prevBtn.dataset.bound) {
+    prevBtn.dataset.bound = "1";
+    prevBtn.addEventListener("click", () => {
+      row.scrollBy({ left: -row.clientWidth * 0.82, behavior: "smooth" });
+    });
+  }
+  if (nextBtn && !nextBtn.dataset.bound) {
+    nextBtn.dataset.bound = "1";
+    nextBtn.addEventListener("click", () => {
+      row.scrollBy({ left: row.clientWidth * 0.82, behavior: "smooth" });
+    });
+  }
+
+  if (!row.dataset.navBound) {
+    row.dataset.navBound = "1";
+
+    const updateArrows = () => {
+      if (!prevBtn || !nextBtn) return;
+      const noOverflow = row.scrollWidth <= row.clientWidth + 6;
+      const atStart = row.scrollLeft <= 5;
+      const atEnd = row.scrollLeft + row.clientWidth >= row.scrollWidth - 5;
+      prevBtn.disabled = noOverflow || atStart;
+      nextBtn.disabled = noOverflow || atEnd;
+    };
+
+    row.addEventListener("scroll", updateArrows, { passive: true });
+    window.addEventListener("resize", updateArrows);
+    row._updateSimilarArrows = updateArrows;
+
+    let isDown = false;
+    let startX = 0;
+    let startScroll = 0;
+    let moved = false;
+
+    row.addEventListener("mousedown", (e) => {
+      if (e.target.closest("button, .similar-card")) return;
+      isDown = true;
+      moved = false;
+      startX = e.pageX;
+      startScroll = row.scrollLeft;
+      row.style.cursor = "grabbing";
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!isDown) return;
+      const dx = e.pageX - startX;
+      if (Math.abs(dx) > 3) moved = true;
+      row.scrollLeft = startScroll - dx;
+      e.preventDefault();
+    });
+
+    document.addEventListener("mouseup", () => {
+      if (!isDown) return;
+      isDown = false;
+      row.style.cursor = "";
+      if (moved) {
+        const preventClick = (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          row.removeEventListener("click", preventClick, true);
+        };
+        row.addEventListener("click", preventClick, true);
+      }
+    });
+  }
+
+  if (typeof row._updateSimilarArrows === "function") {
+    requestAnimationFrame(() => row._updateSimilarArrows());
+  }
 }
 /* ============================================================
    DETALLE
