@@ -1059,6 +1059,40 @@ a{color:inherit;text-decoration:none}
 }
 
 /* ============================================
+   PANTALLA DE BÚSQUEDA — ESCRITORIO (≥601px)
+   ============================================ */
+@media (min-width: 601px) {
+  .mobile-search-header {
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    border-radius: 0 0 12px 12px;
+  }
+  .mobile-search-body {
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 20px 20px 40px;
+  }
+  .mobile-search-results {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px;
+  }
+  .mobile-search-input-wrap {
+    height: 52px;
+  }
+  .mobile-search-input-wrap input {
+    font-size: 15px;
+  }
+  .mobile-search-empty i {
+    font-size: 72px;
+  }
+  .mobile-search-empty p {
+    font-size: 16px;
+  }
+}
+
+/* ============================================
    TABLET (≤900px)
    ============================================ */
 @media (max-width: 900px){
@@ -1487,11 +1521,15 @@ a{color:inherit;text-decoration:none}
     <div class="sfa-logo"><span>MMHD</span></div>
 
     <nav class="nav">
-      <div class="nav-item active" data-filter="all">
-        <i class="fa-solid fa-house"></i>
-        <span>Inicio</span>
-        <span class="badge" id="badgeAll"></span>
-      </div>
+  <button class="nav-item" id="sidebarNavSearch" type="button" title="Buscar">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span>Buscar</span>
+  </button>
+  <div class="nav-item active" data-filter="all">
+    <i class="fa-solid fa-house"></i>
+    <span>Inicio</span>
+    <span class="badge" id="badgeAll"></span>
+  </div>
       <div class="nav-item" data-filter="movie">
         <i class="fa-solid fa-film"></i>
         <span>Películas</span>
@@ -1525,20 +1563,20 @@ a{color:inherit;text-decoration:none}
   </aside>
 
   <main class="main">
-    <div class="topbar">
-      <h1 id="pageTitle">Inicio</h1>
+    <div class="topbar" style="display:none">
+  <h1 id="pageTitle">Inicio</h1>
 
-      <div class="search">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="searchInput" placeholder="Buscar títulos...">
-      </div>
+  <div class="search">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" id="searchInput" placeholder="Buscar títulos...">
+  </div>
 
-      <div class="tabs" id="tabsContainer">
-        <div class="tab active" data-tab="all"><i class="fa-solid fa-house"></i> Inicio</div>
-        <div class="tab" data-tab="movie"><i class="fa-solid fa-film"></i> Películas</div>
-        <div class="tab" data-tab="series"><i class="fa-solid fa-tv"></i> Series</div>
-      </div>
-    </div>
+  <div class="tabs" id="tabsContainer">
+    <div class="tab active" data-tab="all"><i class="fa-solid fa-house"></i> Inicio</div>
+    <div class="tab" data-tab="movie"><i class="fa-solid fa-film"></i> Películas</div>
+    <div class="tab" data-tab="series"><i class="fa-solid fa-tv"></i> Series</div>
+  </div>
+</div>
 
     <section class="hero" id="hero">
       <div id="heroSlides"></div>
@@ -1983,6 +2021,14 @@ function openMobileSearch(){
   $("mobileSearchEmpty").querySelector("p").textContent = "Escribe para buscar en todo el catálogo";
   $("mobileSearchResults").innerHTML = "";
   setTimeout(() => $("mobileSearchInput").focus(), 100);
+  // 👇 Poner el foco también cuando se abre desde la sidebar en escritorio
+  setTimeout(() => {
+    const input = $("mobileSearchInput");
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }, 120);
 }
 
 function closeMobileSearch(){
@@ -2881,10 +2927,16 @@ $("searchInput").addEventListener("input", e => {
 });
 
 /* ============================================================
-   EVENTOS BÚSQUEDA MÓVIL
+   EVENTOS BÚSQUEDA (MÓVIL + ESCRITORIO)
    ============================================================ */
 $("mobileNavSearch").addEventListener("click", openMobileSearch);
 $("mobileSearchBack").addEventListener("click", closeMobileSearch);
+
+// 👇 Botón de búsqueda en la sidebar (solo escritorio)
+const sidebarNavSearch = $("sidebarNavSearch");
+if (sidebarNavSearch) {
+  sidebarNavSearch.addEventListener("click", openMobileSearch);
+}
 
 $("mobileSearchInput").addEventListener("input", e => {
   state.mobileSearch = e.target.value;
