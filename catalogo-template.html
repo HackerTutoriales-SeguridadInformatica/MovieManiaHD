@@ -1514,6 +1514,26 @@ a{color:inherit;text-decoration:none}
   }
 }
 
+/* Fase 4: búsqueda y carga progresiva táctiles */
+.mobile-search-input-wrap input{min-width:0}
+.mobile-search-clear{flex:0 0 32px;width:32px;height:32px;display:grid;place-items:center;border-radius:50%;color:#d8dcea;background:#303044;font-size:14px}
+.mobile-search-clear[hidden]{display:none!important}
+.mobile-search-count{font-size:12px;color:#abb4c7;margin:0 0 14px;min-height:18px}
+.mobile-search-count:empty{display:none}
+.grid-more{width:100%;background:#161e34;border:1px solid #365687;border-radius:10px;padding:14px 18px;min-height:48px;color:#dce7ff;font-size:13px;cursor:pointer}
+.grid-more:hover,.grid-more:focus-visible{background:#253d68;outline:2px solid #729bff;outline-offset:2px}
+@media(max-width:600px){
+  .mobile-search-screen{height:100dvh;min-height:100vh}
+  .mobile-search-header{padding-top:max(12px,env(safe-area-inset-top));gap:6px}
+  .mobile-search-back{width:44px;height:44px}
+  .mobile-search-body{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .grid-more{min-height:48px}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero-slide,.card,.card-poster img,.back-to-top{transition:none!important}
+  .spinner{animation:none!important}
+}
+
 /* Chromecast integrado */
 .mmhd-cast-area{max-width:620px;margin:0 auto 20px;background:#14141f;border:1px solid #2f2f45;border-radius:12px;padding:12px 15px;color:#b8bcc7;font-size:12px}
 #mmhdCastStatus{overflow-wrap:anywhere;line-height:1.5}
@@ -1680,7 +1700,8 @@ a{color:inherit;text-decoration:none}
   <div class="mobile-search-header">
     <div class="mobile-search-input-wrap">
       <i class="fa-solid fa-magnifying-glass"></i>
-      <input type="text" id="mobileSearchInput" placeholder="Buscar películas, series...">
+      <input type="search" id="mobileSearchInput" placeholder="Buscar películas, series..." autocomplete="off" enterkeyhint="search" aria-label="Buscar títulos">
+      <button type="button" id="mobileSearchClear" class="mobile-search-clear" aria-label="Limpiar búsqueda" hidden><i class="fa-solid fa-xmark"></i></button>
     </div>
     <button class="mobile-search-back" id="mobileSearchBack" aria-label="Cerrar búsqueda">
       <i class="fa-solid fa-arrow-left"></i>
@@ -1692,6 +1713,7 @@ a{color:inherit;text-decoration:none}
       <i class="fa-solid fa-magnifying-glass"></i>
       <p>Escribe para buscar en todo el catálogo</p>
     </div>
+    <p class="mobile-search-count" id="mobileSearchCount" role="status" aria-live="polite"></p>
     <div class="mobile-search-results" id="mobileSearchResults"></div>
   </div>
 </div>
@@ -1804,7 +1826,8 @@ const CATALOG_CONFIG = __CATALOG_CONFIG_JSON__;
 /* ============================================================
    CONFIGURACIÓN DE PAGINACIÓN (SCROLL INFINITO)
    ============================================================ */
-const PAGE_SIZE = 40;
+// Menos tarjetas iniciales en móviles: menor coste de DOM y de imágenes.
+const PAGE_SIZE = window.matchMedia("(max-width: 600px)").matches ? 24 : 40;
 
 /* ============================================================
    ESTADO LOCAL (localStorage)
@@ -1861,13 +1884,37 @@ const state = {
   filteredCache: [],
   isLoadingMore: false,
   heroPaused: false,
-  gridObserver: null
+  gridObserver: null,
+  heroInView: true,
+  mobileSearchTimer: null
 };
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({
   "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
 }[c]));
+
+// Reduce los bytes de TMDB sin cambiar la URL original almacenada en el panel.
+// Imágenes externas o personalizadas permanecen intactas.
+function tmdbSize(url, size){
+  return String(url || "").replace(
+    /^https:\/\/image\.tmdb\.org\/t\/p\/(?:original|w\d+)\//i,
+    "https://image.tmdb.org/t/p/" + size + "/"
+  );
+}
+function posterSmall(movie){
+  return tmdbSize(movie.poster, "w342") || placeholderPoster(movie.title);
+}
+function posterResponsive(movie){
+  if (!/^https:\/\/image\.tmdb\.org\/t\/p\/(?:original|w\d+)\//i.test(String(movie.poster||""))) return "";
+  return `srcset="${esc(tmdbSize(movie.poster,"w185"))} 185w, ${esc(tmdbSize(movie.poster,"w342"))} 342w, ${esc(tmdbSize(movie.poster,"w500"))} 500w" sizes="(max-width: 600px) 33vw, 180px"`;
+}
+function backdropOptimized(url, small=false){
+  return tmdbSize(url, small ? "w780" : "w1280") || placeholderBackdrop();
+}
+function mobileBackdrop(url){
+  return backdropOptimized(url, window.matchMedia("(max-width: 700px)").matches);
+}
 
 function placeholderPoster(title){
   const initial = (title || "?").charAt(0).toUpperCase();
@@ -2056,6 +2103,8 @@ function renderMobileSearchResults(){
   const results = getSearchResults(state.mobileSearch);
   const emptyEl = $("mobileSearchEmpty");
   const resultsEl = $("mobileSearchResults");
+  const countEl = $("mobileSearchCount");
+  $("mobileSearchClear").hidden = !state.mobileSearch;
 
   if (!state.mobileSearch.trim()) {
     emptyEl.style.display = "flex";
@@ -2063,6 +2112,7 @@ function renderMobileSearchResults(){
     emptyEl.querySelector("i").style.color = "#2563eb";
     emptyEl.querySelector("p").textContent = "Escribe para buscar en todo el catálogo";
     resultsEl.innerHTML = "";
+    countEl.textContent = "";
     return;
   }
 
@@ -2071,18 +2121,24 @@ function renderMobileSearchResults(){
     emptyEl.querySelector("i").className = "fa-solid fa-film";
     emptyEl.querySelector("i").style.color = "#2a2a3a";
     emptyEl.querySelector("p").textContent = "Sin resultados para tu búsqueda";
+    countEl.textContent = "";
     resultsEl.innerHTML = "";
     return;
   }
 
   emptyEl.style.display = "none";
-  resultsEl.innerHTML = results.map(m => `
+  const visibleResults = results.slice(0, 72);
+  countEl.textContent = results.length > 72
+    ? `${results.length} resultados · Mostrando 72. Escribe más para afinar.`
+    : `${results.length} ${results.length === 1 ? "resultado" : "resultados"}`;
+  resultsEl.innerHTML = visibleResults.map(m => `
     <article class="card" data-id="${m.id}">
       <div class="card-poster">
-        <img src="${esc(m.poster || placeholderPoster(m.title))}"
+        <img src="${esc(posterSmall(m))}"
+             ${posterResponsive(m)}
              alt="${esc(m.title)}"
-             loading="lazy"
-             onerror="this.src='${placeholderPoster(m.title)}'">
+             loading="lazy" decoding="async"
+             data-fallback-title="${esc(m.title)}">
         ${m.rating > 0 ? `
           <div class="card-rating">
             <i class="fa-solid fa-star"></i> ${m.rating.toFixed(1)}
@@ -2110,7 +2166,10 @@ function openMobileSearch(){
   document.body.style.overflow = "hidden";
   hideMobileNav();
   state.mobileSearch = "";
+  clearTimeout(state.mobileSearchTimer);
   $("mobileSearchInput").value = "";
+  $("mobileSearchClear").hidden = true;
+  $("mobileSearchCount").textContent = "";
   $("mobileSearchEmpty").style.display = "flex";
   $("mobileSearchEmpty").querySelector("i").className = "fa-solid fa-magnifying-glass";
   $("mobileSearchEmpty").querySelector("i").style.color = "#2563eb";
@@ -2126,6 +2185,7 @@ function openMobileSearch(){
 }
 
 function closeMobileSearch(){
+  clearTimeout(state.mobileSearchTimer);
   $("mobileSearchScreen").classList.remove("show");
   document.body.style.overflow = "";
   showMobileNav();
@@ -2153,7 +2213,8 @@ function renderHero(){
   slidesBox.innerHTML = list.map((m, i) => `
     <div class="hero-slide ${i === 0 ? "active" : ""}"
          data-index="${i}"
-         style="background-image:url('${esc(m.backdrop || placeholderBackdrop())}')">
+         data-bg="${esc(mobileBackdrop(m.backdrop))}"
+         ${i === 0 ? `style="background-image:url('${esc(mobileBackdrop(m.backdrop))}')" data-bg-loaded="1"` : ""}>
       <div class="hero-content">
         <span class="hero-tag">
           <i class="fa-solid fa-${m.kind === "SERIES" ? "tv" : "film"}"></i>
@@ -2202,12 +2263,18 @@ function renderHero(){
 }
 
 function goHero(index){
-  const list = getHeroMovies();
-  if (!list.length) return;
-  const idx = (index + list.length) % list.length;
+  const slides = $("heroSlides").querySelectorAll(".hero-slide");
+  if (!slides.length) return;
+  const idx = (index + slides.length) % slides.length;
   state.heroIndex = idx;
 
-  document.querySelectorAll(".hero-slide").forEach((el, i) => {
+  const active = slides[idx];
+  if (!active.dataset.bgLoaded){
+    // Almacenar la URL en data-bg evita descargar todas las portadas simultáneamente.
+    active.style.backgroundImage = `url(${JSON.stringify(active.dataset.bg)})`;
+    active.dataset.bgLoaded = "1";
+  }
+  slides.forEach((el, i) => {
     el.classList.toggle("active", i === idx);
   });
   document.querySelectorAll(".hero-dot").forEach((el, i) => {
@@ -2217,8 +2284,19 @@ function goHero(index){
 
 function startHeroTimer(){
   if (state.heroTimer) clearInterval(state.heroTimer);
+  if (typeof IntersectionObserver !== "undefined"){
+    const observer = new IntersectionObserver(entries => {
+      state.heroInView = Boolean(entries[0]?.isIntersecting);
+    }, { threshold: 0.05 });
+    observer.observe($("hero"));
+  }
+  if ($( "heroSlides" ).children.length <= 1) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   state.heroTimer = setInterval(() => {
-    if (state.heroPaused) return;
+    if (document.hidden || !state.heroInView || state.heroPaused) return;
+    if ($("detailScreen").classList.contains("show") ||
+        $("playerModal").classList.contains("show") ||
+        $("mobileSearchScreen").classList.contains("show")) return;
     goHero(state.heroIndex + 1);
   }, 6000);
 }
@@ -2318,6 +2396,7 @@ function setupHeroSwipe(){
   });
 
   hero.setAttribute("tabindex", "0");
+  hero.setAttribute("aria-label", "Películas destacadas: usa las flechas para navegar");
   hero.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft") {
       goHero(state.heroIndex - 1);
@@ -2370,7 +2449,7 @@ function renderContinue(){
       : "En progreso";
     return `
       <div class="continue-card" data-id="${m.id}">
-        <div class="continue-thumb" style="background-image:url('${esc(m.backdrop || placeholderBackdrop())}')">
+        <div class="continue-thumb" style="background-image:url('${esc(backdropOptimized(m.backdrop,true))}')">
           <div class="continue-tag">
             <i class="fa-solid fa-${m.kind === "SERIES" ? "tv" : "film"}"></i>
             ${m.kind === "SERIES" ? "SERIE" : "PELÍCULA"}
@@ -2488,6 +2567,15 @@ function setupContinueRowNav(){
   }
 }
 
+// Maneja imágenes rotas sin código inline; funciona también con títulos que contienen comillas.
+document.addEventListener("error", (event) => {
+  const img = event.target;
+  if (!(img instanceof HTMLImageElement) || !img.dataset.fallbackTitle) return;
+  delete img.dataset.fallbackTitle;
+  img.removeAttribute("srcset");
+  img.src = placeholderPoster(img.alt || "?");
+}, true);
+
 /* ============================================================
    GRID CON SCROLL INFINITO
    ============================================================ */
@@ -2495,11 +2583,12 @@ function cardHTML(m){
   return `
     <article class="card" data-id="${m.id}" tabindex="0" role="button" aria-label="Ver ${esc(m.title)}">
       <div class="card-poster">
-        <img src="${esc(m.poster || placeholderPoster(m.title))}"
+        <img src="${esc(posterSmall(m))}"
+             ${posterResponsive(m)}
              alt="${esc(m.title)}"
              loading="lazy"
              decoding="async"
-             onerror="this.src='${placeholderPoster(m.title)}'">
+             data-fallback-title="${esc(m.title)}">
         ${m.rating > 0 ? `
           <div class="card-rating">
             <i class="fa-solid fa-star"></i> ${m.rating.toFixed(1)}
@@ -2543,7 +2632,8 @@ function updateGridFooter(){
   if (visible < total) {
     const loader = document.createElement("div");
     loader.className = "grid-loader";
-    loader.innerHTML = `<div class="spinner"></div><span>Cargando más...</span>`;
+    loader.innerHTML = `<button class="grid-more" type="button">Mostrar más películas (${visible} de ${total})</button>`;
+    loader.querySelector("button").addEventListener("click", loadMoreItems);
     grid.appendChild(loader);
   } else {
     const end = document.createElement("div");
@@ -2603,14 +2693,16 @@ function loadMoreItems(){
 
   state.isLoadingMore = true;
 
-  setTimeout(() => {
+  try {
     state.visibleCount = Math.min(state.visibleCount + PAGE_SIZE, total);
     renderGrid(false);
+  } finally {
     state.isLoadingMore = false;
-  }, 250);
+  }
 }
 
 function setupInfiniteScroll(){
+  if (typeof IntersectionObserver === "undefined") return; // El botón manual sigue disponible.
   if (state.gridObserver) state.gridObserver.disconnect();
 
   state.gridObserver = new IntersectionObserver((entries) => {
@@ -2827,11 +2919,11 @@ function openDetail(id){
   state.currentMovie = m;
 
   $("detailBackdrop").style.backgroundImage =
-    `url('${m.backdrop || placeholderBackdrop()}')`;
+    `url(${JSON.stringify(mobileBackdrop(m.backdrop))})`;
 
   const posterEl = $("detailPoster");
-  posterEl.src = m.poster || placeholderPoster(m.title);
-  posterEl.onerror = () => { posterEl.src = placeholderPoster(m.title); };
+  posterEl.src = posterSmall(m);
+  posterEl.onerror = () => { posterEl.onerror = null; posterEl.src = placeholderPoster(m.title); };
 
   $("detailTitle").textContent = m.title;
   $("detailSubtitle").textContent = m.subtitle || "";
@@ -3117,10 +3209,14 @@ document.querySelectorAll(".tab[data-tab]").forEach(el => {
   });
 });
 
+let desktopSearchTimer = null;
 $("searchInput").addEventListener("input", e => {
   state.search = e.target.value;
-  renderGrid(true);
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  clearTimeout(desktopSearchTimer);
+  desktopSearchTimer = setTimeout(() => {
+    renderGrid(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, 150);
 });
 
 /* ============================================================
@@ -3136,7 +3232,17 @@ if (sidebarNavSearch) {
 
 $("mobileSearchInput").addEventListener("input", e => {
   state.mobileSearch = e.target.value;
+  $("mobileSearchClear").hidden = !state.mobileSearch;
+  clearTimeout(state.mobileSearchTimer);
+  if (!state.mobileSearch.trim()) renderMobileSearchResults();
+  else state.mobileSearchTimer = setTimeout(renderMobileSearchResults, 150);
+});
+$("mobileSearchClear").addEventListener("click", () => {
+  clearTimeout(state.mobileSearchTimer);
+  state.mobileSearch = "";
+  $("mobileSearchInput").value = "";
   renderMobileSearchResults();
+  $("mobileSearchInput").focus();
 });
 
 /* ============================================================
