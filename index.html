@@ -1724,10 +1724,93 @@ function b64ToUtf8(b64){
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new TextDecoder("utf-8").decode(bytes);
 }
+
+function buildProgressScript(movieId){
+  return `
+<script>
+(function(){
+  try {
+    var MOVIE_ID = ${JSON.stringify(String(movieId))};
+    var KEY = 'mmhd_video_progress_' + MOVIE_ID;
+    var video = null;
+    var lastSaved = 0;
+    var restored = false;
+
+    function findVideo(){
+      return document.querySelector('video');
+    }
+
+    function tryRestore(){
+      video = findVideo();
+      if (!video) return false;
+
+      video.addEventListener('loadedmetadata', function(){
+        if (restored) return;
+        try {
+          var saved = parseFloat(localStorage.getItem(KEY) || '0');
+          if (saved > 0 && (!video.duration || saved < video.duration - 5)) {
+            video.currentTime = saved;
+          }
+        } catch(e){}
+        restored = true;
+      });
+
+      video.addEventListener('timeupdate', function(){
+        var now = Date.now();
+        if (now - lastSaved < 3000) return;
+        lastSaved = now;
+        try {
+          localStorage.setItem(KEY, String(video.currentTime));
+          var pct = video.duration
+            ? Math.min(99, Math.round((video.currentTime / video.duration) * 100))
+            : 0;
+          window.parent.postMessage({
+            type: 'mmhd-progress',
+            id: MOVIE_ID,
+            currentTime: video.currentTime,
+            duration: video.duration || 0,
+            percent: pct
+          }, '*');
+        } catch(e){}
+      });
+
+      video.addEventListener('pause', function(){
+        try { localStorage.setItem(KEY, String(video.currentTime)); } catch(e){}
+      });
+
+      video.addEventListener('ended', function(){
+        try {
+          localStorage.removeItem(KEY);
+          window.parent.postMessage({ type: 'mmhd-ended', id: MOVIE_ID }, '*');
+        } catch(e){}
+      });
+
+      return true;
+    }
+
+    var tries = 0;
+    var timer = setInterval(function(){
+      tries++;
+      if (tryRestore() || tries > 50) clearInterval(timer);
+    }, 300);
+  } catch(e) {}
+})();
+<\/script>
+`;
+}
+
 function getPlayerHtml(movie){
   const idx = MOVIES.findIndex(m => m.id === movie.id);
   if (idx < 0 || !PLAYER_B64_LIST[idx]) return "";
-  return b64ToUtf8(PLAYER_B64_LIST[idx]);
+  let html = b64ToUtf8(PLAYER_B64_LIST[idx]);
+
+  const scriptTag = buildProgressScript(movie.id);
+  if (/<\/body\s*>/i.test(html)) {
+    html = html.replace(/<\/body\s*>/i, scriptTag + "</body>");
+  } else {
+    html += scriptTag;
+  }
+  return html;
 }
 
 /* ============================================================
@@ -1846,7 +1929,7 @@ function getHeroMovies(){
   return MOVIES
     .filter(m => m.rating > 0)
     .sort((a, b) => b.rating - a.rating)
-    .slice(0, 5);
+    .slice(0, 60);
 }
 
 function renderHero(){
@@ -2265,6 +2348,14 @@ function openDetail(id){
   const box = $("downloadBox");
   box.classList.remove("show", "done", "error");
 
+  // Texto del botón Reproducir según progreso
+const playBtn = $("btnPlay");
+if (progress[m.id] && progress[m.id] > 1 && progress[m.id] < 99) {
+  playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Reanudar (${progress[m.id]}%)`;
+} else {
+  playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Reproducir`;
+}
+
   updateWatchedBtn();
   updateMyListBtn();
 
@@ -2433,9 +2524,12 @@ function openPlayer(movie){
   document.body.style.overflow = "hidden";
   hideMobileNav();
 
-  progress[movie.id] = Math.max(progress[movie.id] || 0, 8);
-  saveObj(LS_PROGRESS, progress);
-  renderContinue();
+  // Primera vez: marcar 1% para que aparezca en "Continuar viendo"
+  if (!progress[movie.id]) {
+    progress[movie.id] = 1;
+    saveObj(LS_PROGRESS, progress);
+    renderContinue();
+  }
 
   $("playerFrame").dataset.blobUrl = url;
 }
@@ -2737,6 +2831,46 @@ document.addEventListener("DOMContentLoaded", () => {
     if (etag) localStorage.setItem(LS_ETAG, etag);
   } catch {}
 })();
+
+/* ============================================================
+   ESCUCHAR PROGRESO REAL DEL REPRODUCTOR (postMessage)
+   ============================================================ */
+window.addEventListener("message", (e) => {
+  const data = e.data;
+  if (!data || typeof data !== "object") return;
+  if (!data.type) return;
+
+  const frame = $("playerFrame");
+  if (!frame || e.source !== frame.contentWindow) return;
+
+  const movieId = Number(data.id);
+  if (!movieId) return;
+
+  if (data.type === "mmhd-progress") {
+    const pct = Math.max(1, Math.min(99, Number(data.percent) || 0));
+    progress[movieId] = pct;
+    saveObj(LS_PROGRESS, progress);
+
+    const card = document.querySelector(`.continue-card[data-id="${movieId}"]`);
+    if (card) {
+      const fill = card.querySelector(".continue-progress-fill");
+      if (fill) fill.style.width = pct + "%";
+      const remainEl = card.querySelector(".continue-remain b");
+      if (remainEl && data.duration) {
+        const remainingMin = Math.max(1, Math.round((data.duration - data.currentTime) / 60));
+        remainEl.textContent = `Quedan ${remainingMin}m`;
+      }
+    } else {
+      renderContinue();
+    }
+  }
+
+  if (data.type === "mmhd-ended") {
+    delete progress[movieId];
+    saveObj(LS_PROGRESS, progress);
+    renderContinue();
+  }
+});
 
 /* ============================================================
    INIT
