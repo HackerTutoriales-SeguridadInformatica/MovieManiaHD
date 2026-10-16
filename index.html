@@ -333,7 +333,6 @@ a{color:inherit;text-decoration:none}
   display: none;
 }
 
-/* Flechas de navegación (solo escritorio) */
 .continue-nav{
   display: none;
   gap: 6px;
@@ -366,7 +365,6 @@ a{color:inherit;text-decoration:none}
   pointer-events: none;
 }
 
-/* Mostrar las flechas solo en pantallas grandes */
 @media (min-width: 601px){
   .continue-nav{
     display: flex;
@@ -658,9 +656,9 @@ a{color:inherit;text-decoration:none}
 
 .detail-actions{
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:1fr 1fr 1fr;
   gap:10px;
-  max-width:520px;
+  max-width:620px;
   margin:0 auto 22px;
 }
 .detail-btn{
@@ -1102,7 +1100,6 @@ a{color:inherit;text-decoration:none}
   .main{
     padding: 16px 14px 90px;
   }
-  .topbar h1{ font-size: 18px; }
   .hero{ height: 340px; }
   .hero-content{ padding: 28px 24px; }
   .hero-title{ font-size: 34px; letter-spacing: -1px; }
@@ -1250,7 +1247,7 @@ a{color:inherit;text-decoration:none}
     font-size: 8px;
   }
 
-    .continue-row{
+  .continue-row{
     gap: 10px;
     margin: 0 -12px;
     padding: 0 12px 6px;
@@ -1521,15 +1518,15 @@ a{color:inherit;text-decoration:none}
     <div class="sfa-logo"><span>MMHD</span></div>
 
     <nav class="nav">
-  <button class="nav-item" id="sidebarNavSearch" type="button" title="Buscar">
-    <i class="fa-solid fa-magnifying-glass"></i>
-    <span>Buscar</span>
-  </button>
-  <div class="nav-item active" data-filter="all">
-    <i class="fa-solid fa-house"></i>
-    <span>Inicio</span>
-    <span class="badge" id="badgeAll"></span>
-  </div>
+      <button class="nav-item" id="sidebarNavSearch" type="button" title="Buscar">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <span>Buscar</span>
+      </button>
+      <div class="nav-item active" data-filter="all">
+        <i class="fa-solid fa-house"></i>
+        <span>Inicio</span>
+        <span class="badge" id="badgeAll"></span>
+      </div>
       <div class="nav-item" data-filter="movie">
         <i class="fa-solid fa-film"></i>
         <span>Películas</span>
@@ -1564,19 +1561,19 @@ a{color:inherit;text-decoration:none}
 
   <main class="main">
     <div class="topbar" style="display:none">
-  <h1 id="pageTitle">Inicio</h1>
+      <h1 id="pageTitle">Inicio</h1>
 
-  <div class="search">
-    <i class="fa-solid fa-magnifying-glass"></i>
-    <input type="text" id="searchInput" placeholder="Buscar títulos...">
-  </div>
+      <div class="search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" placeholder="Buscar títulos...">
+      </div>
 
-  <div class="tabs" id="tabsContainer">
-    <div class="tab active" data-tab="all"><i class="fa-solid fa-house"></i> Inicio</div>
-    <div class="tab" data-tab="movie"><i class="fa-solid fa-film"></i> Películas</div>
-    <div class="tab" data-tab="series"><i class="fa-solid fa-tv"></i> Series</div>
-  </div>
-</div>
+      <div class="tabs" id="tabsContainer">
+        <div class="tab active" data-tab="all"><i class="fa-solid fa-house"></i> Inicio</div>
+        <div class="tab" data-tab="movie"><i class="fa-solid fa-film"></i> Películas</div>
+        <div class="tab" data-tab="series"><i class="fa-solid fa-tv"></i> Series</div>
+      </div>
+    </div>
 
     <section class="hero" id="hero">
       <div id="heroSlides"></div>
@@ -1584,21 +1581,21 @@ a{color:inherit;text-decoration:none}
     </section>
 
     <section class="section" id="continueSection" style="display:none">
-  <div class="section-head">
-    <div class="play-icon"><i class="fa-solid fa-play"></i></div>
-    <h2>Continuar viendo</h2>
-    <span class="count" id="continueCount">0</span>
-    <div class="continue-nav">
-      <button class="continue-nav-btn" id="continuePrev" aria-label="Anterior">
-        <i class="fa-solid fa-chevron-left"></i>
-      </button>
-      <button class="continue-nav-btn" id="continueNext" aria-label="Siguiente">
-        <i class="fa-solid fa-chevron-right"></i>
-      </button>
-    </div>
-  </div>
-  <div class="continue-row" id="continueRow"></div>
-</section>
+      <div class="section-head">
+        <div class="play-icon"><i class="fa-solid fa-play"></i></div>
+        <h2>Continuar viendo</h2>
+        <span class="count" id="continueCount">0</span>
+        <div class="continue-nav">
+          <button class="continue-nav-btn" id="continuePrev" aria-label="Anterior">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <button class="continue-nav-btn" id="continueNext" aria-label="Siguiente">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="continue-row" id="continueRow"></div>
+    </section>
 
     <section class="section">
       <div class="section-head">
@@ -1641,7 +1638,7 @@ a{color:inherit;text-decoration:none}
   </div>
 </nav>
 
-<!-- PANTALLA DE BÚSQUEDA (MÓVIL) -->
+<!-- PANTALLA DE BÚSQUEDA (MÓVIL + ESCRITORIO) -->
 <div class="mobile-search-screen" id="mobileSearchScreen">
   <div class="mobile-search-header">
     <div class="mobile-search-input-wrap">
@@ -1693,6 +1690,9 @@ a{color:inherit;text-decoration:none}
     <div class="detail-actions">
       <button class="detail-btn detail-btn-primary" id="btnPlay">
         <i class="fa-solid fa-play"></i> Reproducir
+      </button>
+      <button class="detail-btn detail-btn-secondary" id="btnCast">
+        <i class="fa-solid fa-tv"></i> Transmitir
       </button>
       <button class="detail-btn detail-btn-secondary" id="btnDownload">
         <i class="fa-solid fa-download"></i> Descargar
@@ -1762,6 +1762,7 @@ const LS_MYLIST = "mmhd_mylist";
 const LS_WATCHED = "mmhd_watched";
 const LS_PROGRESS = "mmhd_progress";
 const LS_DOWNLOADS = "mmhd_downloads";
+const LS_PROGRESS_TS = "mmhd_progress_ts";
 
 function loadSet(key){
   try { return new Set(JSON.parse(localStorage.getItem(key) || "[]")); }
@@ -1794,7 +1795,8 @@ const state = {
   visibleCount: PAGE_SIZE,
   filteredCache: [],
   isLoadingMore: false,
-  heroPaused: false
+  heroPaused: false,
+  gridObserver: null
 };
 
 const $ = id => document.getElementById(id);
@@ -1849,6 +1851,18 @@ function buildProgressScript(movieId){
     function tryRestore(){
       video = findVideo();
       if (!video) return false;
+
+      try {
+        video.disableRemotePlayback = true;
+        video.setAttribute('disableRemotePlayback', '');
+      } catch(e){}
+
+      try {
+        var currentList = video.getAttribute('controlsList') || '';
+        if (currentList.indexOf('noremoteplayback') === -1) {
+          video.setAttribute('controlsList', (currentList + ' noremoteplayback').trim());
+        }
+      } catch(e){}
 
       video.addEventListener('loadedmetadata', function(){
         if (restored) return;
@@ -1923,7 +1937,6 @@ function getPlayerHtml(movie){
    FILTRADO
    ============================================================ */
 function getFiltered(){
-  // 👇 Invertir: la última película del JSON aparece primero
   let list = MOVIES.slice().reverse();
 
   const q = state.search.trim().toLowerCase();
@@ -1945,7 +1958,7 @@ function getFiltered(){
 }
 
 /* ============================================================
-   BÚSQUEDA MÓVIL
+   BÚSQUEDA
    ============================================================ */
 function getSearchResults(query){
   const q = (query || "").trim().toLowerCase();
@@ -2020,8 +2033,6 @@ function openMobileSearch(){
   $("mobileSearchEmpty").querySelector("i").style.color = "#2563eb";
   $("mobileSearchEmpty").querySelector("p").textContent = "Escribe para buscar en todo el catálogo";
   $("mobileSearchResults").innerHTML = "";
-  setTimeout(() => $("mobileSearchInput").focus(), 100);
-  // 👇 Poner el foco también cuando se abre desde la sidebar en escritorio
   setTimeout(() => {
     const input = $("mobileSearchInput");
     if (input) {
@@ -2244,12 +2255,10 @@ function setupHeroSwipe(){
    CONTINUAR VIENDO
    ============================================================ */
 function renderContinue(){
-  // Leer timestamps de última reproducción
   let tsMap = {};
-  try { tsMap = JSON.parse(localStorage.getItem("mmhd_progress_ts") || "{}"); } catch(e){}
+  try { tsMap = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}"); } catch(e){}
 
   const ids = Object.keys(progress).map(Number).filter(id => progress[id] > 0);
-  // 👇 Ordenar por timestamp descendente (más reciente primero)
   const sortedIds = ids.sort((a, b) => (tsMap[b] || 0) - (tsMap[a] || 0));
 
   const list = sortedIds
@@ -2298,36 +2307,30 @@ function renderContinue(){
       openDetail(Number(card.dataset.id));
     });
   });
-    row.querySelectorAll("[data-remove]").forEach(btn => {
+  row.querySelectorAll("[data-remove]").forEach(btn => {
     btn.addEventListener("click", e => {
       e.stopPropagation();
       const id = Number(btn.dataset.remove);
       delete progress[id];
       saveObj(LS_PROGRESS, progress);
-      // 👇 Eliminar también el timestamp
       try {
-        const ts = JSON.parse(localStorage.getItem("mmhd_progress_ts") || "{}");
+        const ts = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}");
         delete ts[id];
-        localStorage.setItem("mmhd_progress_ts", JSON.stringify(ts));
+        localStorage.setItem(LS_PROGRESS_TS, JSON.stringify(ts));
       } catch(e){}
       renderContinue();
     });
   });
 
-  // 👇 Setup de flechas + drag (solo se aplica una vez)
   setupContinueRowNav();
 }
 
-/* ============================================================
-   NAVEGACIÓN DE "CONTINUAR VIENDO" (flechas + drag)
-   ============================================================ */
 function setupContinueRowNav(){
   const row = $("continueRow");
   const prevBtn = $("continuePrev");
   const nextBtn = $("continueNext");
   if (!row) return;
 
-  // 👇 Flechas
   if (prevBtn && !prevBtn.dataset.bound) {
     prevBtn.dataset.bound = "1";
     prevBtn.addEventListener("click", () => {
@@ -2341,7 +2344,6 @@ function setupContinueRowNav(){
     });
   }
 
-  // 👇 Actualizar estado de las flechas según scroll
   if (!row.dataset.bound) {
     row.dataset.bound = "1";
 
@@ -2355,19 +2357,15 @@ function setupContinueRowNav(){
 
     row.addEventListener("scroll", updateArrows, { passive: true });
     window.addEventListener("resize", updateArrows);
-    // Llamar al inicio y después de un pequeño delay
     setTimeout(updateArrows, 100);
 
-    // 👇 Drag con mouse (solo escritorio)
     let isDown = false;
     let startX = 0;
     let startScroll = 0;
     let moved = false;
 
     row.addEventListener("mousedown", (e) => {
-      // Ignorar clics en botones o tarjetas
       if (e.target.closest("button, .continue-card")) {
-        // Pero permitir el drag si no es sobre un botón de cerrar
         if (!e.target.closest(".continue-close")) return;
       }
       isDown = true;
@@ -2389,7 +2387,6 @@ function setupContinueRowNav(){
       if (!isDown) return;
       isDown = false;
       row.style.cursor = "";
-      // Si hubo drag, evitar el click en la tarjeta
       if (moved) {
         const preventClick = (ev) => {
           ev.stopPropagation();
@@ -2405,8 +2402,6 @@ function setupContinueRowNav(){
 /* ============================================================
    GRID CON SCROLL INFINITO
    ============================================================ */
-
-// Crea el HTML de una tarjeta
 function cardHTML(m){
   return `
     <article class="card" data-id="${m.id}" tabindex="0" role="button" aria-label="Ver ${esc(m.title)}">
@@ -2430,7 +2425,6 @@ function cardHTML(m){
   `;
 }
 
-// Asigna los listeners a las tarjetas recién añadidas
 function bindCardEvents(container){
   container.querySelectorAll(".card:not([data-bound])").forEach(card => {
     card.dataset.bound = "1";
@@ -2444,7 +2438,6 @@ function bindCardEvents(container){
   });
 }
 
-// Actualiza el loader / fin de lista al final del grid
 function updateGridFooter(){
   const grid = $("catalogGrid");
   const oldLoader = grid.querySelector(".grid-loader");
@@ -2468,9 +2461,10 @@ function updateGridFooter(){
     end.textContent = `— Has visto todo (${total}) —`;
     grid.appendChild(end);
   }
+
+  observeGridFooter();
 }
 
-// Renderiza el grid con la cantidad visible actual
 function renderGrid(reset = false){
   const grid = $("catalogGrid");
   const count = $("gridCount");
@@ -2494,17 +2488,14 @@ function renderGrid(reset = false){
     return;
   }
 
-  // Si ya se renderizó todo lo visible, no hacer nada
   const currentCards = grid.querySelectorAll(".card").length;
   if (currentCards >= state.visibleCount && !reset) return;
 
   if (reset) {
-    // Render inicial: solo los primeros PAGE_SIZE
     const slice = list.slice(0, state.visibleCount);
     grid.innerHTML = slice.map(cardHTML).join("");
     bindCardEvents(grid);
   } else {
-    // Añadir solo los nuevos
     const slice = list.slice(currentCards, state.visibleCount);
     const temp = document.createElement("div");
     temp.innerHTML = slice.map(cardHTML).join("");
@@ -2515,7 +2506,6 @@ function renderGrid(reset = false){
   updateGridFooter();
 }
 
-// Carga más elementos (llamado por el observer)
 function loadMoreItems(){
   if (state.isLoadingMore) return;
   const total = state.filteredCache.length;
@@ -2523,7 +2513,6 @@ function loadMoreItems(){
 
   state.isLoadingMore = true;
 
-  // Pequeño delay para que se vea el spinner (sensación de carga)
   setTimeout(() => {
     state.visibleCount = Math.min(state.visibleCount + PAGE_SIZE, total);
     renderGrid(false);
@@ -2531,12 +2520,8 @@ function loadMoreItems(){
   }, 250);
 }
 
-// IntersectionObserver para detectar cuando el usuario llega al final
 function setupInfiniteScroll(){
   if (state.gridObserver) state.gridObserver.disconnect();
-
-  const sentinelTarget = document.querySelector(".main"); // Contenedor con scroll (body)
-  const grid = $("catalogGrid");
 
   state.gridObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -2546,12 +2531,10 @@ function setupInfiniteScroll(){
     });
   }, {
     root: null,
-    rootMargin: "300px 0px", // Empieza a cargar 300px antes de llegar al final
+    rootMargin: "300px 0px",
     threshold: 0
   });
 
-  // Observamos un elemento "centinela" que se coloca al final del grid.
-  // Lo creamos dinámicamente cada vez que se renderiza.
   observeGridFooter();
 }
 
@@ -2565,18 +2548,10 @@ function observeGridFooter(){
   }
 }
 
-// Hook al render para volver a observar
-const _origUpdateGridFooter = updateGridFooter;
-updateGridFooter = function(){
-  _origUpdateGridFooter();
-  observeGridFooter();
-};
-
 function renderAll(){
   renderGrid(true);
   renderContinue();
 
-  // Badges sidebar
   const badgeAll = $("badgeAll");
   const badgeList = $("badgeList");
   if (badgeAll) {
@@ -2595,7 +2570,6 @@ function renderAll(){
     badgeDownloads.classList.toggle("show", dlCount > 0);
   }
 
-  // Badges barra inferior móvil
   const mobileBadgeAll = $("mobileBadgeAll");
   const mobileBadgeList = $("mobileBadgeList");
   const mobileBadgeDownloads = $("mobileBadgeDownloads");
@@ -2645,6 +2619,80 @@ function showMobileNav() {
 }
 
 /* ============================================================
+   CAST / TRANSMITIR A TV (usa el enlace dv)
+   ============================================================ */
+let castVideoEl = null;
+
+function ensureCastVideoElement() {
+  if (castVideoEl) return castVideoEl;
+  castVideoEl = document.createElement("video");
+  castVideoEl.style.position = "fixed";
+  castVideoEl.style.width = "1px";
+  castVideoEl.style.height = "1px";
+  castVideoEl.style.opacity = "0";
+  castVideoEl.style.pointerEvents = "none";
+  castVideoEl.style.left = "-9999px";
+  castVideoEl.setAttribute("playsinline", "");
+  document.body.appendChild(castVideoEl);
+  return castVideoEl;
+}
+
+function getCastUrl(movie) {
+  const base = movie.m37 || movie.m22 || movie.m18 || "";
+  if (!base) return "";
+  return base.replace(/=m\d+$/, "=dv");
+}
+
+async function handleCast(movie) {
+  if (!movie) return;
+
+  if (!("remote" in HTMLVideoElement.prototype)) {
+    showToast("Tu navegador no soporta transmisión a TV");
+    return;
+  }
+
+  const dvUrl = getCastUrl(movie);
+  if (!dvUrl) {
+    showToast("Este título no tiene enlace de transmisión");
+    return;
+  }
+
+  const v = ensureCastVideoElement();
+  v.pause();
+  v.removeAttribute("src");
+  v.load();
+  v.src = dvUrl;
+  v.load();
+
+  try {
+    await v.remote.prompt();
+    showToast("Transmitiendo a TV...");
+  } catch (err) {
+    if (err && err.name === "NotFoundError") {
+      showToast("No se encontraron dispositivos Cast");
+    } else if (err && err.name === "NotAllowedError") {
+      showToast("Permiso denegado");
+    } else {
+      showToast("No se pudo iniciar la transmisión");
+    }
+  }
+}
+
+function updateCastButton() {
+  const btn = $("btnCast");
+  if (!btn) return;
+
+  const supports = "remote" in HTMLVideoElement.prototype;
+  if (!supports) {
+    btn.style.opacity = "0.4";
+    btn.title = "Tu navegador no soporta Cast";
+  } else {
+    btn.style.opacity = "";
+    btn.title = "Transmitir a TV";
+  }
+}
+
+/* ============================================================
    DETALLE
    ============================================================ */
 function openDetail(id){
@@ -2680,16 +2728,16 @@ function openDetail(id){
   const box = $("downloadBox");
   box.classList.remove("show", "done", "error");
 
-  // Texto del botón Reproducir según progreso
-const playBtn = $("btnPlay");
-if (progress[m.id] && progress[m.id] > 1 && progress[m.id] < 99) {
-  playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Reanudar (${progress[m.id]}%)`;
-} else {
-  playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Reproducir`;
-}
+  const playBtn = $("btnPlay");
+  if (progress[m.id] && progress[m.id] > 1 && progress[m.id] < 99) {
+    playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Reanudar (${progress[m.id]}%)`;
+  } else {
+    playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Reproducir`;
+  }
 
   updateWatchedBtn();
   updateMyListBtn();
+  updateCastButton();
 
   $("detailScreen").classList.add("show");
   $("detailScreen").scrollTop = 0;
@@ -2856,15 +2904,13 @@ function openPlayer(movie){
   document.body.style.overflow = "hidden";
   hideMobileNav();
 
-// Registrar/actualizar la película en "Continuar viendo"
   if (!progress[movie.id]) {
     progress[movie.id] = 1;
   }
-  // 👇 Siempre actualizar el timestamp al abrir
   try {
-    const ts = JSON.parse(localStorage.getItem("mmhd_progress_ts") || "{}");
+    const ts = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}");
     ts[movie.id] = Date.now();
-    localStorage.setItem("mmhd_progress_ts", JSON.stringify(ts));
+    localStorage.setItem(LS_PROGRESS_TS, JSON.stringify(ts));
   } catch(e){}
   saveObj(LS_PROGRESS, progress);
   renderContinue();
@@ -2932,7 +2978,6 @@ $("searchInput").addEventListener("input", e => {
 $("mobileNavSearch").addEventListener("click", openMobileSearch);
 $("mobileSearchBack").addEventListener("click", closeMobileSearch);
 
-// 👇 Botón de búsqueda en la sidebar (solo escritorio)
 const sidebarNavSearch = $("sidebarNavSearch");
 if (sidebarNavSearch) {
   sidebarNavSearch.addEventListener("click", openMobileSearch);
@@ -2976,6 +3021,7 @@ $("btnExit").addEventListener("click", () => {
 
 $("btnDetailBack").addEventListener("click", closeDetail);
 $("btnPlay").addEventListener("click", () => openPlayer(state.currentMovie));
+$("btnCast").addEventListener("click", () => handleCast(state.currentMovie));
 $("btnDownload").addEventListener("click", showDownloadBox);
 $("btnWatched").addEventListener("click", toggleWatched);
 $("btnMyList").addEventListener("click", () => toggleMyList());
@@ -3190,14 +3236,13 @@ window.addEventListener("message", (e) => {
   const movieId = Number(data.id);
   if (!movieId) return;
 
- if (data.type === "mmhd-progress") {
+  if (data.type === "mmhd-progress") {
     const pct = Math.max(1, Math.min(99, Number(data.percent) || 0));
     progress[movieId] = pct;
-    // 👇 Guardar timestamp de última reproducción
     try {
-      const ts = JSON.parse(localStorage.getItem("mmhd_progress_ts") || "{}");
+      const ts = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}");
       ts[movieId] = Date.now();
-      localStorage.setItem("mmhd_progress_ts", JSON.stringify(ts));
+      localStorage.setItem(LS_PROGRESS_TS, JSON.stringify(ts));
     } catch(e){}
     saveObj(LS_PROGRESS, progress);
 
