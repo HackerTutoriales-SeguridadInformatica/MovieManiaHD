@@ -1629,8 +1629,12 @@ a{color:inherit;text-decoration:none}
 .detail-cast{margin-top:34px;max-width:100%;min-width:0}
 .detail-cast[hidden]{display:none!important}
 .detail-cast h3{font-size:18px;font-weight:800;margin:0 0 17px}
+.detail-cast-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+.detail-cast .detail-cast-head h3{margin:0}
+.detail-cast-nav{display:none;gap:6px;margin-left:auto}
 .detail-cast-row{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;
-  padding:3px 2px 9px;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+  padding:3px 2px 9px;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;
+  scroll-snap-type:x proximity;touch-action:pan-x pan-y}
 .detail-cast-row::-webkit-scrollbar{display:none}
 .detail-cast-person{flex:0 0 112px;text-align:center;scroll-snap-align:start;min-width:0}
 .detail-cast-face{width:92px;height:92px;display:grid;place-items:center;margin:0 auto 10px;
@@ -1641,12 +1645,16 @@ a{color:inherit;text-decoration:none}
 @media(max-width:600px){
   .detail-logo{max-width:min(95%,360px);max-height:120px;margin-bottom:10px}
   .detail-cast{margin-top:29px}
-  .detail-cast h3{font-size:16px;margin-bottom:13px}
+  .detail-cast h3{font-size:16px}
+  .detail-cast-head{margin-bottom:13px}
   .detail-cast-row{gap:14px}
   .detail-cast-person{flex-basis:93px}
   .detail-cast-face{width:76px;height:76px;margin-bottom:8px;font-size:24px}
   .detail-cast-name{font-size:11px}
   .detail-cast-role{font-size:10px}
+}
+@media(min-width:601px){
+  .detail-cast-nav{display:flex}
 }
 </style>
 </head>
@@ -1893,8 +1901,18 @@ a{color:inherit;text-decoration:none}
     </div>
 
     <section class="detail-cast" id="detailCast" aria-label="Reparto" hidden>
-      <h3>Reparto</h3>
-      <div class="detail-cast-row" id="detailCastRow"></div>
+      <div class="detail-cast-head">
+        <h3>Reparto</h3>
+        <div class="detail-cast-nav" aria-label="Desplazar reparto">
+          <button class="detail-similar-nav-btn" id="castPeoplePrev" type="button" aria-label="Reparto anterior">
+            <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+          </button>
+          <button class="detail-similar-nav-btn" id="castPeopleNext" type="button" aria-label="Reparto siguiente">
+            <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      <div class="detail-cast-row" id="detailCastRow" aria-label="Actores y personajes"></div>
     </section>
 
     <section class="detail-similar" id="detailSimilar" aria-label="Películas similares" hidden>
@@ -3262,6 +3280,37 @@ function renderDetailCast(movie){
   }
   section.hidden=!row.children.length;
   row.scrollLeft=0;
+  setupCastPeopleNav();
+}
+function setupCastPeopleNav(){
+  const row=$("detailCastRow");
+  const prev=$("castPeoplePrev");
+  const next=$("castPeopleNext");
+  if(!row || !prev || !next)return;
+
+  const update=()=>{
+    const overflow=row.scrollWidth > row.clientWidth+6;
+    prev.disabled=!overflow || row.scrollLeft<=5;
+    next.disabled=!overflow || row.scrollLeft+row.clientWidth>=row.scrollWidth-5;
+  };
+  if(!row.dataset.castNavBound){
+    row.dataset.castNavBound="1";
+    const scrollCast=(direction)=>{
+      const gap=20;
+      const cardWidth=row.querySelector(".detail-cast-person")?.getBoundingClientRect().width||112;
+      const step=Math.max(cardWidth+gap,Math.floor(row.clientWidth/(cardWidth+gap))*(cardWidth+gap));
+      row.scrollBy({left:direction*step,behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+    };
+    prev.addEventListener("click",()=>scrollCast(-1));
+    next.addEventListener("click",()=>scrollCast(1));
+    row.addEventListener("scroll",update,{passive:true});
+    window.addEventListener("resize",update);
+    if(typeof ResizeObserver!=="undefined"){
+      const observer=new ResizeObserver(update);
+      observer.observe(row);
+    }
+  }
+  requestAnimationFrame(update);
 }
 
 /* ============================================================
