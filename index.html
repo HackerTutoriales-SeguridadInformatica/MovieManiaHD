@@ -1519,7 +1519,7 @@ a{color:inherit;text-decoration:none}
 #mmhdCastStatus{overflow-wrap:anywhere;line-height:1.5}
 #mmhdCastPanel[hidden]{display:none!important}
 .mmhd-cast-label{color:#fff;font-weight:800;margin:12px 0 10px}
-.mmhd-cast-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mmhd-cast-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .mmhd-cast-buttons button{background:#242434;border:1px solid #3a3a50;border-radius:8px;padding:11px 6px;font-size:12px;color:#fff}
 .mmhd-cast-buttons button:hover{background:#2563eb}
 @media(max-width:380px){.mmhd-cast-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -1724,9 +1724,7 @@ a{color:inherit;text-decoration:none}
       <div id="mmhdCastPanel" hidden>
         <div class="mmhd-cast-label"><i class="fa-solid fa-tv"></i> Control remoto Chromecast</div>
         <div class="mmhd-cast-buttons">
-          <button id="mmhdCastBack" type="button"><i class="fa-solid fa-backward"></i> -10 s</button>
           <button id="mmhdCastPause" type="button"><i class="fa-solid fa-pause"></i> Pausar</button>
-          <button id="mmhdCastForward" type="button"><i class="fa-solid fa-forward"></i> +10 s</button>
           <button id="mmhdCastVolDown" type="button"><i class="fa-solid fa-volume-low"></i> Vol -</button>
           <button id="mmhdCastVolUp" type="button"><i class="fa-solid fa-volume-high"></i> Vol +</button>
           <button id="mmhdCastStop" type="button"><i class="fa-solid fa-stop"></i> Detener</button>
@@ -2735,13 +2733,6 @@ async function handleCast(movie) {
     castMessage('❌ ' + (e.description || e.message || e.code || String(e)));
   }
 }
-function castSeek(delta) {
-  const m = castMedia(); if (!m) return;
-  const req = new chrome.cast.media.SeekRequest();
-  const time = m.getEstimatedTime?.() ?? m.currentTime ?? 0;
-  req.currentTime = Math.max(0, Math.min(Number.isFinite(m.media?.duration) ? m.media.duration : Infinity, time + delta));
-  m.seek(req, castSync, e => castMessage('Error al cambiar posición: ' + JSON.stringify(e)));
-}
 function castPause() {
   const m = castMedia(); if (!m) return;
   const action = m.playerState === 'PLAYING' ? 'pause' : 'play';
@@ -3088,8 +3079,6 @@ $("btnExit").addEventListener("click", () => {
 $("btnDetailBack").addEventListener("click", closeDetail);
 $("btnPlay").addEventListener("click", () => openPlayer(state.currentMovie));
 $("btnCast").addEventListener("click", () => handleCast(state.currentMovie));
-$("mmhdCastBack").addEventListener("click", () => castSeek(-10));
-$("mmhdCastForward").addEventListener("click", () => castSeek(10));
 $("mmhdCastPause").addEventListener("click", castPause);
 $("mmhdCastVolDown").addEventListener("click", () => castVolume(-0.1));
 $("mmhdCastVolUp").addEventListener("click", () => castVolume(0.1));
