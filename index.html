@@ -1886,7 +1886,8 @@ function getPlayerHtml(movie){
    FILTRADO
    ============================================================ */
 function getFiltered(){
-  let list = MOVIES.slice();
+  // 👇 Invertir: la última película del JSON aparece primero
+  let list = MOVIES.slice().reverse();
 
   const q = state.search.trim().toLowerCase();
   if (q) {
