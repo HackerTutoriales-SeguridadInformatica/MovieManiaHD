@@ -222,6 +222,37 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
 }
 .empty i{display:block;font-size:24px;color:#2a4a66;margin-bottom:10px}
 
+/* ===== Fase 2: administrar la colección e imágenes ===== */
+.collection-toolbar{display:grid;grid-template-columns:minmax(180px,1fr) minmax(150px,190px) minmax(155px,190px);gap:9px;margin:12px 0}
+.collection-toolbar input,.collection-toolbar select{margin:0}
+.collection-hint{font-size:11px;color:var(--muted);margin:-3px 0 10px}
+.collection-item{grid-template-columns:48px minmax(0,1fr) auto}
+.collection-actions{display:flex;gap:6px;align-items:center}
+.collection-edit{background:#10283a;border:1px solid #27506c;color:#9ad8ff;padding:8px 10px}
+.collection-edit:hover{background:#1b3d55;color:#fff}
+.collection-edit i{margin:0}
+.collection-item.active{border-color:var(--red)}
+.mode-tag{display:none;color:#7fe9c4;background:rgba(0,230,160,.12);border:1px solid rgba(0,230,160,.22);border-radius:20px;padding:5px 10px;font-size:11px;font-weight:700;margin:8px 0 0}
+.mode-tag.show{display:inline-block}
+.artwork-panel{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.artwork-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:8px 0}
+.artwork-heading strong{font-size:12px}
+.artwork-list{display:flex;gap:9px;overflow-x:auto;padding:5px 0 10px;min-height:85px}
+.artwork-choice{position:relative;flex:0 0 auto;width:84px;padding:3px;background:#071321;border:2px solid var(--line-2);border-radius:9px;box-shadow:none}
+.artwork-choice img{display:block;width:100%;height:116px;object-fit:cover;border-radius:5px}
+.artwork-choice.backdrop-choice{width:150px}
+.artwork-choice.backdrop-choice img{height:90px}
+.artwork-choice.selected{border-color:var(--green);box-shadow:0 0 0 1px rgba(0,230,160,.25)}
+.artwork-choice.selected:after{content:'✓';position:absolute;top:4px;right:4px;background:var(--green);color:#001b16;border-radius:50%;font-size:12px;padding:3px 6px}
+.artwork-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.artwork-actions button{padding:8px 11px}
+.preview-dialog{width:min(1280px,96vw);height:min(92vh,1000px);max-width:none;max-height:none;padding:0;border:1px solid #28435a;border-radius:14px;background:#09131f;color:var(--text);box-shadow:0 20px 70px #000}
+.preview-dialog::backdrop{background:rgba(0,0,0,.82)}
+.preview-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.preview-dialog iframe{display:block;width:100%;height:calc(100% - 62px);border:0;background:#05080f}
+.preview-bar .preview-note{font-size:11px;color:var(--muted);flex:1}
+.preview-bar button{padding:9px 12px}
+@media(max-width:700px){.collection-toolbar{grid-template-columns:1fr}.preview-bar{flex-wrap:wrap}.preview-dialog iframe{height:calc(100% - 106px)}}
 /* ===== Barra de progreso de importación ===== */
 .import-bar{
   width:100%;height:6px;background:#101e2e;border-radius:4px;
@@ -352,6 +383,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
           <img id="posterPreview" alt="Portada">
           <div>
             <h2 id="movieTitle"></h2>
+            <span class="mode-tag" id="editingTag"><i class="fa-solid fa-pen"></i> Editando película guardada</span>
             <p id="overview" class="overview"></p>
             <div class="info">
               <div><small><span class="meta-icon"><i class="fa-regular fa-clock"></i></span>Duración</small><strong id="movieRuntime">—</strong></div>
@@ -363,6 +395,16 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
               <div><small><span class="meta-icon"><i class="fa-solid fa-clapperboard"></i></span>Géneros</small><strong id="movieGenres">—</strong></div>
               <div><small><span class="meta-icon"><i class="fa-solid fa-shield-halved"></i></span>Clasificación</small><strong id="movieCert">—</strong></div>
             </div>
+          </div>
+        </div>
+        <div class="artwork-panel" id="artworkPanel" hidden>
+          <div class="artwork-heading"><strong><i class="fa-solid fa-images"></i> Elegir póster</strong><span class="tmdb">Selecciona una imagen para esta película</span></div>
+          <div class="artwork-list" id="posterChoices"></div>
+          <div class="artwork-heading"><strong><i class="fa-solid fa-image"></i> Elegir portada de fondo</strong></div>
+          <div class="artwork-list" id="backdropChoices"></div>
+          <div class="artwork-actions">
+            <button id="btnLoadArtwork" type="button" class="secondary"><i class="fa-solid fa-rotate"></i> Ver más imágenes de TMDB</button>
+            <span id="artworkStatus" class="tmdb" role="status"></span>
           </div>
         </div>
       </div>
@@ -389,6 +431,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
         <input id="m18" type="url" placeholder="Se rellena automáticamente">
 
         <button id="btnAddMovie" class="secondary full"><i class="fa-solid fa-plus"></i> Agregar al catálogo</button>
+        <button id="btnCancelEdit" type="button" class="secondary full" style="display:none"><i class="fa-solid fa-xmark"></i> Cancelar edición</button>
       </section>
 
       <section class="panel" id="generateCard">
@@ -407,12 +450,29 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
         <div class="panel-title"><span class="icon"><i class="fa-solid fa-layer-group"></i></span> Catálogo</div>
         <span class="badge" id="collectionBadge">0</span>
       </div>
+      <div class="collection-toolbar">
+        <input id="collectionSearch" type="search" placeholder="Buscar en mis películas..." aria-label="Buscar en mi colección">
+        <select id="collectionFilter" aria-label="Filtrar películas">
+          <option value="all">Todas las películas</option>
+          <option value="complete">Con enlaces de video</option>
+          <option value="incomplete">Sin enlaces de video</option>
+        </select>
+        <select id="collectionSort" aria-label="Ordenar películas">
+          <option value="recent">Añadidas recientemente</option>
+          <option value="title">Título (A-Z)</option>
+          <option value="year">Año (más nuevo)</option>
+          <option value="rating">Calificación TMDB</option>
+        </select>
+      </div>
+      <div id="collectionInfo" class="collection-hint" role="status"></div>
       <div id="collectionList"></div>
       <div class="actions" style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" id="btnBackupCollection" class="secondary"><i class="fa-solid fa-file-export"></i> Respaldar colección</button>
         <button type="button" id="btnRestoreCollection" class="secondary"><i class="fa-solid fa-file-import"></i> Importar respaldo</button>
+        <button type="button" id="btnRecoverCollection" class="secondary"><i class="fa-solid fa-clock-rotate-left"></i> Deshacer último cambio</button>
         <input type="file" id="backupCollectionFile" accept=".json,application/json" hidden>
       </div>
+      <button id="btnPreviewCollection" class="secondary full"><i class="fa-solid fa-eye"></i> Vista previa del catálogo</button>
       <button id="btnGenerateCollection" class="primary full">
         <i class="fa-solid fa-box-archive"></i> Generar catálogo completo
       </button>
@@ -420,6 +480,14 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
     </section>
   </section>
 </main>
+<dialog class="preview-dialog" id="catalogPreviewDialog" aria-label="Vista previa del catálogo">
+  <div class="preview-bar">
+    <strong>Vista previa de Movie Mania HD</strong>
+    <span class="preview-note">Vista aislada. Para probar Google Photos y Chromecast usa el sitio publicado.</span>
+    <button id="btnClosePreview" type="button" class="secondary"><i class="fa-solid fa-xmark"></i> Cerrar</button>
+  </div>
+  <iframe id="catalogPreviewFrame" title="Vista previa del index" sandbox="allow-scripts allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>
+</dialog>
 <script>
 /* ============================================================
    CONFIGURACIÓN — ENDPOINT DEL EXTRACTOR (Vercel)
@@ -435,6 +503,7 @@ const PLAYER_TEMPLATE_B64 = "PCFET0NUWVBFIGh0bWw+CjxodG1sIHhtbG5zPSJodHRwOi8vd3d
    ESTADO GLOBAL + localStorage
    ============================================================ */
 const COLLECTION_STORAGE_KEY = "movieManiaCollection";
+const COLLECTION_RECOVERY_KEY = "movieManiaCollectionRecovery";
 const $ = id => document.getElementById(id);
 const apiKey = $("apiKey");
 const search = $("movieSearch");
@@ -448,13 +517,34 @@ function loadSavedCollection() {
   } catch { return []; }
 }
 function saveCollection() {
-  try { localStorage.setItem(COLLECTION_STORAGE_KEY, JSON.stringify(state.collection)); } catch {}
+  try { localStorage.setItem(COLLECTION_STORAGE_KEY, JSON.stringify(state.collection)); return true; }
+  catch (err) {
+    console.error("No se pudo guardar la colección:", err);
+    $("collectionStatus").className="status show err";
+    $("collectionStatus").textContent="No se pudo guardar: espacio insuficiente o almacenamiento bloqueado. Exporta un respaldo.";
+    return false;
+  }
+}
+// Conserva una única versión previa para deshacer cambios importantes.
+function snapshotCollection(){
+  try { localStorage.setItem(COLLECTION_RECOVERY_KEY, JSON.stringify(state.collection)); return true; }
+  catch { return false; }
+}
+function commitCollection(nextCollection, options={}){
+  if (options.snapshot !== false) snapshotCollection();
+  const prior = state.collection;
+  state.collection = nextCollection;
+  if (!saveCollection()){ state.collection = prior; return false; }
+  renderCollection();
+  return true;
 }
 
 const state = {
   movie: null, backdrop: null, poster: null,
   genres: "", cert: "", tagline: "",
-  collection: loadSavedCollection(), validated: false
+  collection: loadSavedCollection(), validated: false,
+  editingId: null, posterOptions: [], backdropOptions: [],
+  addedAt: null
 };
 
 // Evita que peticiones anteriores cambien la película o los enlaces seleccionados.
@@ -617,9 +707,112 @@ async function searchMovies(){
 /* ============================================================
    CARGAR PELÍCULA SELECCIONADA
    ============================================================ */
+function buildArtworkOptions(type, selected, paths){
+  const prefix = type === "poster" ? "https://image.tmdb.org/t/p/w500" : "https://image.tmdb.org/t/p/w1280";
+  const seen = new Set(), result = [];
+  for (const url of [selected, ...paths.map(p => p?.file_path ? prefix + p.file_path : "")]){
+    if (!url || seen.has(url)) continue;
+    seen.add(url); result.push(url);
+    if (result.length >= 16) break;
+  }
+  return result;
+}
+function renderArtworkChoices(){
+  for (const [type, id, chosen] of [
+    ["poster","posterChoices",state.poster], ["backdrop","backdropChoices",state.backdrop]
+  ]){
+    const urls = type === "poster" ? state.posterOptions : state.backdropOptions;
+    $(id).innerHTML = urls.length ? urls.map(url=>`
+      <button type="button" class="artwork-choice ${type === "backdrop" ? "backdrop-choice" : ""} ${url === chosen ? "selected" : ""}"
+        data-artwork-type="${type}" data-artwork-url="${escHtml(url)}" aria-label="Elegir ${type === "poster" ? "póster" : "fondo"}" aria-pressed="${url === chosen}">
+        <img src="${escHtml(url)}" loading="lazy" alt="Opción de ${type}">
+      </button>`).join("") : '<div class="tmdb">No hay imágenes disponibles.</div>';
+  }
+}
+function updateMovieImages(){
+  $("posterPreview").src = state.poster || "";
+  $("backdropUrl").value = state.backdrop || "";
+  if (state.backdrop){
+    $("movieCard").classList.add("has-backdrop");
+    $("movieCard").style.setProperty("--hero-backdrop", `url("${state.backdrop}")`);
+  }else{
+    $("movieCard").classList.remove("has-backdrop");
+    $("movieCard").style.removeProperty("--hero-backdrop");
+  }
+  renderArtworkChoices();
+}
+function renderSelectedMovie(){
+  const movie=state.movie;
+  if (!movie) return;
+  $("emptyState").style.display="none";
+  $("movieCard").style.display="block";
+  $("linksGrid").style.display="grid";
+  $("artworkPanel").hidden = false;
+  $("movieTitle").textContent = movie.title || "Sin título";
+  $("posterPreview").alt = movie.title || "Portada";
+  $("overview").textContent = movie.overview || "Sin sinopsis disponible.";
+  $("movieRuntime").textContent = movie.runtime ? movie.runtime + " min" : "—";
+  $("movieLanguage").textContent = "Español Latino";
+  $("movieYear").textContent = movie.release_date ? String(movie.release_date).slice(0,4) : "—";
+  $("movieRating").textContent = Number.isFinite(Number(movie.vote_average)) ? Number(movie.vote_average).toFixed(1) : "—";
+  $("movieGenres").textContent = state.genres || "—";
+  $("movieCert").textContent = state.cert || "—";
+  $("editingTag").classList.toggle("show",state.editingId !== null);
+  $("btnAddMovie").innerHTML = state.editingId !== null ? '<i class="fa-solid fa-floppy-disk"></i> Guardar cambios' : '<i class="fa-solid fa-plus"></i> Agregar al catálogo';
+  $("btnCancelEdit").style.display = state.editingId !== null ? "block" : "none";
+  updateMovieImages();
+}
+function editSavedMovie(id){
+  const item=state.collection.find(x=> String(x.id)===String(id));
+  if (!item) return;
+  ++movieRequestId;
+  clearVideoFields();
+  const runtime=parseInt(String(item.runtime || ""), 10);
+  const movie={
+    id:item.id, title:item.title || "", tagline:item.subtitle || "",
+    release_date:String(item.year || ""), runtime:Number.isFinite(runtime)?runtime:0,
+    overview:item.overview || "", vote_average:Number(item.rating)||0
+  };
+  state.movie=movie;state.editingId=item.id;
+  state.poster=String(item.poster||""); state.backdrop=String(item.backdrop||"");
+  state.genres=item.genres||"";state.cert=item.cert||"";state.tagline=item.subtitle||"";
+  state.posterOptions=buildArtworkOptions("poster",state.poster,[]);
+  state.backdropOptions=buildArtworkOptions("backdrop",state.backdrop,[]);
+  $("googleUrl").value=item.googleUrl||"";
+  for (const id of ["m37","m22","m18"]) $(id).value=item[id]||"";
+  $("artworkStatus").textContent="Puedes cambiar las imágenes sin modificar los enlaces guardados.";
+  renderSelectedMovie();
+  showStatus("Editando una película guardada. Guarda cambios al terminar.","ok");
+  updateSteps(3);
+  $("movieCard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function loadAdditionalArtwork(){
+  if (!state.movie) return;
+  const id=state.movie.id, key=credentialValue();
+  if (!key){$("artworkStatus").textContent="Introduce tu credencial TMDB para ver más imágenes.";return;}
+  if (!state.validated){
+    const valid=await validateCredential(); if(!valid) return;
+  }
+  const currentRequest=movieRequestId;
+  $("btnLoadArtwork").disabled=true;
+  $("artworkStatus").textContent="Cargando opciones de TMDB…";
+  try {
+    const data=await tmdbGet("https://api.themoviedb.org/3/movie/"+encodeURIComponent(id)+"/images?include_image_language=es,es-ES,en,null",key);
+    if (movieRequestId!==currentRequest || state.movie?.id!==id) return;
+    state.posterOptions=buildArtworkOptions("poster",state.poster,Array.isArray(data?.posters)?data.posters:[]);
+    state.backdropOptions=buildArtworkOptions("backdrop",state.backdrop,Array.isArray(data?.backdrops)?data.backdrops:[]);
+    renderArtworkChoices();
+    $("artworkStatus").textContent="Selecciona un póster o un fondo. Para conservarlos, pulsa Guardar cambios.";
+  }catch(e){$("artworkStatus").textContent="No se pudieron obtener más imágenes: "+(e.message||"Error de TMDB");}
+  finally{$("btnLoadArtwork").disabled=false;}
+}
+
 async function loadMovie(id){
   const requestId = ++movieRequestId;
   clearVideoFields();
+  state.editingId = null;
+  state.posterOptions = []; state.backdropOptions = [];
+  $("artworkStatus").textContent="";
   state.movie = null;
   $("movieCard").style.display="none";
   $("linksGrid").style.display="none";
@@ -633,18 +826,18 @@ async function loadMovie(id){
     );
     if (requestId !== movieRequestId) return;
 
-    const postersData   = await tmdbGet("https://api.themoviedb.org/3/movie/"+encodeURIComponent(movie.id)+"/images?language=es-ES", key);
-    const backdropsData = await tmdbGet("https://api.themoviedb.org/3/movie/"+encodeURIComponent(movie.id)+"/images?language=es-ES&include_image_language=xx", key);
-
+    // Si TMDB no devuelve imágenes, conserva los valores principales de la película.
+    let posters = [], backdrops = [];
+    try {
+      const images=await tmdbGet("https://api.themoviedb.org/3/movie/"+encodeURIComponent(movie.id)+"/images?include_image_language=es,es-ES,en,null",key);
+      posters=Array.isArray(images?.posters)?images.posters:[];
+      backdrops=Array.isArray(images?.backdrops)?images.backdrops:[];
+    } catch (_) {}
     if (requestId !== movieRequestId) return;
-    const posters   = Array.isArray(postersData?.posters)?postersData.posters:[];
-    const backdrops = Array.isArray(backdropsData?.backdrops)?backdropsData.backdrops:[];
-
-    const posterPath   = posters[3]?.file_path   || movie.poster_path   || "";
+    const posterPath = posters[3]?.file_path || movie.poster_path || "";
     const backdropPath = backdrops[6]?.file_path || movie.backdrop_path || "";
-
-    const selectedPoster   = posterPath   ? "https://image.tmdb.org/t/p/w500"+posterPath   : "";
-    const selectedBackdrop = backdropPath ? "https://image.tmdb.org/t/p/w1280"+backdropPath : null;
+    const selectedPoster = posterPath ? "https://image.tmdb.org/t/p/w500" + posterPath : "";
+    const selectedBackdrop = backdropPath ? "https://image.tmdb.org/t/p/w1280" + backdropPath : "";
 
     const genres = Array.isArray(movie.genres)
       ? movie.genres.map(g => g.name).join(", ")
@@ -668,35 +861,15 @@ async function loadMovie(id){
     }catch(_){}
     if (requestId !== movieRequestId) return;
     state.movie = movie;
+    state.editingId = null;
     state.poster = selectedPoster;
     state.backdrop = selectedBackdrop;
     state.genres = genres;
     state.tagline = movie.tagline || "";
     state.cert = cert || "";
-
-    $("emptyState").style.display="none";
-    $("movieCard").style.display="block";
-    $("linksGrid").style.display="grid";
-
-    $("posterPreview").src = state.poster || "";
-    $("posterPreview").alt = movie.title || "Portada";
-    $("movieTitle").textContent = movie.title || "Sin título";
-    $("overview").textContent = movie.overview || "Sin sinopsis disponible.";
-    $("movieRuntime").textContent = movie.runtime ? movie.runtime+" min" : "—";
-    $("movieLanguage").textContent = "Español Latino";
-    $("movieYear").textContent = movie.release_date ? movie.release_date.slice(0,4) : "—";
-    $("movieRating").textContent = Number.isFinite(movie.vote_average) ? movie.vote_average.toFixed(1) : "—";
-    $("movieGenres").textContent = state.genres || "—";
-    $("movieCert").textContent = state.cert || "—";
-    $("backdropUrl").value = state.backdrop || "";
-
-    if (state.backdrop){
-      $("movieCard").classList.add("has-backdrop");
-      $("movieCard").style.setProperty("--hero-backdrop", `url("${state.backdrop}")`);
-    } else {
-      $("movieCard").classList.remove("has-backdrop");
-      $("movieCard").style.removeProperty("--hero-backdrop");
-    }
+    state.posterOptions = buildArtworkOptions("poster", selectedPoster, posters);
+    state.backdropOptions = buildArtworkOptions("backdrop", selectedBackdrop, backdrops);
+    renderSelectedMovie();
     showStatus("Película seleccionada correctamente.","ok");
     updateSteps(3);
   }catch(e){
@@ -766,7 +939,9 @@ function addMovieToCollection(){
   const m18 = $("m18").value.trim();
   try { validateVideoLinks(); } catch(e) { showStatus(e.message,"err"); return; }
 
+  const oldItem=state.collection.find(x=>String(x.id)===String(state.movie.id));
   const item = {
+    ...(oldItem || {}),
     id: state.movie.id,
     title: state.movie.title || "",
     subtitle: state.tagline || state.movie.tagline || "",
@@ -779,41 +954,70 @@ function addMovieToCollection(){
     poster: state.poster || "",
     backdrop: state.backdrop || "",
     tmdbId: state.movie.id != null ? state.movie.id : "",
-    kind: "MOVIE",
+    kind: "MOVIE", googleUrl: $("googleUrl").value.trim(),
+    addedAt: oldItem?.addedAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     m37, m22, m18
   };
-
-  const idx = state.collection.findIndex(x => x.id === item.id);
-  if (idx >= 0) state.collection[idx] = item;
-  else state.collection.push(item);
-
-  saveCollection(); renderCollection();
-  showStatus("✓ Película agregada al catálogo y guardada.","ok");
+  const idx = state.collection.findIndex(x=>String(x.id)===String(item.id));
+  const next=state.collection.slice();
+  if (idx >= 0) next[idx] = item;
+  else next.push(item);
+  if (!commitCollection(next)){
+    showStatus("No se pudieron guardar los cambios en este navegador. Descarga un respaldo.","err"); return;
+  }
+  const wasEdit=state.editingId !== null;
+  state.editingId = item.id;
+  renderSelectedMovie();
+  showStatus(wasEdit || idx>=0 ? "✓ Cambios guardados correctamente." : "✓ Película añadida y guardada en el catálogo.","ok");
   updateSteps(4);
 }
 
 function removeMovie(id){
-  state.collection = state.collection.filter(x => x.id !== id);
-  saveCollection(); renderCollection();
+  const item=state.collection.find(x=>String(x.id)===String(id));
+  if (!item || !confirm(`¿Eliminar «${item.title}» de tu colección? Puedes deshacer el último cambio.`)) return;
+  const next=state.collection.filter(x=>String(x.id)!==String(id));
+  if (!commitCollection(next)) return;
+  if (state.editingId!==null && String(state.editingId)===String(id)) resetSelection();
 }
-
 function renderCollection(){
-  const card = $("collectionCard");
-  const list = $("collectionList");
-  const count = state.collection.length;
-  $("collectionCount").textContent = count;
-  $("collectionBadge").textContent = count;
-  if (!count){ card.style.display="none"; list.innerHTML=""; return; }
-  card.style.display="block";
-  list.innerHTML = state.collection.map(item=>`
-    <div class="collection-item">
-      <img src="${escHtml(item.poster)}" alt="${escHtml(item.title)}" onerror="this.style.visibility='hidden'">
-      <div><b>${escHtml(item.title)}</b><span>${escHtml(item.year||"Sin año")}</span></div>
-      <button class="collection-remove" title="Eliminar" data-remove-id="${Number(item.id)}"><i class="fa-solid fa-trash"></i></button>
-    </div>`).join("");
-  list.querySelectorAll("[data-remove-id]").forEach(btn=>{
-    btn.addEventListener("click", ()=> removeMovie(Number(btn.dataset.removeId)));
+  const card=$("collectionCard"), list=$("collectionList");
+  const count=state.collection.length;
+  $("collectionCount").textContent=count;
+  $("collectionBadge").textContent=count;
+  let canUndo=false;
+  try {canUndo=Array.isArray(JSON.parse(localStorage.getItem(COLLECTION_RECOVERY_KEY)||"null"));}catch{}
+  card.style.display=count || canUndo ? "block" : "none";
+  if (!count){
+    list.innerHTML='<div class="empty">La colección está vacía. Puedes importar un respaldo o deshacer el último cambio.</div>';
+    $("collectionInfo").textContent="0 películas guardadas";
+    return;
+  }
+  const query=$("collectionSearch").value.toLocaleLowerCase("es").trim();
+  const filter=$("collectionFilter").value;
+  const sort=$("collectionSort").value;
+  let items=state.collection.filter(m=>{
+    const match=(`${m.title||""} ${m.year||""} ${m.genres||""}`).toLocaleLowerCase("es").includes(query);
+    const linked=Boolean(m.m37||m.m22||m.m18);
+    return match && (filter==="all" || (filter==="complete" ? linked : !linked));
   });
+  if(sort==="title") items.sort((a,b)=>String(a.title||"").localeCompare(String(b.title||""),"es"));
+  else if(sort==="year") items.sort((a,b)=>Number(b.year||0)-Number(a.year||0));
+  else if(sort==="rating") items.sort((a,b)=>Number(b.rating||0)-Number(a.rating||0));
+  else items.sort((a,b)=>(Date.parse(b.addedAt)||0)-(Date.parse(a.addedAt)||0)||state.collection.indexOf(b)-state.collection.indexOf(a));
+  $("collectionInfo").textContent=`Mostrando ${items.length} de ${count} películas · Haz clic en Editar para recuperar los enlaces guardados.`;
+  if (!items.length){list.innerHTML='<div class="empty">No hay películas que coincidan con estos filtros.</div>';return;}
+  list.innerHTML=items.map(item=>`
+    <div class="collection-item ${state.editingId!==null && String(state.editingId)===String(item.id) ? "active" : ""}">
+      <img src="${escHtml(item.poster||"")}" alt="${escHtml(item.title)}" loading="lazy" onerror="this.style.visibility='hidden'">
+      <div><b>${escHtml(item.title)}</b><span>${escHtml(item.year||"Sin año")}${item.m37||item.m22||item.m18 ? " · Video configurado" : " · Sin video"}</span></div>
+      <div class="collection-actions">
+        <button type="button" class="collection-edit" title="Editar película" data-edit-id="${escHtml(item.id)}"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" class="collection-remove" title="Eliminar película" data-remove-id="${escHtml(item.id)}"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </div>`).join("");
+  list.querySelectorAll("[data-edit-id]").forEach(btn=>btn.addEventListener("click",()=>editSavedMovie(btn.dataset.editId)));
+  list.querySelectorAll("[data-remove-id]").forEach(btn=>btn.addEventListener("click",()=>removeMovie(btn.dataset.removeId)));
 }
 
 /* ============================================================
@@ -854,6 +1058,7 @@ async function importJsonCatalog(){
 
     let added = 0, skipped = 0, failed = 0;
     const total = arr.length;
+    if (total > 0) snapshotCollection();
 
     for (let i = 0; i < arr.length; i++){
             const entry = arr[i];
@@ -945,7 +1150,7 @@ async function importJsonCatalog(){
 
         // Guardado incremental cada 10 items
         if (added % 10 === 0){
-          saveCollection();
+          if (!saveCollection()) throw Error("No se pudo guardar la importación: almacenamiento lleno.");
           renderCollection();
         }
 
@@ -958,7 +1163,7 @@ async function importJsonCatalog(){
       }
     }
 
-    saveCollection();
+    if (!saveCollection()) throw Error("No se pudo guardar la importación: almacenamiento lleno.");
     renderCollection();
 
     barFill.style.width = "100%";
@@ -966,6 +1171,8 @@ async function importJsonCatalog(){
     status.textContent = `✓ Importación lista: ${added} agregadas, ${skipped} omitidas, ${failed} fallidas.`;
 
   }catch(e){
+    state.collection=loadSavedCollection();
+    renderCollection();
     status.className = "status show err";
     status.textContent = "✕ Error al importar: " + (e.message || "desconocido");
   }finally{
@@ -1061,17 +1268,9 @@ async function loadCatalogTemplate(){
   return await res.text();
 }
 
-async function generateCollection(){
-  if (!state.collection.length){
-    $("collectionStatus").className="status show err";
-    $("collectionStatus").textContent="El catálogo está vacío.";
-    return;
-  }
-  $("collectionStatus").className="status show";
-  $("collectionStatus").textContent="Generando catálogo completo…";
-
-  try{
-    let catalogHtml = await loadCatalogTemplate();
+async function buildCollectionHtml(){
+  if (!state.collection.length) throw Error("El catálogo está vacío.");
+  let catalogHtml = await loadCatalogTemplate();
 
     const plBytes = Uint8Array.from(atob(PLAYER_TEMPLATE_B64), c => c.charCodeAt(0));
     const playerTemplate = new TextDecoder("utf-8").decode(plBytes);
@@ -1159,19 +1358,44 @@ async function generateCollection(){
       .split("__MOVIES_JSON__").join(safeMovies)
       .split("__PLAYERS_JSON__").join(safePlayers);
 
-    const blob = new Blob([catalogHtml], {type:"text/html;charset=utf-8"});
-    const u = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = u; a.download = "index.html";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=> URL.revokeObjectURL(u), 1000);
-
+    return {html:catalogHtml, count:movies.length};
+}
+async function generateCollection(){
+  $("collectionStatus").className="status show";
+  $("collectionStatus").textContent="Generando catálogo completo…";
+  try{
+    const {html,count}=await buildCollectionHtml();
+    const u=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"}));
+    const a=document.createElement("a");
+    a.href=u;a.download="index.html";
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u),1500);
     $("collectionStatus").className="status show ok";
-    $("collectionStatus").textContent="✓ Catálogo completo generado ("+movies.length+" películas).";
+    $("collectionStatus").textContent=`✓ Catálogo completo generado (${count} películas).`;
   }catch(e){
     $("collectionStatus").className="status show err";
     $("collectionStatus").textContent="✕ Error al generar catálogo: "+(e.message||"Error desconocido.");
   }
+}
+async function previewCollection(){
+  const btn=$("btnPreviewCollection");
+  btn.disabled=true;
+  $("collectionStatus").className="status show";
+  $("collectionStatus").textContent="Preparando vista previa…";
+  try{
+    const {html,count}=await buildCollectionHtml();
+    // Las fuentes e iconos externos son opcionales en la vista previa y no deben bloquear la ejecución del catálogo.
+    const previewHtml=html.replace(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi, tag=>
+      /\bmedia=/.test(tag) ? tag : tag.replace(/>$/, " media=\"print\" onload=\"this.media='all'\">")
+    );
+    $("catalogPreviewFrame").srcdoc=previewHtml;
+    $("catalogPreviewDialog").showModal();
+    $("collectionStatus").className="status show ok";
+    $("collectionStatus").textContent=`✓ Vista previa de ${count} películas. No se ha exportado ningún archivo.`;
+  }catch(e){
+    $("collectionStatus").className="status show err";
+    $("collectionStatus").textContent="✕ No se pudo abrir la vista previa: "+(e.message||"Error desconocido.");
+  }finally{btn.disabled=false;}
 }
 
 /* ============================================================
@@ -1179,20 +1403,36 @@ async function generateCollection(){
    ============================================================ */
 $("btnValidate").addEventListener("click", validateCredential);
 $("btnSearch").addEventListener("click", searchMovies);
-$("btnClear").addEventListener("click", ()=>{
+function resetSelection(){
   search.value=""; $("results").innerHTML="";
-  $("resultsHint").textContent = "Busca un título para mostrar los resultados disponibles.";
+  $("resultsHint").textContent="Busca un título para mostrar los resultados disponibles.";
   $("movieCard").style.display="none";
   $("linksGrid").style.display="none";
+  $("artworkPanel").hidden=true;
   $("emptyState").style.display="block";
   $("status").className="status";
   movieRequestId++;
-  state.movie = state.backdrop = state.poster = null;
+  state.movie=state.backdrop=state.poster=null;
+  state.editingId=null;state.posterOptions=[];state.backdropOptions=[];
   clearVideoFields();
-  $("btnExtract").disabled = false;
-  state.genres = ""; state.cert = ""; state.tagline = "";
-  updateSteps(1);
+  $("btnExtract").disabled=false;
+  state.genres="";state.cert="";state.tagline="";
+  updateSteps(1);renderCollection();
+}
+$("btnClear").addEventListener("click",resetSelection);
+$("btnCancelEdit").addEventListener("click",resetSelection);
+$("btnLoadArtwork").addEventListener("click",loadAdditionalArtwork);
+$("artworkPanel").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-artwork-type]");
+  if (!btn) return;
+  const type=btn.dataset.artworkType, url=btn.dataset.artworkUrl;
+  if(type==="poster" && state.posterOptions.includes(url)) state.poster=url;
+  else if(type==="backdrop" && state.backdropOptions.includes(url)) state.backdrop=url;
+  updateMovieImages();
 });
+for(const id of ["collectionSearch","collectionSort","collectionFilter"]){
+  $(id).addEventListener(id==="collectionSearch" ? "input" : "change",renderCollection);
+}
 $("googleUrl").addEventListener("input", ()=>{
   extractRequestId++;
   $("btnExtract").disabled = false;
@@ -1204,7 +1444,7 @@ $("btnExtract").addEventListener("click", extractFromGooglePhotos);
 $("btnAddMovie").addEventListener("click", addMovieToCollection);
 $("btnGenerate").addEventListener("click", generateMoviePage);
 $("btnBackupCollection").addEventListener("click", () => {
-  const backup = {format:"mmhd-collection", version:1, createdAt:new Date().toISOString(), count:state.collection.length, collection:state.collection};
+  const backup = {format:"mmhd-collection", version:2, createdAt:new Date().toISOString(), count:state.collection.length, collection:state.collection};
   const url = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
   const a=document.createElement("a"); a.href=url; a.download="mmhd-respaldo-"+new Date().toISOString().slice(0,10)+".json";
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -1214,14 +1454,25 @@ $("backupCollectionFile").addEventListener("change",async e=>{
   const file=e.target.files?.[0];if(!file)return;
   try{
     const data=JSON.parse(await file.text());
-    if(data.format!=="mmhd-collection"||data.version!==1||!Array.isArray(data.collection))throw Error("Formato de respaldo no válido");
+    if(data.format!=="mmhd-collection"||![1,2].includes(data.version)||!Array.isArray(data.collection))throw Error("Formato de respaldo no válido");
     if(!data.collection.every(m=>m && typeof m==="object" && typeof m.title==="string"))throw Error("El respaldo contiene registros inválidos");
     if(!confirm(`¿Reemplazar las ${state.collection.length} películas actuales por ${data.collection.length} del respaldo? Haz antes una copia de seguridad.`))return;
-    state.collection=data.collection;saveCollection();renderCollection();
+    if(!commitCollection(data.collection))throw Error("No hay suficiente espacio en este navegador para importar la colección.");
+    resetSelection();
     alert(`Respaldo importado: ${state.collection.length} títulos.`);
   }catch(err){alert("No se pudo importar el respaldo: "+err.message)}finally{e.target.value=""}
 });
+$("btnRecoverCollection").addEventListener("click",()=>{
+  let saved;
+  try{saved=JSON.parse(localStorage.getItem(COLLECTION_RECOVERY_KEY)||"null");}catch{}
+  if(!Array.isArray(saved)){alert("No hay un cambio anterior guardado para deshacer.");return;}
+  if(!confirm(`¿Volver a la versión anterior (${saved.length} películas)?`))return;
+  if(commitCollection(saved)){resetSelection();alert("Se restauró la colección anterior.");}
+});
 $("btnGenerateCollection").addEventListener("click", generateCollection);
+$("btnPreviewCollection").addEventListener("click", previewCollection);
+$("btnClosePreview").addEventListener("click",()=>$("catalogPreviewDialog").close());
+$("catalogPreviewDialog").addEventListener("close",()=>{$("catalogPreviewFrame").srcdoc="";});
 $("btnImportJson").addEventListener("click", importJsonCatalog);
 apiKey.addEventListener("input", ()=>{ state.validated=false; $("keyStatus").className="status"; $("keyStatus").textContent=""; });
 $("credentialType").addEventListener("change", ()=>{ state.validated=false; $("keyStatus").className="status"; $("keyStatus").textContent=""; });
