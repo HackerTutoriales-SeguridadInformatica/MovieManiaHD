@@ -1630,7 +1630,7 @@ a{color:inherit;text-decoration:none}
 .detail-cast[hidden]{display:none!important}
 .detail-cast h3{font-size:18px;font-weight:800;margin:0 0 17px}
 .detail-cast-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
-.detail-cast .detail-cast-head h3{margin:0}
+.detail-cast-head h3{margin:0}
 .detail-cast-nav{display:none;gap:6px;margin-left:auto}
 .detail-cast-row{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;
   padding:3px 2px 9px;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;
@@ -1645,8 +1645,7 @@ a{color:inherit;text-decoration:none}
 @media(max-width:600px){
   .detail-logo{max-width:min(95%,360px);max-height:120px;margin-bottom:10px}
   .detail-cast{margin-top:29px}
-  .detail-cast h3{font-size:16px}
-  .detail-cast-head{margin-bottom:13px}
+  .detail-cast h3{font-size:16px;margin-bottom:13px}
   .detail-cast-row{gap:14px}
   .detail-cast-person{flex-basis:93px}
   .detail-cast-face{width:76px;height:76px;margin-bottom:8px;font-size:24px}
@@ -1655,6 +1654,30 @@ a{color:inherit;text-decoration:none}
 }
 @media(min-width:601px){
   .detail-cast-nav{display:flex}
+}
+/* Fase 6: temporadadas y capítulos de series */
+.detail-episodes{margin:26px 0 12px;padding:16px;border:1px solid #2e3650;border-radius:13px;background:#121420}
+.detail-episodes[hidden]{display:none!important}
+.detail-episodes-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.detail-episodes-head h3{font-size:18px;margin:0;font-weight:800}
+.detail-episodes-head select{background:#1a1c2b;border:1px solid #343851;color:#fff;padding:9px 12px;border-radius:8px;font:inherit;max-width:220px}
+.detail-episode-list{display:grid;gap:9px}
+.detail-episode{width:100%;padding:10px;display:grid;grid-template-columns:145px minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;background:#191b2a;border:1px solid #2b2c41;border-radius:10px;transition:border .2s}
+.detail-episode:hover,.detail-episode.active{border-color:#5984d1;background:#20263a}
+.detail-episode img{width:145px;aspect-ratio:16/9;object-fit:cover;border-radius:7px;background:#0a0d14}
+.detail-episode-info{min-width:0}
+.detail-episode-info b{font-size:13px;display:block;color:#fff;margin-bottom:6px}
+.detail-episode-info small{font-size:11px;color:#b0bbcf;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.detail-episode .episode-ready{font-size:11px;color:#8ac6ff;white-space:nowrap}
+.detail-episode .episode-ready.pending{color:#808698}
+.detail-episodes-note{margin:10px 0 0;color:#a9b4c4;font-size:11px}
+@media(max-width:600px){
+ .detail-episodes{margin:20px 0;padding:12px}
+ .detail-episodes-head h3{font-size:16px}
+ .detail-episode{grid-template-columns:100px minmax(0,1fr);gap:9px;padding:7px}
+ .detail-episode img{width:100px}
+ .detail-episode .episode-ready{grid-column:2}
+ .detail-episode-info b{font-size:12px}
 }
 </style>
 </head>
@@ -1872,6 +1895,14 @@ a{color:inherit;text-decoration:none}
       </button>
     </div>
 
+    <section class="detail-episodes" id="detailEpisodes" aria-label="Temporadas y episodios" hidden>
+      <div class="detail-episodes-head">
+        <h3>Temporadas y episodios</h3>
+        <select id="detailSeason" aria-label="Elegir temporada"></select>
+      </div>
+      <div class="detail-episode-list" id="detailEpisodeList"></div>
+      <p class="detail-episodes-note" id="detailEpisodesNote"></p>
+    </section>
     <div id="mmhdCastArea" class="mmhd-cast-area">
       <div id="mmhdCastStatus" role="status">Iniciando Google Cast…</div>
       <div id="mmhdCastPanel" hidden>
@@ -2005,6 +2036,7 @@ const downloads = loadObj(LS_DOWNLOADS);
 function recordDownload(movie, status){
   if (!movie) return;
   downloads[movie.id] = {status, date: new Date().toISOString()};
+  if(movie.parentSeriesId!=null) downloads[movie.parentSeriesId] = {...downloads[movie.id], partial:true, episodeId:movie.id};
   saveObj(LS_DOWNLOADS, downloads);
   renderAll();
 }
@@ -2801,7 +2833,7 @@ function cardHTML(m){
       <div class="card-body">
         <h3 class="card-title">${esc(m.title)}${m.subtitle ? " — " + esc(m.subtitle) : ""}</h3>
         <div class="card-year">${esc(m.year)}</div>
-        ${state.filter === "downloads" && downloads[m.id] ? `<div class="card-year" style="margin-top:5px;color:#a1a7b8">${downloads[m.id]?.status === "recibida" ? "Archivo recibido por el navegador" : "Descarga solicitada (sin confirmar)"}</div>` : ""}
+        ${state.filter === "downloads" && downloads[m.id] ? `<div class="card-year" style="margin-top:5px;color:#a1a7b8">${downloads[m.id]?.partial ? "Descarga de episodio registrada" : downloads[m.id]?.status === "recibida" ? "Archivo recibido por el navegador" : "Descarga solicitada (sin confirmar)"}</div>` : ""}
       </div>
     </article>
   `;
@@ -3313,6 +3345,87 @@ function setupCastPeopleNav(){
   requestAnimationFrame(update);
 }
 
+
+/* Series: el episodio se transforma en un objeto reproducible con las mismas claves
+   que una película. Los enlaces del episodio nunca se mezclan con los de otro. */
+let selectedSeriesEpisode=null;
+function playableForSeries(series,season,episode){
+  if(!series || series.kind!=="SERIES" || !episode)return null;
+  const tmdbId=Math.abs(Number(series.id));
+  const episodeId=-(100000000000+tmdbId*100000+Number(season)*1000+Number(episode.number));
+  return {...series, id:episodeId, parentSeriesId:series.id,
+    title:`${series.title} · T${season}E${episode.number} · ${episode.name||"Episodio"}`,
+    overview:episode.overview||series.overview,runtime:episode.runtime?episode.runtime+" min":series.runtime,
+    m37:episode.m37||"",m22:episode.m22||"",m18:episode.m18||""};
+}
+function selectedPlayable(){
+  const m=state.currentMovie;
+  if(!m)return null;
+  if(m.kind!=="SERIES")return m;
+  if(!selectedSeriesEpisode)return null;
+  const season=m.seasons?.find(s=>s.number===selectedSeriesEpisode.season);
+  const episode=season?.episodes?.find(e=>e.number===selectedSeriesEpisode.episode);
+  return episode?playableForSeries(m,season.number,episode):null;
+}
+function updateSeriesPlayButtons(){
+  const series=state.currentMovie;
+  if(!series || series.kind!=="SERIES")return;
+  const playable=selectedPlayable();
+  const ready=Boolean(playable&&(playable.m37||playable.m22||playable.m18));
+  $("btnPlay").disabled=!ready;
+  $("btnDownload").disabled=!ready;
+  $("btnPlay").innerHTML=ready?'<i class="fa-solid fa-play"></i> Reproducir episodio':'<i class="fa-solid fa-play"></i> Episodio sin enlace';
+  if(!ready)$("btnCast").disabled=true;
+  else updateCastButton();
+}
+function renderSeriesSeasons(series,chosenSeason){
+  const section=$("detailEpisodes"),select=$("detailSeason"),list=$("detailEpisodeList");
+  section.hidden=series.kind!=="SERIES";
+  if(series.kind!=="SERIES"){
+    selectedSeriesEpisode=null;
+    $("btnPlay").disabled=false;$("btnDownload").disabled=false;
+    return;
+  }
+  const seasons=(series.seasons||[]).filter(s=>Array.isArray(s.episodes)&&s.episodes.length).sort((a,b)=>a.number-b.number);
+  select.replaceChildren();
+  seasons.forEach(s=>{
+    const option=document.createElement("option");option.value=String(s.number);
+    option.textContent=s.name||`Temporada ${s.number}`;select.appendChild(option);
+  });
+  const current=seasons.find(s=>s.number===chosenSeason)||seasons[0];
+  if(current)select.value=String(current.number);
+  selectedSeriesEpisode=null;
+  const episodes=current?.episodes||[];
+  const first=episodes.find(e=>e.m37||e.m22||e.m18);
+  if(first)selectedSeriesEpisode={season:current.number,episode:first.number};
+  list.replaceChildren();
+  episodes.forEach(ep=>{
+    const ready=Boolean(ep.m37||ep.m22||ep.m18);
+    const btn=document.createElement("button");btn.type="button";
+    btn.className="detail-episode"+(selectedSeriesEpisode?.episode===ep.number?" active":"");
+    btn.setAttribute("aria-label",`${ready?"Seleccionar":"Sin enlace"} episodio ${ep.number}: ${ep.name}`);
+    const image=document.createElement("img");image.loading="lazy";image.alt="";
+    image.src=String(ep.still||series.backdrop||series.poster);
+    const info=document.createElement("span");info.className="detail-episode-info";
+    const heading=document.createElement("b");heading.textContent=`${ep.number}. ${ep.name||"Episodio"}`;
+    const desc=document.createElement("small");desc.textContent=(ep.runtime?`${ep.runtime} min · `:"")+(ep.overview||"Sin descripción");
+    info.append(heading,desc);
+    const label=document.createElement("span");label.className="episode-ready"+(ready?"":" pending");
+    label.textContent=ready?"▶ Ver episodio":"Pendiente";
+    btn.append(image,info,label);
+    btn.addEventListener("click",()=>{
+      selectedSeriesEpisode={season:current.number,episode:ep.number};
+      list.querySelectorAll(".detail-episode").forEach(el=>el.classList.remove("active"));
+      btn.classList.add("active");updateSeriesPlayButtons();
+      if(ready)openPlayer(selectedPlayable());
+    });
+    list.appendChild(btn);
+  });
+  $("detailEpisodesNote").textContent=seasons.length
+    ? "Selecciona un capítulo para reproducirlo. Los episodios pendientes se habilitan desde el panel."
+    : "Todavía no hay temporadas configuradas para esta serie.";
+  updateSeriesPlayButtons();
+}
 /* ============================================================
    DETALLE
    ============================================================ */
@@ -3344,6 +3457,7 @@ function openDetail(id){
 
   renderDetailGenres(m);
   renderSimilarMovies(m);
+  renderSeriesSeasons(m);
 
   const ov = $("detailOverview");
   ov.textContent = m.overview || "Sin sinopsis disponible.";
@@ -3363,6 +3477,7 @@ function openDetail(id){
   updateWatchedBtn();
   updateMyListBtn();
   updateCastButton();
+  if(m.kind==="SERIES")updateSeriesPlayButtons();
   prepareCastVideo(m);
 
   $("detailScreen").classList.add("show");
@@ -3449,7 +3564,7 @@ function formatDownloadBytes(bytes){
   return bytes.toFixed(i ? 1 : 0) + " " + units[i];
 }
 async function showDownloadBox(){
-  const m = state.currentMovie;
+  const m = selectedPlayable();
   if (!m || activeDownload) return;
   const sourceUrl = m.m37 || m.m22 || m.m18 || "";
   if (!sourceUrl){ alert("Esta película no tiene URLs configuradas."); return; }
@@ -3559,6 +3674,7 @@ function openPlayer(movie){
   if (!progress[movie.id]) {
     progress[movie.id] = 1;
   }
+  if(movie.parentSeriesId!=null && !progress[movie.parentSeriesId])progress[movie.parentSeriesId]=1;
   try {
     const ts = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}");
     ts[movie.id] = Date.now();
@@ -3692,14 +3808,17 @@ $("btnExit").addEventListener("click", () => {
 });
 
 $("btnDetailBack").addEventListener("click", closeDetail);
-$("btnPlay").addEventListener("click", () => openPlayer(state.currentMovie));
-$("btnCast").addEventListener("click", () => handleCast(state.currentMovie));
+$("btnPlay").addEventListener("click", () => openPlayer(selectedPlayable()));
+$("btnCast").addEventListener("click", () => handleCast(selectedPlayable()));
 $("mmhdCastPause").addEventListener("click", castPause);
 $("mmhdCastVolDown").addEventListener("click", () => castVolume(-0.1));
 $("mmhdCastVolUp").addEventListener("click", () => castVolume(0.1));
 $("mmhdCastStop").addEventListener("click", castStop);
 
 $("btnDownload").addEventListener("click", showDownloadBox);
+$("detailSeason").addEventListener("change",()=>{
+  if(state.currentMovie?.kind==="SERIES")renderSeriesSeasons(state.currentMovie,Number($("detailSeason").value));
+});
 $("btnWatched").addEventListener("click", toggleWatched);
 $("btnMyList").addEventListener("click", () => toggleMyList());
 
@@ -3912,6 +4031,7 @@ window.addEventListener("message", (e) => {
 
   const movieId = Number(data.id);
   if (!movieId) return;
+  const parentId=state.currentMovie?.kind==="SERIES"&&state.currentMovie?.id<0&&selectedPlayable()?.id===movieId?state.currentMovie.id:null;
 
   if (data.type === "mmhd-request-restore") {
     frame.contentWindow.postMessage({
@@ -3928,9 +4048,11 @@ window.addEventListener("message", (e) => {
     }
     const pct = Math.max(1, Math.min(99, Number(data.percent) || 0));
     progress[movieId] = pct;
+    if(parentId!=null)progress[parentId]=pct;
     try {
       const ts = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}");
       ts[movieId] = Date.now();
+      if(parentId!=null)ts[parentId]=Date.now();
       localStorage.setItem(LS_PROGRESS_TS, JSON.stringify(ts));
     } catch(e){}
     saveObj(LS_PROGRESS, progress);
@@ -3953,6 +4075,7 @@ window.addEventListener("message", (e) => {
     delete progressSeconds[movieId];
     saveObj(LS_PROGRESS_SECONDS, progressSeconds);
     delete progress[movieId];
+    if(parentId!=null)delete progress[parentId];
     saveObj(LS_PROGRESS, progress);
     renderContinue();
   }
