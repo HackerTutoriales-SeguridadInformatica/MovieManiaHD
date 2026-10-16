@@ -316,6 +316,21 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
 .catalog-options-grid .catalog-setting-label{margin:6px 0 0}
 .catalog-options-grid input[type=text],.catalog-options-grid select{margin-top:6px}
 @media(max-width:600px){.catalog-options-grid{grid-template-columns:1fr}.collection-item .collection-actions{gap:4px}.collection-item .collection-actions button{padding:7px}}
+/* Series y temporadas (Fase 6) */
+.media-switch{display:flex;gap:7px;margin-bottom:10px}
+.media-switch button{flex:1;border:1px solid var(--line-2);background:#091929;color:#acc0d5;padding:10px}
+.media-switch button.active{border-color:#fa426a;background:#3b1428;color:#fff}
+.series-panel{margin:12px 0;padding:15px;border:1px solid #28445e;border-radius:12px;background:#081727}
+.series-panel h3{margin:0 0 7px;font-size:14px}
+.series-panel .series-help{font-size:11px;color:#9cb0c2;line-height:1.6;margin:6px 0 12px}
+.episode-admin-list{display:grid;gap:6px;max-height:350px;overflow:auto;margin:10px 0}
+.episode-admin-item{display:grid;grid-template-columns:60px minmax(0,1fr) auto;align-items:center;gap:10px;text-align:left;border:1px solid var(--line-2);background:#0c2033;padding:8px;width:100%}
+.episode-admin-item.active{border-color:var(--red);background:#301527}
+.episode-admin-item img{width:60px;height:37px;object-fit:cover;border-radius:5px;background:#0a0f16}
+.episode-admin-item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.episode-admin-item small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.series-status-label{font-size:11px;color:#a5b5c9}
+@media(max-width:700px){.episode-admin-item{grid-template-columns:52px minmax(0,1fr) auto}.episode-admin-item img{width:52px;height:32px}}
 </style>
 </head>
 <body>
@@ -331,7 +346,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
     <div class="chip catalog" title="Películas en el catálogo">
       <i class="fa-solid fa-layer-group"></i>
       <span id="collectionCount">0</span>
-      <span>películas</span>
+      <span>títulos</span>
     </div>
     <div class="chip ok" title="Estado de la API de TMDB">
       <span class="dot"></span>
@@ -357,7 +372,11 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
     </section>
 
     <section class="panel">
-      <div class="panel-title"><span class="icon"><i class="fa-solid fa-magnifying-glass"></i></span> Buscar película</div>
+      <div class="panel-title"><span class="icon"><i class="fa-solid fa-magnifying-glass"></i></span> Buscar contenido</div>
+      <div class="media-switch" role="group" aria-label="Tipo de contenido">
+        <button type="button" id="kindMovie" class="active" aria-pressed="true"><i class="fa-solid fa-film"></i> Películas</button>
+        <button type="button" id="kindSeries" aria-pressed="false"><i class="fa-solid fa-tv"></i> Series</button>
+      </div>
       <input id="movieSearch" type="text" placeholder="Ej. Avengers Endgame">
       <button id="btnSearch" class="primary full"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button>
       <button id="btnClear" class="secondary full">Limpiar</button>
@@ -396,7 +415,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
 
     <div class="empty" id="emptyState">
       <i class="fa-solid fa-magnifying-glass"></i>
-      Selecciona una película de los resultados para comenzar.
+      Selecciona una película o serie de los resultados para comenzar.
     </div>
 
     <section class="panel movie-panel" id="movieCard" style="display:none">
@@ -432,9 +451,18 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
       </div>
     </section>
 
+    <section class="series-panel" id="seriesPanel" hidden>
+      <h3><i class="fa-solid fa-list"></i> Temporadas y episodios</h3>
+      <div class="series-help">Elige la temporada y el capítulo. Cada episodio tiene sus propios enlaces de Google Photos. Puedes guardar la serie con capítulos pendientes y completarlos después.</div>
+      <label for="seriesSeason">Temporada</label>
+      <select id="seriesSeason"></select>
+      <div id="seriesSeasonStatus" class="series-status-label" role="status"></div>
+      <div id="episodeAdminList" class="episode-admin-list"></div>
+      <div id="episodeAdminSelected" class="series-status-label">Selecciona un episodio para configurar sus enlaces.</div>
+    </section>
     <div class="grid" id="linksGrid" style="display:none">
       <section class="panel" id="linksCard">
-        <div class="panel-title"><span class="icon"><i class="fa-solid fa-link"></i></span> URL del vídeo</div>
+        <div class="panel-title"><span class="icon"><i class="fa-solid fa-link"></i></span> <span id="linksHeading">URL del vídeo</span></div>
 
         <label for="googleUrl">URL Google Photos</label>
         <input id="googleUrl" type="url" placeholder="https://photos.google.com/share/...">
@@ -473,8 +501,8 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
         <span class="badge" id="collectionBadge">0</span>
       </div>
       <div class="featured-panel">
-        <h3><i class="fa-solid fa-star"></i> Películas destacadas <span class="badge" id="featuredCount">0/6</span></h3>
-        <div class="tmdb">Marca la estrella junto a una película para mostrarla en el carrusel principal. Ordena con las flechas. Si no eliges ninguna, aparecerán las mejor valoradas como antes.</div>
+        <h3><i class="fa-solid fa-star"></i> Títulos destacados <span class="badge" id="featuredCount">0/6</span></h3>
+        <div class="tmdb">Marca la estrella junto a una película o serie para mostrarla en el carrusel principal. Ordena con las flechas. Si no eliges ninguna, aparecerán las mejor valoradas como antes.</div>
         <div id="featuredList" class="featured-list" aria-live="polite"></div>
       </div>
       <div class="catalog-options">
@@ -497,9 +525,11 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
         <div class="tmdb">Estos cambios se guardan en tu navegador y se aplican al generar nuevamente index.html.</div>
       </div>
       <div class="collection-toolbar">
-        <input id="collectionSearch" type="search" placeholder="Buscar en mis películas..." aria-label="Buscar en mi colección">
+        <input id="collectionSearch" type="search" placeholder="Buscar en mi colección..." aria-label="Buscar en mi colección">
         <select id="collectionFilter" aria-label="Filtrar películas">
-          <option value="all">Todas las películas</option>
+          <option value="all">Películas y series</option>
+          <option value="movies">Solo películas</option>
+          <option value="series">Solo series</option>
           <option value="complete">Con enlaces de video</option>
           <option value="incomplete">Sin enlaces de video</option>
         </select>
@@ -606,6 +636,7 @@ const state = {
   movie: null, backdrop: null, poster: null,
   genres: "", cert: "", tagline: "",
   collection: loadSavedCollection(), validated: false,
+  searchKind:"movie", selectedEpisode:null, seasonRequestId:0,
   editingId: null, posterOptions: [], backdropOptions: [],
   addedAt: null,
   catalogSettings: loadCatalogSettings()
@@ -748,8 +779,8 @@ function castFromTmdb(credits){
     photo:tmdbImagePath(person?.profile_path) ? TMDB_IMG+"w185"+person.profile_path : ""
   })).filter(person=>person.name).slice(0,15);
 }
-async function getTmdbMedia(id,key,imagesData=null){
-  const base="https://api.themoviedb.org/3/movie/"+encodeURIComponent(id);
+async function getTmdbMedia(id,key,imagesData=null,kind="MOVIE"){
+  const base="https://api.themoviedb.org/3/"+(kind==="SERIES"?"tv/":"movie/")+encodeURIComponent(id);
   const [images,credits]=await Promise.allSettled([
     imagesData ? Promise.resolve(imagesData) : tmdbGet(base+"/images?include_image_language=es,es-MX,en,null",key),
     tmdbGet(base+"/credits?language=es-MX",key)
@@ -775,10 +806,10 @@ async function enrichSavedMovies(){
   let done=0,failed=0, logos=0, photos=0;
   try{
     for(const entry of pending){
-      const id=entry.tmdbId || entry.id;
+      const id=entry.tmdbId || Math.abs(Number(entry.id));
       status.textContent=`Consultando TMDB: ${done+failed+1} de ${pending.length} · ${entry.title}`;
       try{
-        const media=await getTmdbMedia(id,key);
+        const media=await getTmdbMedia(id,key,null,entry.kind);
         const current=state.collection.find(m=>String(m.id)===String(entry.id));
         if(current){
           if(media.gotImages){current.logo=media.logo; if(media.logo)logos++;}
@@ -806,15 +837,165 @@ async function enrichSavedMovies(){
 /* ============================================================
    BUSCAR PELÍCULAS EN TMDB
    ============================================================ */
+
+/* Fase 6: series con estructura TMDB por temporada y episodios independientes. */
+function seriesEpisodeCount(item, linkedOnly=false){
+  return (Array.isArray(item?.seasons)?item.seasons:[]).reduce((sum,season)=>sum+(season.episodes||[]).filter(e=>!linkedOnly||(e.m37||e.m22||e.m18)).length,0);
+}
+function activeAdminEpisode(){
+  if(!state.movie || !state.selectedEpisode)return null;
+  const {season,episode}=state.selectedEpisode;
+  return state.movie.seasons?.find(s=>s.number===season)?.episodes.find(e=>e.number===episode)||null;
+}
+function storeAdminEpisodeFields(){
+  const ep=activeAdminEpisode();if(!ep)return;
+  for(const id of ["googleUrl","m37","m22","m18"])ep[id]=$(id).value.trim();
+}
+function renderSeriesAdmin(){
+  if(state.movie?.kind!=="SERIES")return;
+  const select=$("seriesSeason"),old=select.value;
+  const summaries=state.movie.seasonSummaries||[];
+  select.innerHTML=summaries.map(s=>`<option value="${Number(s.number)}">${escHtml(s.name||`Temporada ${s.number}`)} (${Number(s.episode_count)||0} episodios)</option>`).join("");
+  const chosen=state.selectedEpisode?.season ?? (Number(old)||summaries[0]?.number);
+  if(chosen!=null && summaries.some(s=>s.number===chosen))select.value=String(chosen);
+  const season=state.movie.seasons?.find(s=>s.number===Number(select.value));
+  const list=$("episodeAdminList");
+  list.innerHTML=(season?.episodes||[]).map(ep=>`<button type="button" class="episode-admin-item ${state.selectedEpisode?.season===season.number&&state.selectedEpisode.episode===ep.number?"active":""}" data-episode="${ep.number}">
+  <img src="${escHtml(ep.still||"")}" alt="" loading="lazy"><span><b>${ep.number}. ${escHtml(ep.name)}</b><small>${ep.runtime||"?"} min · ${ep.m37||ep.m22||ep.m18?"✓ Enlace configurado":"Pendiente"}</small></span><i class="fa-solid fa-chevron-right"></i></button>`).join("");
+  if(!season)list.innerHTML='<div class="tmdb">Elige una temporada para descargar la lista de episodios.</div>';
+  $("episodeAdminSelected").textContent=state.selectedEpisode?`Configurando T${state.selectedEpisode.season} · E${state.selectedEpisode.episode}`:"Selecciona un capítulo de la lista.";
+}
+function chooseAdminEpisode(number){
+  if(state.movie?.kind!=="SERIES")return;
+  storeAdminEpisodeFields();
+  const season=Number($("seriesSeason").value);
+  const ep=state.movie.seasons?.find(s=>s.number===season)?.episodes.find(e=>e.number===number);
+  if(!ep)return;
+  state.selectedEpisode={season,episode:number};
+  clearVideoFields();
+  for(const id of ["googleUrl","m37","m22","m18"])$(id).value=ep[id]||"";
+  $("btnExtract").disabled=false;
+  renderSeriesAdmin();
+}
+async function loadSeriesSeason(number){
+  if(state.movie?.kind!=="SERIES")return;
+  storeAdminEpisodeFields();state.selectedEpisode=null;
+  clearVideoFields();
+  const movie=state.movie,requestId=++state.seasonRequestId;
+  let season=movie.seasons.find(s=>s.number===number);
+  if(!season){
+    $("seriesSeasonStatus").textContent=`Cargando temporada ${number} desde TMDB…`;
+    try{
+      const result=await tmdbGet(`https://api.themoviedb.org/3/tv/${movie.tmdbId}/season/${number}?language=es-MX`,credentialValue());
+      if(requestId!==state.seasonRequestId||state.movie!==movie)return;
+      season={number,name:result.name||`Temporada ${number}`,episodes:(result.episodes||[]).map(e=>({
+        number:Number(e.episode_number),name:e.name||`Episodio ${e.episode_number}`,
+        overview:e.overview||"",runtime:Number(e.runtime)||0,
+        still:e.still_path?TMDB_IMG+"w300"+e.still_path:"",googleUrl:"",m37:"",m22:"",m18:""
+      })).filter(e=>e.number>0)};
+      movie.seasons.push(season);
+    }catch(error){$("seriesSeasonStatus").textContent="Error al cargar la temporada: "+error.message;renderSeriesAdmin();return;}
+  }
+  $("seriesSeasonStatus").textContent=`Temporada ${number} · ${season.episodes.length} episodios`;
+  $("seriesSeason").value=String(number);
+  renderSeriesAdmin();
+}
+async function loadSeries(tmdbId){
+  const existing=state.collection.find(item=>item.kind==="SERIES" && Number(item.tmdbId||Math.abs(Number(item.id)))===Number(tmdbId));
+  if(existing){
+    editSavedSeries(existing);
+    showStatus("Esta serie ya está guardada: abrí su edición para conservar los enlaces existentes.","ok");
+    return;
+  }
+  const requestId=++movieRequestId;
+  ++state.seasonRequestId;state.selectedEpisode=null;state.editingId=null;
+  clearVideoFields();state.movie=null;
+  $("seriesPanel").hidden=true;
+  $("movieCard").style.display="none";$("linksGrid").style.display="none";
+  showStatus("Cargando ficha de serie desde TMDB…");
+  try{
+    const key=credentialValue(),base=`https://api.themoviedb.org/3/tv/${tmdbId}`;
+    const info=await tmdbGet(base+"?language=es-MX",key);
+    const [imagesResult,creditsResult,ratingsResult]=await Promise.allSettled([
+      tmdbGet(base+"/images?include_image_language=es,es-MX,en,null",key),
+      tmdbGet(base+"/credits?language=es-MX",key),
+      tmdbGet(base+"/content_ratings",key)
+    ]);
+    if(requestId!==movieRequestId)return;
+    const images=imagesResult.status==="fulfilled"?imagesResult.value:{};
+    const ratings=ratingsResult.status==="fulfilled"?(ratingsResult.value.results||[]):[];
+    const cert=(ratings.find(r=>r.iso_3166_1==="MX")||ratings.find(r=>r.iso_3166_1==="US")||{}).rating||"";
+    const poster=info.poster_path?TMDB_IMG+"w500"+info.poster_path:"";
+    const backdrop=info.backdrop_path?TMDB_IMG+"w1280"+info.backdrop_path:"";
+    state.movie={id:-Number(info.id),tmdbId:Number(info.id),kind:"SERIES",title:info.name||"",
+      release_date:info.first_air_date||"",runtime:Number(info.episode_run_time?.[0])||0,
+      overview:info.overview||"",vote_average:Number(info.vote_average)||0,tagline:info.tagline||"",
+      logo:chooseTmdbLogo(images),cast:creditsResult.status==="fulfilled"?castFromTmdb(creditsResult.value):[],
+      mediaSynced:imagesResult.status==="fulfilled"&&creditsResult.status==="fulfilled",
+      seasonSummaries:(info.seasons||[]).filter(season=>season.season_number>=1).map(season=>({number:season.season_number,name:season.name,episode_count:season.episode_count})),
+      seasons:[]};
+    state.poster=poster;state.backdrop=backdrop;state.genres=(info.genres||[]).map(g=>g.name).join(", ");
+    state.cert=cert;state.tagline=info.tagline||"";
+    state.posterOptions=buildArtworkOptions("poster",poster,images.posters||[]);
+    state.backdropOptions=buildArtworkOptions("backdrop",backdrop,images.backdrops||[]);
+    renderSelectedMovie();
+    if(state.movie.seasonSummaries.length)await loadSeriesSeason(state.movie.seasonSummaries[0].number);
+    showStatus("Serie seleccionada. Elige el episodio y configura su enlace.","ok");updateSteps(3);
+  }catch(err){if(requestId===movieRequestId)showStatus("No se pudo cargar la serie: "+err.message,"err");}
+}
+function editSavedSeries(item){
+  ++movieRequestId;++state.seasonRequestId;
+  clearVideoFields();state.selectedEpisode=null;
+  state.editingId=item.id;
+  state.movie={id:Number(item.id),tmdbId:Number(item.tmdbId)||Math.abs(Number(item.id)),kind:"SERIES",
+    title:item.title||"",release_date:item.year||"",runtime:parseInt(item.runtime,10)||0,
+    overview:item.overview||"",vote_average:Number(item.rating)||0,tagline:item.subtitle||"",
+    logo:item.logo||"",cast:item.cast||[],mediaSynced:item.mediaSynced===true,
+    seasonSummaries:Array.isArray(item.seasonSummaries)?structuredClone(item.seasonSummaries):(item.seasons||[]).map(s=>({number:s.number,name:s.name,episode_count:(s.episodes||[]).length})),
+    seasons:structuredClone(item.seasons||[])};
+  state.poster=item.poster||"";state.backdrop=item.backdrop||"";
+  state.genres=item.genres||"";state.cert=item.cert||"";state.tagline=item.subtitle||"";
+  state.posterOptions=buildArtworkOptions("poster",state.poster,[]);
+  state.backdropOptions=buildArtworkOptions("backdrop",state.backdrop,[]);
+  renderSelectedMovie();
+  const first=state.movie.seasonSummaries[0]?.number;
+  if(first!=null)loadSeriesSeason(first);
+  showStatus("Editando serie. Los enlaces de cada capítulo permanecen independientes.","ok");
+  $("movieCard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function saveSeriesToCollection(){
+  storeAdminEpisodeFields();
+  const m=state.movie;if(!m || m.kind!=="SERIES")return;
+  const active=activeAdminEpisode();
+  if(active && (active.m37||active.m22||active.m18)){
+    try{validateVideoLinks();}catch(err){showStatus("Episodio actual: "+err.message,"err");return;}
+  }
+  const old=state.collection.find(x=>String(x.id)===String(m.id));
+  const now=new Date().toISOString();
+  const item={...(old||{}),id:m.id,tmdbId:m.tmdbId,kind:"SERIES",title:m.title,
+    subtitle:state.tagline||"",year:String(m.release_date||"").slice(0,4),
+    runtime:m.runtime?m.runtime+" min":"",overview:m.overview||"",rating:Number(m.vote_average)||0,
+    genres:state.genres,cert:state.cert,poster:state.poster,backdrop:state.backdrop,
+    logo:m.logo||old?.logo||"",cast:m.cast||old?.cast||[],mediaSynced:m.mediaSynced===true,
+    seasonSummaries:structuredClone(m.seasonSummaries||[]),seasons:structuredClone(m.seasons||[]),
+    googleUrl:"",m37:"",m22:"",m18:"",addedAt:old?.addedAt||now,updatedAt:now};
+  const next=state.collection.slice(),idx=next.findIndex(x=>String(x.id)===String(item.id));
+  if(idx>=0)next[idx]=item;else next.push(item);
+  if(!commitCollection(next)){showStatus("No se pudo guardar. Revisa el almacenamiento del navegador.","err");return;}
+  state.editingId=item.id;renderSelectedMovie();
+  showStatus(`✓ Serie guardada: ${seriesEpisodeCount(item,true)} de ${seriesEpisodeCount(item)} episodios con enlace. Puedes seguir editándola.`,"ok");
+  updateSteps(4);
+}
 async function searchMovies(){
+  const kind=state.searchKind;
+  const requestId=++movieRequestId;
   const key = credentialValue();
   const q = search.value.trim();
   if (!key){ showStatus("Introduce tu credencial de TMDB.","err"); return; }
-  if (!q){ showStatus("Escribe el nombre de una película.","err"); return; }
+  if (!q){ showStatus("Escribe el nombre de una película o serie.","err"); return; }
   if (!state.validated){ const ok = await validateCredential(); if (!ok) return; }
 
   showStatus("Buscando en TMDB…");
-  movieRequestId++;
   state.movie = null;
   clearVideoFields();
   $("results").innerHTML="";
@@ -824,27 +1005,30 @@ async function searchMovies(){
 
   try{
     const data = await tmdbGet(
-      "https://api.themoviedb.org/3/search/movie?query="+encodeURIComponent(q)+"&language=es-MX&include_adult=false",
+      "https://api.themoviedb.org/3/search/"+(kind==="tv"?"tv":"movie")+"?query="+encodeURIComponent(q)+"&language=es-MX&include_adult=false",
       key
     );
+    if(requestId!==movieRequestId || kind!==state.searchKind)return;
     const results = Array.isArray(data.results)?data.results:[];
     if (!results.length){
-      $("resultsHint").textContent = "No se encontraron películas.";
+      $("resultsHint").textContent = "No se encontraron títulos.";
       showStatus("No se encontraron resultados para: "+q,"");
       return;
     }
     $("resultsHint").textContent = results.length+" resultado(s) encontrado(s).";
     $("results").innerHTML = results.map(m=>{
       const poster = m.poster_path ? "https://image.tmdb.org/t/p/w185"+m.poster_path : "";
-      const year = m.release_date ? m.release_date.slice(0,4) : "Sin año";
+      const date=m.release_date||m.first_air_date||"";
+       const title=m.title||m.name||"Sin título";
+       const year = date ? date.slice(0,4) : "Sin año";
       return `
         <div class="result" data-id="${Number(m.id)}">
-          <img src="${escHtml(poster)}" alt="${escHtml(m.title||"Película")}" onerror="this.style.visibility='hidden'">
-          <div class="rbody"><b>${escHtml(m.title||"Sin título")}</b><span>${escHtml(year)}</span></div>
+          <img src="${escHtml(poster)}" alt="${escHtml(title)}" onerror="this.style.visibility='hidden'">
+          <div class="rbody"><b>${escHtml(title)}</b><span>${escHtml(year)}</span></div>
         </div>`;
     }).join("");
     document.querySelectorAll(".result").forEach(el=>{
-      el.addEventListener("click", ()=> loadMovie(Number(el.dataset.id)));
+      el.addEventListener("click", ()=> kind==="tv" ? loadSeries(Number(el.dataset.id)) : loadMovie(Number(el.dataset.id)));
     });
     showStatus("Resultados cargados correctamente.","ok");
     updateSteps(2);
@@ -904,14 +1088,22 @@ function renderSelectedMovie(){
   $("movieRating").textContent = Number.isFinite(Number(movie.vote_average)) ? Number(movie.vote_average).toFixed(1) : "—";
   $("movieGenres").textContent = state.genres || "—";
   $("movieCert").textContent = state.cert || "—";
+  const isSeries=movie.kind==="SERIES";
+  $("seriesPanel").hidden=!isSeries;
+  $("linksHeading").textContent=isSeries?"Enlaces del episodio seleccionado":"URL del vídeo";
+  $("generateCard").style.display=isSeries?"none":"";
+  $("btnExtract").disabled=isSeries&&!state.selectedEpisode;
+  $("editingTag").textContent=state.editingId!==null?(isSeries?"Editando serie guardada":"Editando película guardada"):"";
+  if(isSeries)renderSeriesAdmin();
   $("editingTag").classList.toggle("show",state.editingId !== null);
-  $("btnAddMovie").innerHTML = state.editingId !== null ? '<i class="fa-solid fa-floppy-disk"></i> Guardar cambios' : '<i class="fa-solid fa-plus"></i> Agregar al catálogo';
+  $("btnAddMovie").innerHTML = state.editingId !== null ? '<i class="fa-solid fa-floppy-disk"></i> Guardar cambios' : `<i class="fa-solid fa-plus"></i> ${isSeries?"Agregar serie al catálogo":"Agregar al catálogo"}`;
   $("btnCancelEdit").style.display = state.editingId !== null ? "block" : "none";
   updateMovieImages();
 }
 function editSavedMovie(id){
   const item=state.collection.find(x=> String(x.id)===String(id));
   if (!item) return;
+  if(item.kind==="SERIES"){editSavedSeries(item);return;}
   ++movieRequestId;
   clearVideoFields();
   const runtime=parseInt(String(item.runtime || ""), 10);
@@ -936,7 +1128,7 @@ function editSavedMovie(id){
 }
 async function loadAdditionalArtwork(){
   if (!state.movie) return;
-  const id=state.movie.id, key=credentialValue();
+  const id=state.movie.tmdbId||state.movie.id, key=credentialValue();
   if (!key){$("artworkStatus").textContent="Introduce tu credencial TMDB para ver más imágenes.";return;}
   if (!state.validated){
     const valid=await validateCredential(); if(!valid) return;
@@ -945,8 +1137,8 @@ async function loadAdditionalArtwork(){
   $("btnLoadArtwork").disabled=true;
   $("artworkStatus").textContent="Cargando opciones de TMDB…";
   try {
-    const data=await tmdbGet("https://api.themoviedb.org/3/movie/"+encodeURIComponent(id)+"/images?include_image_language=es,es-ES,en,null",key);
-    if (movieRequestId!==currentRequest || state.movie?.id!==id) return;
+    const data=await tmdbGet("https://api.themoviedb.org/3/"+(state.movie.kind==="SERIES"?"tv/":"movie/")+encodeURIComponent(id)+"/images?include_image_language=es,es-ES,en,null",key);
+    if (movieRequestId!==currentRequest || (state.movie?.tmdbId||state.movie?.id)!==id) return;
     state.posterOptions=buildArtworkOptions("poster",state.poster,Array.isArray(data?.posters)?data.posters:[]);
     state.backdropOptions=buildArtworkOptions("backdrop",state.backdrop,Array.isArray(data?.backdrops)?data.backdrops:[]);
     renderArtworkChoices();
@@ -1050,8 +1242,12 @@ async function extractFromGooglePhotos(){
     box.textContent = "Selecciona una película antes de extraer enlaces.";
     return;
   }
+  if(state.movie.kind==="SERIES"&&!state.selectedEpisode){
+    box.className="status show err";box.textContent="Selecciona primero un episodio.";return;
+  }
   const requestId = ++extractRequestId;
   const movieId = state.movie.id;
+  const episodeKey=state.selectedEpisode?`${state.selectedEpisode.season}-${state.selectedEpisode.episode}`:"";
   for (const id of ["m37", "m22", "m18"]) $(id).value = "";
   box.className = "status show";
   box.textContent = "Extrayendo URLs desde Google Photos…";
@@ -1065,7 +1261,7 @@ async function extractFromGooglePhotos(){
     });
     const data = await res.json();
 
-    if (requestId !== extractRequestId || state.movie?.id !== movieId || $("googleUrl").value.trim() !== url) return;
+    if (requestId !== extractRequestId || state.movie?.id !== movieId || (state.selectedEpisode?`${state.selectedEpisode.season}-${state.selectedEpisode.episode}`:"")!==episodeKey || $("googleUrl").value.trim() !== url) return;
     if (!data.ok) throw new Error(data.error || "No se pudieron extraer las URLs.");
 
     $("m37").value = data.m37 || "";
@@ -1156,6 +1352,7 @@ function updateCatalogSettings(){
 
 function addMovieToCollection(){
   if (!state.movie){ showStatus("Primero selecciona una película.","err"); return; }
+  if(state.movie.kind==="SERIES"){saveSeriesToCollection();return;}
   const m37 = $("m37").value.trim();
   const m22 = $("m22").value.trim();
   const m18 = $("m18").value.trim();
@@ -1224,19 +1421,20 @@ function renderCollection(){
   const sort=$("collectionSort").value;
   let items=state.collection.filter(m=>{
     const match=(`${m.title||""} ${m.year||""} ${m.genres||""}`).toLocaleLowerCase("es").includes(query);
-    const linked=Boolean(m.m37||m.m22||m.m18);
-    return match && (filter==="all" || (filter==="complete" ? linked : !linked));
+    const linked=m.kind==="SERIES"?seriesEpisodeCount(m,true)>0:Boolean(m.m37||m.m22||m.m18);
+    const typeOk=filter==="movies"?m.kind!=="SERIES":filter==="series"?m.kind==="SERIES":true;
+    return match && typeOk && (["complete","incomplete"].includes(filter)?(filter==="complete"?linked:!linked):true);
   });
   if(sort==="title") items.sort((a,b)=>String(a.title||"").localeCompare(String(b.title||""),"es"));
   else if(sort==="year") items.sort((a,b)=>Number(b.year||0)-Number(a.year||0));
   else if(sort==="rating") items.sort((a,b)=>Number(b.rating||0)-Number(a.rating||0));
   else items.sort((a,b)=>(Date.parse(b.addedAt)||0)-(Date.parse(a.addedAt)||0)||state.collection.indexOf(b)-state.collection.indexOf(a));
-  $("collectionInfo").textContent=`Mostrando ${items.length} de ${count} películas · Haz clic en Editar para recuperar los enlaces guardados.`;
+  $("collectionInfo").textContent=`Mostrando ${items.length} de ${count} títulos · Edita para recuperar los enlaces guardados.`;
   if (!items.length){list.innerHTML='<div class="empty">No hay películas que coincidan con estos filtros.</div>';return;}
   list.innerHTML=items.map(item=>`
     <div class="collection-item ${state.editingId!==null && String(state.editingId)===String(item.id) ? "active" : ""}">
       <img src="${escHtml(item.poster||"")}" alt="${escHtml(item.title)}" loading="lazy" onerror="this.style.visibility='hidden'">
-      <div><b>${escHtml(item.title)}</b><span>${escHtml(item.year||"Sin año")}${item.m37||item.m22||item.m18 ? " · Video configurado" : " · Sin video"}${item.featured===true ? " · ★ Destacada" : ""}</span></div>
+      <div><b>${escHtml(item.title)}</b><span>${escHtml(item.year||"Sin año")}${item.kind==="SERIES"?` · Serie · ${seriesEpisodeCount(item,true)}/${seriesEpisodeCount(item)} episodios con enlace`:(item.m37||item.m22||item.m18?" · Video configurado":" · Sin video")}${item.featured===true ? " · ★ Destacada" : ""}</span></div>
       <div class="collection-actions">
         <button type="button" class="collection-featured ${item.featured===true?"is-featured":""}" title="${item.featured===true?"Quitar de":"Agregar a"} destacados" aria-label="${item.featured===true?"Quitar de":"Agregar a"} destacados: ${escHtml(item.title)}" aria-pressed="${item.featured===true}" data-featured-toggle="${escHtml(item.id)}"><i class="fa-${item.featured===true?"solid":"regular"} fa-star"></i></button>
         <button type="button" class="collection-edit" title="Editar película" data-edit-id="${escHtml(item.id)}"><i class="fa-solid fa-pen"></i></button>
@@ -1575,7 +1773,16 @@ async function buildCollectionHtml(){
       genres: String(item.genres || ""),
       cert: String(item.cert || ""),
       overview: String(item.overview || ""),
+      tmdbId:item.tmdbId??(item.kind==="SERIES"?Math.abs(Number(item.id)):item.id),
       kind: item.kind || "MOVIE",
+      seasons:item.kind==="SERIES"&&Array.isArray(item.seasons)?item.seasons.map(s=>({
+        number:Number(s.number)||0,name:String(s.name||""),
+        episodes:(s.episodes||[]).map(e=>({
+          number:Number(e.number)||0,name:String(e.name||""),overview:String(e.overview||""),
+          still:String(e.still||""),runtime:Number(e.runtime)||0,
+          m37:String(e.m37||""),m22:String(e.m22||""),m18:String(e.m18||"")
+        }))
+      })):[],
       featured:item.featured === true,
       featuredOrder:Number.isFinite(Number(item.featuredOrder)) && item.featuredOrder !== null && item.featuredOrder !== undefined ? Number(item.featuredOrder) : 999,
       m37: String(item.m37 || ""),
@@ -1608,7 +1815,7 @@ async function generateCollection(){
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(u),1500);
     $("collectionStatus").className="status show ok";
-    $("collectionStatus").textContent=`✓ Catálogo completo generado (${count} películas).`;
+    $("collectionStatus").textContent=`✓ Catálogo completo generado (${count} títulos).`;
   }catch(e){
     $("collectionStatus").className="status show err";
     $("collectionStatus").textContent="✕ Error al generar catálogo: "+(e.message||"Error desconocido.");
@@ -1628,7 +1835,7 @@ async function previewCollection(){
     $("catalogPreviewFrame").srcdoc=previewHtml;
     $("catalogPreviewDialog").showModal();
     $("collectionStatus").className="status show ok";
-    $("collectionStatus").textContent=`✓ Vista previa de ${count} películas. No se ha exportado ningún archivo.`;
+    $("collectionStatus").textContent=`✓ Vista previa de ${count} títulos. No se ha exportado ningún archivo.`;
   }catch(e){
     $("collectionStatus").className="status show err";
     $("collectionStatus").textContent="✕ No se pudo abrir la vista previa: "+(e.message||"Error desconocido.");
@@ -1640,6 +1847,22 @@ async function previewCollection(){
    ============================================================ */
 $("btnValidate").addEventListener("click", validateCredential);
 $("btnSearch").addEventListener("click", searchMovies);
+function changeSearchKind(kind){
+  state.searchKind=kind;
+  for(const [id,value] of [["kindMovie","movie"],["kindSeries","tv"]]){
+    $(id).classList.toggle("active",value===kind);
+    $(id).setAttribute("aria-pressed",String(value===kind));
+  }
+  $("movieSearch").placeholder=kind==="tv"?"Ej. Stranger Things":"Ej. Avengers Endgame";
+  resetSelection();
+}
+$("kindMovie").addEventListener("click",()=>changeSearchKind("movie"));
+$("kindSeries").addEventListener("click",()=>changeSearchKind("tv"));
+$("seriesSeason").addEventListener("change",()=>loadSeriesSeason(Number($("seriesSeason").value)));
+$("episodeAdminList").addEventListener("click",event=>{
+  const btn=event.target.closest("[data-episode]");
+  if(btn)chooseAdminEpisode(Number(btn.dataset.episode));
+});
 function resetSelection(){
   search.value=""; $("results").innerHTML="";
   $("resultsHint").textContent="Busca un título para mostrar los resultados disponibles.";
@@ -1651,6 +1874,8 @@ function resetSelection(){
   movieRequestId++;
   state.movie=state.backdrop=state.poster=null;
   state.editingId=null;state.posterOptions=[];state.backdropOptions=[];
+  state.selectedEpisode=null;state.seasonRequestId++;
+  $("seriesPanel").hidden=true;
   clearVideoFields();
   $("btnExtract").disabled=false;
   state.genres="";state.cert="";state.tagline="";
@@ -1689,7 +1914,7 @@ $("btnAddMovie").addEventListener("click", addMovieToCollection);
 $("btnGenerate").addEventListener("click", generateMoviePage);
 $("btnEnrichMedia").addEventListener("click",enrichSavedMovies);
 $("btnBackupCollection").addEventListener("click", () => {
-  const backup = {format:"mmhd-collection", version:3, createdAt:new Date().toISOString(), count:state.collection.length, collection:state.collection, catalogSettings:state.catalogSettings};
+  const backup = {format:"mmhd-collection", version:4, createdAt:new Date().toISOString(), count:state.collection.length, collection:state.collection, catalogSettings:state.catalogSettings};
   const url = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
   const a=document.createElement("a"); a.href=url; a.download="mmhd-respaldo-"+new Date().toISOString().slice(0,10)+".json";
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -1699,12 +1924,12 @@ $("backupCollectionFile").addEventListener("change",async e=>{
   const file=e.target.files?.[0];if(!file)return;
   try{
     const data=JSON.parse(await file.text());
-    if(data.format!=="mmhd-collection"||![1,2,3].includes(data.version)||!Array.isArray(data.collection))throw Error("Formato de respaldo no válido");
+    if(data.format!=="mmhd-collection"||![1,2,3,4].includes(data.version)||!Array.isArray(data.collection))throw Error("Formato de respaldo no válido");
     if(!data.collection.every(m=>m && typeof m==="object" && typeof m.title==="string"))throw Error("El respaldo contiene registros inválidos");
     if(!confirm(`¿Reemplazar las ${state.collection.length} películas actuales por ${data.collection.length} del respaldo? Haz antes una copia de seguridad.`))return;
     if(!commitCollection(data.collection))throw Error("No hay suficiente espacio en este navegador para importar la colección.");
     // Respaldo antiguo: conserva las preferencias actuales del panel.
-    if(data.version===3 && data.catalogSettings){
+    if(data.version>=3 && data.catalogSettings){
       const settings=normalizeCatalogSettings(data.catalogSettings);
       try{localStorage.setItem(CATALOG_SETTINGS_KEY,JSON.stringify(settings));state.catalogSettings=settings;fillCatalogSettings();}
       catch{alert("Películas restauradas, pero no se pudieron guardar las preferencias.");}
