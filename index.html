@@ -189,60 +189,64 @@
         // ==========================================
         // 1. GOOGLE CAST (video/mp4)
         // ==========================================
-        (function cargarCastSDK() {
-            if (window.cast && window.cast.framework) { inicializarCast(); return; }
-            const script = document.createElement('script');
-            script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
-            script.onload = () => {
-                window.__onGCastApiAvailable = function (isAvailable) {
-                    if (isAvailable) inicializarCast();
-                };
-                if (window.cast && window.cast.framework) inicializarCast();
-            };
-            script.onerror = () => console.warn('No se pudo cargar el SDK de Cast');
-            document.head.appendChild(script);
-        })();
-
-        function inicializarCast() {
+        // Registrar el callback ANTES de cargar el SDK.
+        let castListo = false;
+        window.__onGCastApiAvailable = function (disponible) {
+            if (!disponible) {
+                setEstado('Google Cast no está disponible en este navegador.');
+                return;
+            }
             try {
                 cast.framework.CastContext.getInstance().setOptions({
                     receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
                     autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
                 });
-                console.log('✅ Google Cast SDK listo');
-            } catch (e) {
-                console.warn('Cast no disponible:', e);
+                castListo = true;
+                console.log('Google Cast inicializado');
+            } catch (error) {
+                console.error('Error inicializando Cast:', error);
+                setEstado('Error al inicializar Google Cast: ' + (error.message || error));
             }
-        }
+        };
+
+        (function cargarCastSDK() {
+            const script = document.createElement('script');
+            script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+            script.onerror = () => setEstado('No se pudo cargar el SDK de Google Cast.');
+            document.head.appendChild(script);
+        })();
 
         btnCast.addEventListener('click', async () => {
-            setEstado('');
-            if (!window.cast || !window.cast.framework) {
-                mostrarToast('⚠️ Google Cast no está disponible. Usa Chrome o Edge.');
-                setEstado('Google Cast no disponible. Prueba con Chrome/Edge.');
+            if (!castListo) {
+                setEstado('Google Cast aún no está disponible. Abre la página en Chrome o Edge y espera unos segundos.');
                 return;
             }
             try {
-                const castContext = cast.framework.CastContext.getInstance();
-                const session = await castContext.requestSession();
+                const contexto = cast.framework.CastContext.getInstance();
+                let sesion = contexto.getCurrentSession();
+                if (!sesion) {
+                    await contexto.requestSession();
+                    sesion = contexto.getCurrentSession();
+                }
+                if (!sesion) throw new Error('No se obtuvo una sesión Cast.');
 
-                // Aquí se especifica que el contenido es video/mp4
-                const mediaInfo = new chrome.cast.media.MediaInfo(VIDEO_URL, MIME_TYPE);
-                mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-                mediaInfo.metadata.title = 'Video MP4 transmitido';
-                mediaInfo.metadata.images = [{ url: VIDEO_URL }];
+                const mediaInfo = new chrome.cast.media.MediaInfo(VIDEO_URL, 'video/mp4');
                 mediaInfo.streamType = chrome.cast.media.StreamType.BUFFERED;
+                mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
+                mediaInfo.metadata.title = 'Video MP4';
+                // No usar el enlace del video como imagen de portada.
+                const solicitud = new chrome.cast.media.LoadRequest(mediaInfo);
+                solicitud.autoplay = true;
+                solicitud.currentTime = 0;
+                await sesion.loadMedia(solicitud);
 
-                const request = new chrome.cast.media.LoadRequest(mediaInfo);
-                await session.loadMedia(request);
-
-                setEstado('✅ Video MP4 enviado al dispositivo Cast.');
-                mostrarToast('📡 Transmitiendo video a la TV...');
-            } catch (err) {
-                console.warn('Error en Cast:', err);
-                if (err.code === 'cancel') setEstado('Transmisión cancelada.');
-                else if (err.code === 'timeout') setEstado('No se encontraron dispositivos Cast.');
-                else setEstado('No se pudo transmitir. Verifica que el enlace sea un MP4 accesible públicamente.');
+                setEstado('Solicitud enviada a Chromecast. Comprueba que el video se reproduzca en la TV.');
+                mostrarToast('Solicitud de reproducción enviada');
+            } catch (error) {
+                console.error('Error al cargar el video en Chromecast:', error);
+                const detalle = error?.description || error?.message || error?.code || String(error);
+                setEstado('Chromecast no pudo cargar el video: ' + detalle + '. Revisa la consola (F12) para más detalles.');
+                mostrarToast('Error al reproducir en Chromecast');
             }
         });
 
