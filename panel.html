@@ -294,6 +294,28 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
   .step span.txt{display:none}
   .step{justify-content:center}
 }
+
+/* Fase 3: destacados y preferencias del catálogo */
+.featured-panel{margin:15px 0;padding:13px;border:1px solid var(--line-2);border-radius:10px;background:rgba(7,15,26,.78)}
+.featured-panel h3,.catalog-options h3{margin:0 0 6px;font-size:12px;color:#e9f3ff;display:flex;align-items:center;gap:7px}
+.featured-panel h3 i{color:var(--gold)}
+.featured-list{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.featured-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;background:#0a1827;border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.featured-row b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.featured-row .featured-order{color:var(--gold);margin-right:7px}
+.featured-row button{padding:6px 9px;background:var(--panel-3);border:1px solid var(--line-2)}
+.featured-row button i{margin:0}
+.collection-featured{padding:8px 10px;background:#26200e;border:1px solid #504123;color:#ae9461}
+.collection-featured i{margin:0}
+.collection-featured.is-featured{background:rgba(255,196,77,.13);border-color:#8e6a2d;color:var(--gold)}
+.catalog-options{margin:14px 0 5px;padding:13px;background:rgba(7,15,26,.78);border:1px solid var(--line-2);border-radius:10px}
+.catalog-options-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 14px;margin-top:10px}
+.catalog-options .catalog-check{display:flex;align-items:center;gap:8px;margin:3px 0;color:var(--text-2);font-size:11px}
+.catalog-options .catalog-check input{width:16px;height:16px;accent-color:var(--red);flex:0 0 auto}
+.catalog-options-grid label{margin:0}
+.catalog-options-grid .catalog-setting-label{margin:6px 0 0}
+.catalog-options-grid input[type=text],.catalog-options-grid select{margin-top:6px}
+@media(max-width:600px){.catalog-options-grid{grid-template-columns:1fr}.collection-item .collection-actions{gap:4px}.collection-item .collection-actions button{padding:7px}}
 </style>
 </head>
 <body>
@@ -450,6 +472,30 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
         <div class="panel-title"><span class="icon"><i class="fa-solid fa-layer-group"></i></span> Catálogo</div>
         <span class="badge" id="collectionBadge">0</span>
       </div>
+      <div class="featured-panel">
+        <h3><i class="fa-solid fa-star"></i> Películas destacadas <span class="badge" id="featuredCount">0/6</span></h3>
+        <div class="tmdb">Marca la estrella junto a una película para mostrarla en el carrusel principal. Ordena con las flechas. Si no eliges ninguna, aparecerán las mejor valoradas como antes.</div>
+        <div id="featuredList" class="featured-list" aria-live="polite"></div>
+      </div>
+      <div class="catalog-options">
+        <h3><i class="fa-solid fa-sliders"></i> Personalización del catálogo público</h3>
+        <div class="catalog-options-grid">
+          <label class="catalog-check"><input id="settingShowHero" type="checkbox" checked> Mostrar carrusel de portada</label>
+          <label class="catalog-check"><input id="settingShowContinue" type="checkbox" checked> Mostrar Continuar viendo</label>
+          <label class="catalog-setting-label" for="settingTitle">Título de la sección del catálogo
+            <input id="settingTitle" type="text" maxlength="45" placeholder="Catálogo">
+          </label>
+          <label class="catalog-setting-label" for="settingSort">Orden predeterminado para visitantes
+            <select id="settingSort">
+              <option value="recent">Agregadas recientemente</option>
+              <option value="title">Título (A-Z)</option>
+              <option value="year">Año (más reciente)</option>
+              <option value="rating">Mejor calificación</option>
+            </select>
+          </label>
+        </div>
+        <div class="tmdb">Estos cambios se guardan en tu navegador y se aplican al generar nuevamente index.html.</div>
+      </div>
       <div class="collection-toolbar">
         <input id="collectionSearch" type="search" placeholder="Buscar en mis películas..." aria-label="Buscar en mi colección">
         <select id="collectionFilter" aria-label="Filtrar películas">
@@ -504,6 +550,21 @@ const PLAYER_TEMPLATE_B64 = "PCFET0NUWVBFIGh0bWw+CjxodG1sIHhtbG5zPSJodHRwOi8vd3d
    ============================================================ */
 const COLLECTION_STORAGE_KEY = "movieManiaCollection";
 const COLLECTION_RECOVERY_KEY = "movieManiaCollectionRecovery";
+const CATALOG_SETTINGS_KEY = "movieManiaCatalogSettings";
+const MAX_FEATURED = 6;
+const DEFAULT_CATALOG_SETTINGS = {showHero:true, showContinue:true, title:"Catálogo", defaultSort:"recent"};
+function normalizeCatalogSettings(value){
+  const s = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return {
+    showHero:s.showHero !== false, showContinue:s.showContinue !== false,
+    title:String(s.title ?? "Catálogo").trim().slice(0,45) || "Catálogo",
+    defaultSort:["recent","title","year","rating"].includes(s.defaultSort) ? s.defaultSort : "recent"
+  };
+}
+function loadCatalogSettings(){
+  try{return normalizeCatalogSettings(JSON.parse(localStorage.getItem(CATALOG_SETTINGS_KEY)||"null"));}
+  catch{return {...DEFAULT_CATALOG_SETTINGS};}
+}
 const $ = id => document.getElementById(id);
 const apiKey = $("apiKey");
 const search = $("movieSearch");
@@ -544,7 +605,8 @@ const state = {
   genres: "", cert: "", tagline: "",
   collection: loadSavedCollection(), validated: false,
   editingId: null, posterOptions: [], backdropOptions: [],
-  addedAt: null
+  addedAt: null,
+  catalogSettings: loadCatalogSettings()
 };
 
 // Evita que peticiones anteriores cambien la película o los enlaces seleccionados.
@@ -932,6 +994,73 @@ async function extractFromGooglePhotos(){
 /* ============================================================
    AGREGAR PELÍCULA AL CATÁLOGO
    ============================================================ */
+/* ============================================================
+   FASE 3 · DESTACADOS Y PERSONALIZACIÓN
+   ============================================================ */
+function featuredMovies(){
+  return state.collection.filter(m=>m.featured === true).sort((a,b)=>
+    (Number.isFinite(Number(a.featuredOrder))?Number(a.featuredOrder):999) -
+    (Number.isFinite(Number(b.featuredOrder))?Number(b.featuredOrder):999) ||
+    state.collection.indexOf(a)-state.collection.indexOf(b));
+}
+function changeFeatured(id,move){
+  const match=state.collection.find(m=>String(m.id)===String(id));
+  if(!match)return;
+  let featured=featuredMovies().map(m=>String(m.id));
+  const key=String(match.id),idx=featured.indexOf(key);
+  if(move===0){
+    if(idx>=0)featured.splice(idx,1);
+    else if(featured.length>=MAX_FEATURED){
+      showStatus(`Puedes destacar hasta ${MAX_FEATURED} películas. Quita una estrella primero.`,"err");return;
+    }else featured.push(key);
+  }else if(idx>=0){
+    const next=idx+move;
+    if(next<0||next>=featured.length)return;
+    [featured[idx],featured[next]]=[featured[next],featured[idx]];
+  }else return;
+  const rank=new Map(featured.map((key,index)=>[key,index]));
+  const next=state.collection.map(m=>({...m,
+    featured:rank.has(String(m.id)),
+    featuredOrder:rank.has(String(m.id)) ? rank.get(String(m.id)) : null
+  }));
+  if(!commitCollection(next))showStatus("No se pudo guardar el cambio de destacados.","err");
+}
+function renderFeatured(){
+  const selected=featuredMovies().slice(0,MAX_FEATURED);
+  $("featuredCount").textContent=`${selected.length}/${MAX_FEATURED}`;
+  $("featuredList").innerHTML=selected.length ? selected.map((item,i)=>`
+    <div class="featured-row">
+      <b><span class="featured-order">${i+1}.</span>${escHtml(item.title)}</b>
+      <div class="collection-actions">
+        <button type="button" data-featured-move="-1" data-featured-id="${escHtml(item.id)}" ${i===0?"disabled":""} aria-label="Subir ${escHtml(item.title)}"><i class="fa-solid fa-chevron-up"></i></button>
+        <button type="button" data-featured-move="1" data-featured-id="${escHtml(item.id)}" ${i===selected.length-1?"disabled":""} aria-label="Bajar ${escHtml(item.title)}"><i class="fa-solid fa-chevron-down"></i></button>
+      </div>
+    </div>`).join("") : '<div class="tmdb">Sin destacados manuales. Se mostrarán las películas mejor valoradas.</div>';
+}
+function fillCatalogSettings(){
+  const s=state.catalogSettings;
+  $("settingShowHero").checked=s.showHero;
+  $("settingShowContinue").checked=s.showContinue;
+  $("settingTitle").value=s.title;
+  $("settingSort").value=s.defaultSort;
+}
+function updateCatalogSettings(){
+  const next=normalizeCatalogSettings({
+    showHero:$("settingShowHero").checked,
+    showContinue:$("settingShowContinue").checked,
+    title:$("settingTitle").value,
+    defaultSort:$("settingSort").value
+  });
+  try{
+    localStorage.setItem(CATALOG_SETTINGS_KEY,JSON.stringify(next));
+    state.catalogSettings=next;
+  }catch(e){
+    fillCatalogSettings();
+    $("collectionStatus").className="status show err";
+    $("collectionStatus").textContent="No se pudieron guardar las preferencias. Revisa el espacio del navegador.";
+  }
+}
+
 function addMovieToCollection(){
   if (!state.movie){ showStatus("Primero selecciona una película.","err"); return; }
   const m37 = $("m37").value.trim();
@@ -985,6 +1114,7 @@ function renderCollection(){
   const count=state.collection.length;
   $("collectionCount").textContent=count;
   $("collectionBadge").textContent=count;
+  renderFeatured();
   let canUndo=false;
   try {canUndo=Array.isArray(JSON.parse(localStorage.getItem(COLLECTION_RECOVERY_KEY)||"null"));}catch{}
   card.style.display=count || canUndo ? "block" : "none";
@@ -1010,12 +1140,14 @@ function renderCollection(){
   list.innerHTML=items.map(item=>`
     <div class="collection-item ${state.editingId!==null && String(state.editingId)===String(item.id) ? "active" : ""}">
       <img src="${escHtml(item.poster||"")}" alt="${escHtml(item.title)}" loading="lazy" onerror="this.style.visibility='hidden'">
-      <div><b>${escHtml(item.title)}</b><span>${escHtml(item.year||"Sin año")}${item.m37||item.m22||item.m18 ? " · Video configurado" : " · Sin video"}</span></div>
+      <div><b>${escHtml(item.title)}</b><span>${escHtml(item.year||"Sin año")}${item.m37||item.m22||item.m18 ? " · Video configurado" : " · Sin video"}${item.featured===true ? " · ★ Destacada" : ""}</span></div>
       <div class="collection-actions">
+        <button type="button" class="collection-featured ${item.featured===true?"is-featured":""}" title="${item.featured===true?"Quitar de":"Agregar a"} destacados" aria-label="${item.featured===true?"Quitar de":"Agregar a"} destacados: ${escHtml(item.title)}" aria-pressed="${item.featured===true}" data-featured-toggle="${escHtml(item.id)}"><i class="fa-${item.featured===true?"solid":"regular"} fa-star"></i></button>
         <button type="button" class="collection-edit" title="Editar película" data-edit-id="${escHtml(item.id)}"><i class="fa-solid fa-pen"></i></button>
         <button type="button" class="collection-remove" title="Eliminar película" data-remove-id="${escHtml(item.id)}"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>`).join("");
+  list.querySelectorAll("[data-featured-toggle]").forEach(btn=>btn.addEventListener("click",()=>changeFeatured(btn.dataset.featuredToggle,0)));
   list.querySelectorAll("[data-edit-id]").forEach(btn=>btn.addEventListener("click",()=>editSavedMovie(btn.dataset.editId)));
   list.querySelectorAll("[data-remove-id]").forEach(btn=>btn.addEventListener("click",()=>removeMovie(btn.dataset.removeId)));
 }
@@ -1343,6 +1475,8 @@ async function buildCollectionHtml(){
       cert: String(item.cert || ""),
       overview: String(item.overview || ""),
       kind: item.kind || "MOVIE",
+      featured:item.featured === true,
+      featuredOrder:Number.isFinite(Number(item.featuredOrder)) && item.featuredOrder !== null && item.featuredOrder !== undefined ? Number(item.featuredOrder) : 999,
       m37: String(item.m37 || ""),
       m22: String(item.m22 || ""),
       m18: String(item.m18 || "")
@@ -1353,10 +1487,12 @@ async function buildCollectionHtml(){
 
     const safeMovies  = JSON.stringify(movies).replace(/</g,"\\u003c").replace(/>/g,"\\u003e").replace(/&/g,"\\u0026");
     const safePlayers = JSON.stringify(sharedPlayerTemplate);
+    const safeConfig = JSON.stringify(normalizeCatalogSettings(state.catalogSettings)).replace(/</g,"\\u003c").replace(/>/g,"\\u003e").replace(/&/g,"\\u0026");
 
     catalogHtml = catalogHtml
       .split("__MOVIES_JSON__").join(safeMovies)
-      .split("__PLAYERS_JSON__").join(safePlayers);
+      .split("__PLAYERS_JSON__").join(safePlayers)
+      .split("__CATALOG_CONFIG_JSON__").join(safeConfig);
 
     return {html:catalogHtml, count:movies.length};
 }
@@ -1430,6 +1566,13 @@ $("artworkPanel").addEventListener("click",e=>{
   else if(type==="backdrop" && state.backdropOptions.includes(url)) state.backdrop=url;
   updateMovieImages();
 });
+$("featuredList").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-featured-move]");
+  if(btn && !btn.disabled)changeFeatured(btn.dataset.featuredId,Number(btn.dataset.featuredMove));
+});
+for(const id of ["settingShowHero","settingShowContinue","settingTitle","settingSort"]){
+  $(id).addEventListener(id==="settingTitle"?"change":"change",updateCatalogSettings);
+}
 for(const id of ["collectionSearch","collectionSort","collectionFilter"]){
   $(id).addEventListener(id==="collectionSearch" ? "input" : "change",renderCollection);
 }
@@ -1444,7 +1587,7 @@ $("btnExtract").addEventListener("click", extractFromGooglePhotos);
 $("btnAddMovie").addEventListener("click", addMovieToCollection);
 $("btnGenerate").addEventListener("click", generateMoviePage);
 $("btnBackupCollection").addEventListener("click", () => {
-  const backup = {format:"mmhd-collection", version:2, createdAt:new Date().toISOString(), count:state.collection.length, collection:state.collection};
+  const backup = {format:"mmhd-collection", version:3, createdAt:new Date().toISOString(), count:state.collection.length, collection:state.collection, catalogSettings:state.catalogSettings};
   const url = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
   const a=document.createElement("a"); a.href=url; a.download="mmhd-respaldo-"+new Date().toISOString().slice(0,10)+".json";
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -1454,10 +1597,16 @@ $("backupCollectionFile").addEventListener("change",async e=>{
   const file=e.target.files?.[0];if(!file)return;
   try{
     const data=JSON.parse(await file.text());
-    if(data.format!=="mmhd-collection"||![1,2].includes(data.version)||!Array.isArray(data.collection))throw Error("Formato de respaldo no válido");
+    if(data.format!=="mmhd-collection"||![1,2,3].includes(data.version)||!Array.isArray(data.collection))throw Error("Formato de respaldo no válido");
     if(!data.collection.every(m=>m && typeof m==="object" && typeof m.title==="string"))throw Error("El respaldo contiene registros inválidos");
     if(!confirm(`¿Reemplazar las ${state.collection.length} películas actuales por ${data.collection.length} del respaldo? Haz antes una copia de seguridad.`))return;
     if(!commitCollection(data.collection))throw Error("No hay suficiente espacio en este navegador para importar la colección.");
+    // Respaldo antiguo: conserva las preferencias actuales del panel.
+    if(data.version===3 && data.catalogSettings){
+      const settings=normalizeCatalogSettings(data.catalogSettings);
+      try{localStorage.setItem(CATALOG_SETTINGS_KEY,JSON.stringify(settings));state.catalogSettings=settings;fillCatalogSettings();}
+      catch{alert("Películas restauradas, pero no se pudieron guardar las preferencias.");}
+    }
     resetSelection();
     alert(`Respaldo importado: ${state.collection.length} títulos.`);
   }catch(err){alert("No se pudo importar el respaldo: "+err.message)}finally{e.target.value=""}
@@ -1479,6 +1628,7 @@ $("credentialType").addEventListener("change", ()=>{ state.validated=false; $("k
 search.addEventListener("keydown", e => { if (e.key==="Enter") searchMovies(); });
 
 updateSteps(1);
+fillCatalogSettings();
 renderCollection();
 </script>
 </body>
