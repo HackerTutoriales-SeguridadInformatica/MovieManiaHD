@@ -2859,33 +2859,35 @@ function toggleMyList(id, fromHero = false){
 /* ============================================================
    DESCARGA
    ============================================================ */
-function showDownloadBox(){
+let activeDownload = false;
+function startBrowserDownload(url, filename){
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+function formatBytes(bytes){
+  if (!Number.isFinite(bytes)) return "?";
+  const units = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  while (bytes >= 1024 && i < units.length - 1){ bytes /= 1024; i++; }
+  return bytes.toFixed(i ? 1 : 0) + " " + units[i];
+}
+async function showDownloadBox(){
   const m = state.currentMovie;
-  if (!m) return;
-
+  if (!m || activeDownload) return;
   const sourceUrl = m.m37 || m.m22 || m.m18 || "";
-  if (!sourceUrl){
-    alert("Esta película no tiene URLs configuradas.");
-    return;
-  }
+  if (!sourceUrl){ alert("Esta película no tiene URLs configuradas."); return; }
   const downloadUrl = sourceUrl.replace(/=m\d+$/, "=dv");
-
-  let quality = "1080p";
-  if (sourceUrl.includes("=m22")) quality = "720p";
-  else if (sourceUrl.includes("=m18")) quality = "420p";
-
-  downloads[m.id] = {
-    id: m.id, title: m.title, poster: m.poster, backdrop: m.backdrop,
-    year: m.year, quality, date: new Date().toISOString()
-  };
-  saveObj(LS_DOWNLOADS, downloads);
-
-  const box = $("downloadBox");
-  const fill = $("downloadFill");
-  const pctEl = $("downloadPct");
-  const status = $("downloadStatus");
-  const label = $("downloadLabel");
-
+  const filename = (m.title || "video").replace(/[\\/:*?"<>|\x00-\x1f]/g, "_") + ".mp4";
+  const quality = sourceUrl.includes("=m22") ? "720p" : sourceUrl.includes("=m18") ? "420p" : "1080p";
+  const box = $("downloadBox"), fill = $("downloadFill"), pctEl = $("downloadPct");
+  const status = $("downloadStatus"), label = $("downloadLabel");
+  const btn = $("btnDownload");
   box.classList.remove("done", "error");
   box.classList.add("show");
   fill.style.width = "0%";
@@ -2893,43 +2895,87 @@ function showDownloadBox(){
   status.textContent = "Preparando descarga...";
   label.textContent = "Descargando...";
 
-  const a = document.createElement("a");
-  a.href = downloadUrl;
-  a.download = (m.title || "video") + ".mp4";
-  a.target = "_blank";
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  // La API de guardado por streaming funciona en Chrome/Edge bajo HTTPS o localhost.
+  // Sin ella, una descarga externa no expone su progreso a la página.
+  if (!window.showSaveFilePicker || !window.isSecureContext){
+    startBrowserDownload(downloadUrl, filename);
+    pctEl.textContent = "—";
+    label.textContent = "Descarga en el navegador";
+    status.textContent = "Consulta el progreso real en las descargas del navegador. Esta página no puede medirlo.";
+    return;
+  }
 
-  let p = 0;
-  let lastStep = 12;
-  const t = setInterval(() => {
-    if (p < 30)       lastStep = 8  + Math.random() * 4;
-    else if (p < 65)  lastStep = 4  + Math.random() * 3;
-    else if (p < 88)  lastStep = 1.8 + Math.random() * 1.5;
-    else              lastStep = 0.6 + Math.random() * 0.8;
-
-    p = Math.min(p + lastStep, 99);
-    fill.style.width = p + "%";
-    pctEl.textContent = Math.round(p) + "%";
-
-    if (p > 20 && p < 60)  status.textContent = "Descargando archivo...";
-    if (p >= 60 && p < 90) status.textContent = "Casi listo...";
-    if (p >= 90)           status.textContent = "Finalizando descarga...";
-
-    if (p >= 99){
-      clearInterval(t);
-      setTimeout(() => {
-        fill.style.width = "100%";
-        pctEl.textContent = "100%";
-        status.textContent = "✓ Descarga completada";
-        label.textContent = "Descarga lista";
-        box.classList.add("done");
-        renderAll();
-      }, 500);
+  let fileHandle;
+  try {
+    // Abrir el selector antes de await fetch para conservar la activación del clic.
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: filename,
+      types: [{ description: "Video MP4", accept: { "video/mp4": [".mp4"] } }]
+    });
+  } catch (err){
+    if (err?.name === "AbortError"){
+      box.classList.remove("show");
+      return;
     }
-  }, 220);
+    startBrowserDownload(downloadUrl, filename);
+    pctEl.textContent = "—";
+    label.textContent = "Descarga en el navegador";
+    status.textContent = "El navegador administrará la descarga; su progreso no se puede mostrar aquí.";
+    return;
+  }
+
+  activeDownload = true;
+  btn.disabled = true;
+  let writer, completed = false;
+  try {
+    const response = await fetch(downloadUrl, { mode: "cors", credentials: "omit" });
+    if (!response.ok || !response.body) throw new Error("El servidor no permite leer el video (HTTP " + response.status + ").");
+    const total = Number(response.headers.get("Content-Length")) || 0;
+    const reader = response.body.getReader();
+    writer = await fileHandle.createWritable();
+    let received = 0;
+    const started = performance.now();
+    while (true){
+      const {done, value} = await reader.read();
+      if (done) break;
+      await writer.write(value);
+      received += value.byteLength;
+      const elapsed = Math.max((performance.now() - started) / 1000, 0.001);
+      const speed = formatBytes(received / elapsed) + "/s";
+      if (total){
+        const percent = Math.min(99, Math.floor(received / total * 100));
+        fill.style.width = percent + "%";
+        pctEl.textContent = percent + "%";
+        status.textContent = `${formatBytes(received)} de ${formatBytes(total)} · ${speed}`;
+      } else {
+        pctEl.textContent = formatBytes(received);
+        status.textContent = `${formatBytes(received)} descargados · ${speed} (tamaño total desconocido)`;
+      }
+    }
+    await writer.close();
+    writer = null;
+    completed = true;
+    fill.style.width = "100%";
+    pctEl.textContent = "100%";
+    label.textContent = "Descarga completada";
+    status.textContent = "✓ Archivo guardado correctamente";
+    box.classList.add("done");
+    downloads[m.id] = {id:m.id,title:m.title,poster:m.poster,backdrop:m.backdrop,
+      year:m.year,quality,date:new Date().toISOString()};
+    saveObj(LS_DOWNLOADS, downloads);
+    renderAll();
+  } catch (err){
+    if (writer){ try { await writer.abort(); } catch {} }
+    box.classList.add("error");
+    label.textContent = "No se pudo medir la descarga";
+    pctEl.textContent = "—";
+    status.textContent = "No se pudo descargar mediante streaming (posible restricción CORS). Usa la descarga del navegador.";
+    // Se permite continuar con la descarga tradicional, pero sin inventar porcentajes.
+    startBrowserDownload(downloadUrl, filename);
+  } finally {
+    activeDownload = false;
+    btn.disabled = false;
+  }
 }
 
 /* ============================================================
