@@ -191,6 +191,15 @@ a{color:inherit;text-decoration:none}
   margin-bottom:28px;
   background:#14141f;
   box-shadow:var(--shadow);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: grab;
+}
+
+.hero:active{
+  cursor: grabbing;
 }
 .hero-slide{
   position:absolute;inset:0;
@@ -1685,10 +1694,10 @@ const state = {
   heroTimer: null,
   continueList: [],
   mobileSearch: "",
-  // Paginación
   visibleCount: PAGE_SIZE,
   filteredCache: [],
-  isLoadingMore: false
+  isLoadingMore: false,
+  heroPaused: false
 };
 
 const $ = id => document.getElementById(id);
@@ -2005,7 +2014,124 @@ function goHero(index){
 
 function startHeroTimer(){
   if (state.heroTimer) clearInterval(state.heroTimer);
-  state.heroTimer = setInterval(() => goHero(state.heroIndex + 1), 6000);
+  state.heroTimer = setInterval(() => {
+    if (state.heroPaused) return;
+    goHero(state.heroIndex + 1);
+  }, 6000);
+}
+
+/* ============================================================
+   SWIPE / DRAG EN EL HERO
+   ============================================================ */
+function setupHeroSwipe(){
+  const hero = $("hero");
+  if (!hero) return;
+
+  let startX = 0;
+  let startY = 0;
+  let isDragging = false;
+  let isHorizontal = false;
+  let moved = false;
+  const SWIPE_THRESHOLD = 50;
+  const DRAG_THRESHOLD = 10;
+
+  function onStart(x, y){
+    startX = x;
+    startY = y;
+    isDragging = true;
+    isHorizontal = false;
+    moved = false;
+    state.heroPaused = true;
+  }
+
+  function onMove(x, y, e){
+    if (!isDragging) return;
+    const dx = x - startX;
+    const dy = y - startY;
+
+    if (!isHorizontal && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+      isHorizontal = Math.abs(dx) > Math.abs(dy);
+    }
+
+    if (isHorizontal) {
+      moved = true;
+      if (e && e.cancelable) e.preventDefault();
+    }
+  }
+
+  function onEnd(x){
+    if (!isDragging) return;
+    isDragging = false;
+
+    const dx = x - startX;
+
+    if (isHorizontal && Math.abs(dx) > SWIPE_THRESHOLD) {
+      if (dx < 0) {
+        goHero(state.heroIndex + 1);
+      } else {
+        goHero(state.heroIndex - 1);
+      }
+    }
+
+    setTimeout(() => {
+      state.heroPaused = false;
+    }, 3000);
+  }
+
+  hero.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
+    onStart(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+
+  hero.addEventListener("touchmove", (e) => {
+    if (e.touches.length !== 1) return;
+    onMove(e.touches[0].clientX, e.touches[0].clientY, e);
+  }, { passive: false });
+
+  hero.addEventListener("touchend", (e) => {
+    const t = e.changedTouches[0];
+    onEnd(t ? t.clientX : startX);
+  }, { passive: true });
+
+  hero.addEventListener("touchcancel", () => {
+    isDragging = false;
+    state.heroPaused = false;
+  }, { passive: true });
+
+  hero.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest("button, a")) return;
+    onStart(e.clientX, e.clientY);
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    onMove(e.clientX, e.clientY, e);
+  });
+
+  document.addEventListener("mouseup", (e) => {
+    if (!isDragging) return;
+    onEnd(e.clientX);
+  });
+
+  hero.setAttribute("tabindex", "0");
+  hero.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") {
+      goHero(state.heroIndex - 1);
+      state.heroPaused = true;
+      setTimeout(() => state.heroPaused = false, 3000);
+    } else if (e.key === "ArrowRight") {
+      goHero(state.heroIndex + 1);
+      state.heroPaused = true;
+      setTimeout(() => state.heroPaused = false, 3000);
+    }
+  });
+
+  hero.addEventListener("dragstart", (e) => e.preventDefault());
+
+  hero.style.cursor = "grab";
+  hero.addEventListener("mousedown", () => { hero.style.cursor = "grabbing"; });
+  document.addEventListener("mouseup", () => { hero.style.cursor = "grab"; });
 }
 
 /* ============================================================
@@ -2876,6 +3002,7 @@ window.addEventListener("message", (e) => {
    INIT
    ============================================================ */
 renderHero();
+setupHeroSwipe();
 renderAll();
 setupInfiniteScroll();
 restoreStateIfAny();
