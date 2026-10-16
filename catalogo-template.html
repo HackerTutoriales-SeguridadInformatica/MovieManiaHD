@@ -1553,6 +1553,54 @@ a{color:inherit;text-decoration:none}
 .back-to-top{position:fixed;right:22px;bottom:26px;z-index:48;width:44px;height:44px;border-radius:50%;background:#25345c;border:1px solid #5377be;box-shadow:0 6px 25px #0009;opacity:0;visibility:hidden;transition:opacity .15s,visibility .15s;display:grid;place-items:center}
 .back-to-top.show{opacity:1;visibility:visible}
 @media(max-width:750px){.catalog-filterbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.catalog-filterbar select{min-width:0;width:100%}.catalog-filterbar button{grid-column:1/-1}.back-to-top{bottom:85px;right:13px;width:39px;height:39px}}
+/* ============ FASE 5A: DESCUBRIMIENTO POR GÉNEROS ============ */
+.detail-genres{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.genre-chip{font:inherit;font-size:12px;font-weight:700;line-height:1.2;padding:9px 12px;
+  min-height:38px;border:1px solid #35364e;border-radius:999px;background:rgba(33,35,53,.88);
+  color:#d7d9e8;transition:background .16s,border-color .16s;touch-action:manipulation}
+.genre-chip:hover,.genre-chip:focus-visible{background:#233d69;border-color:#6b97e7;color:#fff}
+.genre-chip:focus-visible,.similar-card:focus-visible,.active-genre-clear:focus-visible{outline:2px solid #82aaff;outline-offset:3px}
+.detail-genres-empty{color:var(--muted);padding:8px 0}
+.active-genre-status{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:12px 14px;margin:0 0 16px;border:1px solid #3a527e;border-radius:12px;
+  background:#141e34;color:#e8eefa;font-size:12px}
+.active-genre-status[hidden]{display:none!important}
+.active-genre-name{font-weight:800;color:#fff}
+.active-genre-clear{min-height:38px;padding:8px 12px;border:1px solid #5777b5;border-radius:9px;
+  background:#203457;color:#e3edff;font-size:12px;font-weight:700}
+.active-genre-clear:hover{background:#304b7a}
+.genre-browsing #hero,.genre-browsing #continueSection{display:none!important}
+.detail-similar{margin-top:36px;margin-bottom:8px;max-width:100%}
+.detail-similar[hidden]{display:none!important}
+.detail-similar-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.detail-similar-head h3{font-size:18px;font-weight:800;margin:0;color:#f5f6fa}
+.detail-similar-count{font-size:12px;color:var(--muted)}
+.detail-similar-row{display:flex;gap:12px;overflow-x:auto;overscroll-behavior-inline:contain;
+  scroll-snap-type:x proximity;padding:3px 2px 16px;-webkit-overflow-scrolling:touch}
+.similar-card{flex:0 0 142px;width:142px;min-width:0;padding:0;border:1px solid #292b41;
+  background:#161622;border-radius:12px;text-align:left;overflow:hidden;scroll-snap-align:start;touch-action:pan-x pan-y}
+.similar-card:hover{border-color:#5485d5;background:#1c2337}
+.similar-poster{aspect-ratio:2/3;position:relative;background:#10121e;overflow:hidden}
+.similar-poster img{display:block;width:100%;height:100%;object-fit:cover}
+.similar-rating{position:absolute;right:6px;top:6px;background:#000c;border-radius:6px;
+  color:#ffd36b;padding:4px 6px;font-size:10px;font-weight:800}
+.similar-info{padding:9px 9px 12px;min-height:62px}
+.similar-name{font-size:12px;color:#ecedf5;font-weight:800;line-height:1.35;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.similar-year{margin-top:5px;color:#9198a9;font-size:11px}
+.detail-similar-empty{color:#979db0;font-size:12px;line-height:1.5;margin:0 0 12px}
+@media(max-width:600px){
+  .genre-chip{min-height:40px;font-size:11px;padding:9px 12px}
+  .detail-genres{gap:7px;margin-bottom:17px}
+  .active-genre-status{padding:10px 11px;gap:8px}
+  .detail-similar{margin-top:29px}
+  .detail-similar-head h3{font-size:16px}
+  .similar-card{flex-basis:112px;width:112px}
+  .similar-info{padding:7px 7px 10px}
+  .similar-name{font-size:11px}
+  .similar-year{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){.genre-chip,.similar-card{transition:none}}
 </style>
 </head>
 <body>
@@ -1657,6 +1705,10 @@ a{color:inherit;text-decoration:none}
         </select>
         <button id="clearCatalogFilters" type="button"><i class="fa-solid fa-filter-circle-xmark"></i> Limpiar filtros</button>
       </div>
+      <div class="active-genre-status" id="activeGenreStatus" role="status" aria-live="polite" hidden>
+        <span><i class="fa-solid fa-filter" aria-hidden="true"></i> Género: <span class="active-genre-name" id="activeGenreName"></span> · <span id="activeGenreCount"></span> títulos</span>
+        <button class="active-genre-clear" id="clearActiveGenre" type="button"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Quitar género</button>
+      </div>
       <div class="grid" id="catalogGrid"></div>
     </section>
   </main>
@@ -1744,7 +1796,7 @@ a{color:inherit;text-decoration:none}
       <span id="detailRuntime">—</span>
     </div>
 
-    <div class="detail-genres" id="detailGenres"></div>
+    <div class="detail-genres" id="detailGenres" role="group" aria-label="Filtrar películas por género"></div>
 
     <div class="detail-actions">
       <button class="detail-btn detail-btn-primary" id="btnPlay">
@@ -1791,6 +1843,15 @@ a{color:inherit;text-decoration:none}
       <p id="detailOverview"></p>
       <span class="read-more" id="btnReadMore">Leer más</span>
     </div>
+
+    <section class="detail-similar" id="detailSimilar" aria-label="Películas similares" hidden>
+      <div class="detail-similar-head">
+        <h3 id="detailSimilarHeading">Películas similares</h3>
+        <span class="detail-similar-count" id="detailSimilarCount"></span>
+      </div>
+      <div class="detail-similar-row" id="detailSimilarRow"></div>
+      <p class="detail-similar-empty" id="detailSimilarEmpty" hidden>No hay otros títulos del mismo género en tu catálogo.</p>
+    </section>
   </div>
 </div>
 
@@ -2050,6 +2111,61 @@ function getPlayerHtml(movie){
 function getMovieGenres(movie){
   return String(movie.genres||"").split(",").map(s=>s.trim()).filter(Boolean);
 }
+function genreKey(genre){
+  return String(genre||"").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es").trim();
+}
+// Recomendación determinista, sin llamadas a TMDB ni películas ajenas al catálogo.
+function getSimilarMovies(movie, limit=10){
+  const own=getMovieGenres(movie).map(genreKey);
+  if(!own.length) return [];
+  const ownSet=new Set(own);
+  const currentYear=Number(movie.year)||0;
+  return MOVIES.filter(other=>other.id!==movie.id && other.kind===movie.kind)
+    .map(other=>{
+      const keys=getMovieGenres(other).map(genreKey);
+      const matching=keys.filter(key=>ownSet.has(key));
+      if(!matching.length) return null;
+      const mainMatch=keys[0]===own[0] ? 6 : 0;
+      const year=Number(other.year)||0;
+      const closeness=currentYear&&year?Math.max(0,3-Math.abs(currentYear-year)/5):0;
+      const rating=Number(other.rating)||0;
+      return {movie:other, matches:matching.length, score:matching.length*10+mainMatch+closeness+rating/20};
+    }).filter(Boolean)
+    .sort((a,b)=>b.matches-a.matches || b.score-a.score || String(a.movie.title||"").localeCompare(String(b.movie.title||""),"es"))
+    .slice(0,limit).map(item=>item.movie);
+}
+function syncActiveGenre(){
+  const isActive=Boolean(state.genre);
+  $("appScreen").classList.toggle("genre-browsing",isActive);
+  $("activeGenreStatus").hidden=!isActive;
+  if(isActive){
+    $("activeGenreName").textContent=state.genre;
+    const total=state.filteredCache.length;
+    $("activeGenreCount").textContent=String(total);
+  }
+}
+function clearGenreOnly(){
+  state.genre="";
+  $("genreFilter").value="";
+  renderAll();
+}
+// Al pulsar un género, la ficha se cierra y se muestra TODO ese género,
+// sin conservar búsquedas, años o filtros de Mi Lista anteriores.
+function browseGenre(genre){
+  const choices=[...$("genreFilter").options];
+  const selected=choices.find(option=>option.value===genre) || choices.find(option=>genreKey(option.value)===genreKey(genre));
+  if(!selected || !selected.value) return;
+  state.filter=state.currentMovie?.kind==="SERIES" ? "series" : "movie";
+  state.genre=selected.value;
+  state.year="";
+  state.search="";
+  $("genreFilter").value=selected.value;
+  $("yearFilter").value="";
+  $("searchInput").value="";
+  closeDetail();
+  renderAll();
+  requestAnimationFrame(()=>$("catalogSection").scrollIntoView({block:"start",behavior:"auto"}));
+}
 function getFiltered(){
   let list = MOVIES.slice().reverse();
   const q=state.search.trim().toLocaleLowerCase("es");
@@ -2062,7 +2178,7 @@ function getFiltered(){
     case "mylist":list=list.filter(m=>myList.has(m.id));break;
     case "downloads":list=list.filter(m=>downloads[m.id]);break;
   }
-  if(state.genre)list=list.filter(m=>getMovieGenres(m).some(g=>g.toLocaleLowerCase("es")===state.genre.toLocaleLowerCase("es")));
+  if(state.genre)list=list.filter(m=>getMovieGenres(m).some(g=>genreKey(g)===genreKey(state.genre)));
   if(state.year)list=list.filter(m=>String(m.year||"")===state.year);
   switch(state.sort){
     case "title":list.sort((a,b)=>String(a.title||"").localeCompare(String(b.title||""),"es"));break;
@@ -2072,13 +2188,19 @@ function getFiltered(){
   return list;
 }
 function setupCatalogFilters(){
-  const genres=[...new Set(MOVIES.flatMap(getMovieGenres))].sort((a,b)=>a.localeCompare(b,"es"));
+  const genresByKey=new Map();
+  MOVIES.flatMap(getMovieGenres).forEach(genre=>{
+    const key=genreKey(genre);
+    if(!genresByKey.has(key)) genresByKey.set(key,genre);
+  });
+  const genres=[...genresByKey.values()].sort((a,b)=>a.localeCompare(b,"es"));
   const years=[...new Set(MOVIES.map(m=>String(m.year||"").trim()).filter(y=>/^\d{4}$/.test(y)))].sort((a,b)=>Number(b)-Number(a));
   $("genreFilter").innerHTML='<option value="">Todos los géneros</option>'+genres.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join("");
   $("yearFilter").innerHTML='<option value="">Todos los años</option>'+years.map(y=>`<option value="${esc(y)}">${esc(y)}</option>`).join("");
   $("catalogSort").value=state.sort;
   $("catalogHeading").textContent=String(CATALOG_CONFIG.title||"Catálogo").slice(0,45);
   $("genreFilter").addEventListener("change",e=>{state.genre=e.target.value;renderAll();});
+  $("clearActiveGenre").addEventListener("click",clearGenreOnly);
   $("yearFilter").addEventListener("change",e=>{state.year=e.target.value;renderAll();});
   $("catalogSort").addEventListener("change",e=>{state.sort=e.target.value;renderAll();});
   $("clearCatalogFilters").addEventListener("click",()=>{
@@ -2733,6 +2855,7 @@ function observeGridFooter(){
 function renderAll(){
   renderGrid(true);
   renderContinue();
+  syncActiveGenre();
 
   const badgeAll = $("badgeAll");
   const badgeList = $("badgeList");
@@ -2911,11 +3034,62 @@ function castStop() {
   m.stop(null, () => { castSync(); castMessage('Transmisión detenida'); }, e => castMessage('Error: ' + JSON.stringify(e)));
 }
 /* ============================================================
+   FASE 5A: GÉNEROS INTERACTIVOS Y SIMILARES
+   ============================================================ */
+function renderDetailGenres(movie){
+  const container=$("detailGenres");
+  const genres=getMovieGenres(movie);
+  container.replaceChildren();
+  if(!genres.length){
+    const empty=document.createElement("span");
+    empty.className="detail-genres-empty";
+    empty.textContent="Sin géneros disponibles";
+    container.appendChild(empty);
+    return;
+  }
+  genres.forEach(genre=>{
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="genre-chip";
+    button.textContent=genre;
+    button.title=`Ver todas las películas de ${genre}`;
+    button.setAttribute("aria-label", `Filtrar catálogo por ${genre}`);
+    button.addEventListener("click",()=>browseGenre(genre));
+    container.appendChild(button);
+  });
+}
+function renderSimilarMovies(movie){
+  const section=$("detailSimilar");
+  const row=$("detailSimilarRow");
+  const empty=$("detailSimilarEmpty");
+  const related=getSimilarMovies(movie);
+  section.hidden=false;
+  row.replaceChildren();
+  $("detailSimilarCount").textContent=related.length ? `${related.length} títulos` : "";
+  $("detailSimilarHeading").textContent=movie.kind==="SERIES" ? "Series similares" : "Películas similares";
+  empty.hidden=Boolean(related.length);
+  related.forEach(other=>{
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="similar-card";
+    button.dataset.similarId=String(other.id);
+    button.setAttribute("aria-label",`Ver ${other.title}`);
+    button.innerHTML=`<div class="similar-poster">
+      <img src="${esc(posterSmall(other))}" alt="${esc(other.title)}" loading="lazy" decoding="async" data-fallback-title="${esc(other.title)}">
+      ${Number(other.rating)>0 ? `<span class="similar-rating"><i class="fa-solid fa-star" aria-hidden="true"></i> ${Number(other.rating).toFixed(1)}</span>` : ""}
+      </div><div class="similar-info"><div class="similar-name">${esc(other.title)}</div><div class="similar-year">${esc(other.year)}</div></div>`;
+    button.addEventListener("click",()=>openDetail(other.id));
+    row.appendChild(button);
+  });
+  row.scrollLeft=0;
+}
+/* ============================================================
    DETALLE
    ============================================================ */
 function openDetail(id){
   const m = MOVIES.find(x => x.id === id);
   if (!m) return;
+  const wasDetailOpen=$("detailScreen").classList.contains("show");
   state.currentMovie = m;
 
   $("detailBackdrop").style.backgroundImage =
@@ -2936,7 +3110,8 @@ function openDetail(id){
   $("detailYear").textContent = m.year || "—";
   $("detailRuntime").textContent = m.runtime || "—";
 
-  $("detailGenres").textContent = m.genres || "";
+  renderDetailGenres(m);
+  renderSimilarMovies(m);
 
   const ov = $("detailOverview");
   ov.textContent = m.overview || "Sin sinopsis disponible.";
@@ -2962,7 +3137,9 @@ function openDetail(id){
   $("detailScreen").scrollTop = 0;
   document.body.style.overflow = "hidden";
   hideMobileNav();
-  history.pushState({ detail: m.id }, "", `#movie-${m.id}`);
+  // Navegar de una recomendación a otra sin acumular entradas obsoletas.
+  if (wasDetailOpen) history.replaceState({ detail: m.id }, "", `#movie-${m.id}`);
+  else history.pushState({ detail: m.id }, "", `#movie-${m.id}`);
 }
 
 function closeDetail(){
@@ -3182,6 +3359,8 @@ function closePlayer(){
 document.querySelectorAll(".nav-item[data-filter]").forEach(el => {
   el.addEventListener("click", () => {
     state.filter = el.dataset.filter;
+    state.genre = "";
+    $("genreFilter").value = "";
     state.search = "";
     $("searchInput").value = "";
     renderAll();
@@ -3192,6 +3371,8 @@ document.querySelectorAll(".nav-item[data-filter]").forEach(el => {
 document.querySelectorAll(".mobile-nav-item[data-filter]").forEach(el => {
   el.addEventListener("click", () => {
     state.filter = el.dataset.filter;
+    state.genre = "";
+    $("genreFilter").value = "";
     state.search = "";
     $("searchInput").value = "";
     renderAll();
@@ -3202,6 +3383,8 @@ document.querySelectorAll(".mobile-nav-item[data-filter]").forEach(el => {
 document.querySelectorAll(".tab[data-tab]").forEach(el => {
   el.addEventListener("click", () => {
     state.filter = el.dataset.tab;
+    state.genre = "";
+    $("genreFilter").value = "";
     state.search = "";
     $("searchInput").value = "";
     renderAll();
