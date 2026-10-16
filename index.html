@@ -262,34 +262,7 @@
             }
         });
 
-        // ==========================================
-        // 3. DESCARGAR MP4
-        // ==========================================
-        btnDescargar.addEventListener('click', async () => {
-            setEstado('');
-            try {
-                const response = await fetch(VIDEO_URL, { mode: 'cors' });
-                if (!response.ok) throw new Error('Error al descargar');
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'video-para-tv.mp4';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-                setEstado('✅ MP4 descargado. Ábrelo en tu TV con VLC o el reproductor del televisor.');
-                mostrarToast('⬇️ Video descargado');
-            } catch (err) {
-                console.warn('Descarga fallida, abriendo en nueva pestaña:', err);
-                window.open(VIDEO_URL, '_blank');
-                setEstado('Se abrió el MP4 en una nueva pestaña. Guárdalo y ábrelo en tu TV.');
-                mostrarToast('🔗 Video abierto en nueva pestaña');
-            }
-        });
+        
 
         // ----- Estado inicial -----
         window.addEventListener('load', () => {
