@@ -1812,6 +1812,16 @@ const watched = loadSet(LS_WATCHED);
 const progress = loadObj(LS_PROGRESS);
 const progressSeconds = loadObj(LS_PROGRESS_SECONDS);
 const downloads = loadObj(LS_DOWNLOADS);
+// Registro local del navegador. No equivale a detectar archivos físicos en el dispositivo.
+function recordDownload(movie, status){
+  if (!movie) return;
+  downloads[movie.id] = {status, date: new Date().toISOString()};
+  saveObj(LS_DOWNLOADS, downloads);
+  renderAll();
+}
+function downloadCount(){
+  return MOVIES.filter(m => Boolean(downloads[m.id])).length;
+}
 
 const state = {
   filter: "all",
@@ -1939,6 +1949,7 @@ function getPlayerHtml(movie){
   const htmlValue = v => String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;")
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   const m37=cleanUrl(movie.m37), m22=cleanUrl(movie.m22), m18=cleanUrl(movie.m18);
+  const downloadSource = m37 || m22 || m18;
   const reps = {
     "__MOVIE_TITLE__":htmlValue(movie.title),
     "__MOVIE_TITLE_JSON__":jsValue(movie.title),
@@ -1951,8 +1962,8 @@ function getPlayerHtml(movie){
     "__M37_URL__":jsValue(m37),
     "__M22_URL__":jsValue(m22),
     "__M18_URL__":jsValue(m18),
-    "__DOWNLOAD_URL__":jsValue(m37.replace(/=m\d+$/, "=dv")),
-    "__DV_URL__":jsValue(m37.replace(/=m\d+$/, "=dv"))
+    "__DOWNLOAD_URL__":jsValue(downloadSource.replace(/=m\d+$/, "=dv")),
+    "__DV_URL__":jsValue(downloadSource.replace(/=m\d+$/, "=dv"))
   };
   let html=b64ToUtf8(SHARED_PLAYER_B64);
   for(const [marker,value] of Object.entries(reps))html=html.split(marker).join(value);
@@ -2449,6 +2460,7 @@ function cardHTML(m){
       <div class="card-body">
         <h3 class="card-title">${esc(m.title)}${m.subtitle ? " — " + esc(m.subtitle) : ""}</h3>
         <div class="card-year">${esc(m.year)}</div>
+        ${state.filter === "downloads" && downloads[m.id] ? `<div class="card-year" style="margin-top:5px;color:#a1a7b8">${downloads[m.id]?.status === "recibida" ? "Archivo recibido por el navegador" : "Descarga solicitada (sin confirmar)"}</div>` : ""}
       </div>
     </article>
   `;
@@ -2511,8 +2523,8 @@ function renderGrid(reset = false){
     grid.innerHTML = `
       <div class="empty-state">
         <i class="fa-solid fa-film"></i>
-        <h3>No hay películas para mostrar</h3>
-        <p>Prueba con otro filtro o término de búsqueda.</p>
+        <h3>${state.filter === "downloads" ? "Todavía no hay descargas registradas" : "No hay películas para mostrar"}</h3>
+        <p>${state.filter === "downloads" ? "Aquí aparece el historial de descargas iniciadas desde este navegador; el archivo se guarda en Descargas de tu dispositivo." : "Prueba con otro filtro o término de búsqueda."}</p>
       </div>`;
     return;
   }
@@ -2594,7 +2606,7 @@ function renderAll(){
 
   const badgeDownloads = $("badgeDownloads");
   if (badgeDownloads) {
-    const dlCount = Object.keys(downloads).length;
+    const dlCount = downloadCount();
     badgeDownloads.textContent = dlCount;
     badgeDownloads.classList.toggle("show", dlCount > 0);
   }
@@ -2612,7 +2624,7 @@ function renderAll(){
     mobileBadgeList.classList.toggle("show", myList.size > 0);
   }
   if (mobileBadgeDownloads) {
-    const dlCount = Object.keys(downloads).length;
+    const dlCount = downloadCount();
     mobileBadgeDownloads.textContent = dlCount;
     mobileBadgeDownloads.classList.toggle("show", dlCount > 0);
   }
@@ -2629,7 +2641,7 @@ function renderAll(){
     el.classList.toggle("active", el.dataset.tab === state.filter);
   });
 
-  const titles = { all:"Inicio", movie:"Películas", series:"Series", mylist:"Mi Lista", downloads:"Descargas" };
+  const titles = { all:"Inicio", movie:"Películas", series:"Series", mylist:"Mi Lista", downloads:"Historial de descargas" };
   const pageTitleEl = $("pageTitle");
   if (pageTitleEl) pageTitleEl.textContent = titles[state.filter] || "Inicio";
 }
@@ -2944,6 +2956,7 @@ async function showDownloadBox(){
     label.textContent = "Descarga completada";
     status.textContent = `${formatDownloadBytes(bytesReceived)} recibidos. El navegador está guardando el archivo.`;
     box.classList.add("done");
+    recordDownload(m, "recibida");
   } catch (error){
     try { await reader?.cancel(); } catch (_) {}
     if (bytesReceived > 0){
@@ -2952,11 +2965,12 @@ async function showDownloadBox(){
       status.textContent = "No se pudo completar la descarga medida. Presiona Descargar para intentarlo de nuevo.";
       box.classList.add("error");
     } else {
-      label.textContent = "Descarga directa en Chrome";
+      label.textContent = "Descarga solicitada en Chrome";
       pctEl.textContent = "—";
       fill.style.width = "0%";
-      status.textContent = "El servidor no permite medir el progreso aquí. Consulta el progreso real en Chrome (Ctrl+J).";
+      status.textContent = "No se puede confirmar la finalización desde esta página. Consulta las descargas del navegador.";
       startBrowserDownload(downloadUrl, filename);
+      recordDownload(m, "solicitada");
     }
   } finally {
     activeDownload = false;
