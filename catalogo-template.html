@@ -1523,6 +1523,16 @@ a{color:inherit;text-decoration:none}
 .mmhd-cast-buttons button{background:#242434;border:1px solid #3a3a50;border-radius:8px;padding:11px 6px;font-size:12px;color:#fff}
 .mmhd-cast-buttons button:hover{background:#2563eb}
 @media(max-width:380px){.mmhd-cast-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Fase 3: controles de descubrimiento y navegación */
+.catalog-filterbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 16px}
+.catalog-filterbar select{background:#171724;color:#e6e9f3;border:1px solid #2d2d43;border-radius:9px;padding:10px 30px 10px 11px;min-height:40px;min-width:145px;font-family:inherit;font-size:12px;max-width:100%}
+.catalog-filterbar select:focus-visible,.catalog-filterbar button:focus-visible,.back-to-top:focus-visible{outline:2px solid #729bff;outline-offset:2px}
+.catalog-filterbar button{border:1px solid #373750;border-radius:9px;padding:10px 13px;min-height:40px;color:#d7d9e5;background:#222236;font-size:12px}
+.catalog-filterbar button:hover{background:#30304c}
+.back-to-top{position:fixed;right:22px;bottom:26px;z-index:48;width:44px;height:44px;border-radius:50%;background:#25345c;border:1px solid #5377be;box-shadow:0 6px 25px #0009;opacity:0;visibility:hidden;transition:opacity .15s,visibility .15s;display:grid;place-items:center}
+.back-to-top.show{opacity:1;visibility:visible}
+@media(max-width:750px){.catalog-filterbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.catalog-filterbar select{min-width:0;width:100%}.catalog-filterbar button{grid-column:1/-1}.back-to-top{bottom:85px;right:13px;width:39px;height:39px}}
 </style>
 </head>
 <body>
@@ -1611,15 +1621,28 @@ a{color:inherit;text-decoration:none}
       <div class="continue-row" id="continueRow"></div>
     </section>
 
-    <section class="section">
+    <section class="section" id="catalogSection">
       <div class="section-head">
-        <h2>Catálogo</h2>
+        <h2 id="catalogHeading">Catálogo</h2>
         <span class="count" id="gridCount">0</span>
+      </div>
+      <div class="catalog-filterbar" role="group" aria-label="Filtros del catálogo">
+        <select id="genreFilter" aria-label="Filtrar por género"><option value="">Todos los géneros</option></select>
+        <select id="yearFilter" aria-label="Filtrar por año"><option value="">Todos los años</option></select>
+        <select id="catalogSort" aria-label="Ordenar catálogo">
+          <option value="recent">Agregadas recientemente</option>
+          <option value="title">Título (A-Z)</option>
+          <option value="year">Año (más reciente)</option>
+          <option value="rating">Mejor calificación</option>
+        </select>
+        <button id="clearCatalogFilters" type="button"><i class="fa-solid fa-filter-circle-xmark"></i> Limpiar filtros</button>
       </div>
       <div class="grid" id="catalogGrid"></div>
     </section>
   </main>
 </div>
+
+<button id="backToTop" class="back-to-top" type="button" title="Volver arriba" aria-label="Volver arriba"><i class="fa-solid fa-arrow-up"></i></button>
 
 <!-- BARRA DE NAVEGACIÓN INFERIOR (SOLO MÓVIL) -->
 <nav class="mobile-bottom-nav" id="mobileBottomNav">
@@ -1776,6 +1799,7 @@ a{color:inherit;text-decoration:none}
    ============================================================ */
 const MOVIES = __MOVIES_JSON__;
 const SHARED_PLAYER_B64 = __PLAYERS_JSON__;
+const CATALOG_CONFIG = __CATALOG_CONFIG_JSON__;
 
 /* ============================================================
    CONFIGURACIÓN DE PAGINACIÓN (SCROLL INFINITO)
@@ -1826,6 +1850,8 @@ function downloadCount(){
 const state = {
   filter: "all",
   search: "",
+  genre: "", year: "",
+  sort: ["recent","title","year","rating"].includes(CATALOG_CONFIG.defaultSort) ? CATALOG_CONFIG.defaultSort : "recent",
   currentMovie: null,
   heroIndex: 0,
   heroTimer: null,
@@ -1974,25 +2000,45 @@ function getPlayerHtml(movie){
 /* ============================================================
    FILTRADO
    ============================================================ */
+function getMovieGenres(movie){
+  return String(movie.genres||"").split(",").map(s=>s.trim()).filter(Boolean);
+}
 function getFiltered(){
   let list = MOVIES.slice().reverse();
-
-  const q = state.search.trim().toLowerCase();
-  if (q) {
-    list = list.filter(m =>
-      String(m.title).toLowerCase().includes(q) ||
-      String(m.subtitle || "").toLowerCase().includes(q)
-    );
+  const q=state.search.trim().toLocaleLowerCase("es");
+  if(q){
+    list=list.filter(m=>[m.title,m.subtitle,m.genres,m.year].some(v=>String(v||"").toLocaleLowerCase("es").includes(q)));
   }
-
-  switch (state.filter) {
-    case "movie":     list = list.filter(m => m.kind === "MOVIE"); break;
-    case "series":    list = list.filter(m => m.kind === "SERIES"); break;
-    case "mylist":    list = list.filter(m => myList.has(m.id)); break;
-    case "downloads": list = list.filter(m => downloads[m.id]); break;
+  switch(state.filter){
+    case "movie":list=list.filter(m=>m.kind==="MOVIE");break;
+    case "series":list=list.filter(m=>m.kind==="SERIES");break;
+    case "mylist":list=list.filter(m=>myList.has(m.id));break;
+    case "downloads":list=list.filter(m=>downloads[m.id]);break;
   }
-
+  if(state.genre)list=list.filter(m=>getMovieGenres(m).some(g=>g.toLocaleLowerCase("es")===state.genre.toLocaleLowerCase("es")));
+  if(state.year)list=list.filter(m=>String(m.year||"")===state.year);
+  switch(state.sort){
+    case "title":list.sort((a,b)=>String(a.title||"").localeCompare(String(b.title||""),"es"));break;
+    case "year":list.sort((a,b)=>Number(b.year||0)-Number(a.year||0));break;
+    case "rating":list.sort((a,b)=>Number(b.rating||0)-Number(a.rating||0));break;
+  }
   return list;
+}
+function setupCatalogFilters(){
+  const genres=[...new Set(MOVIES.flatMap(getMovieGenres))].sort((a,b)=>a.localeCompare(b,"es"));
+  const years=[...new Set(MOVIES.map(m=>String(m.year||"").trim()).filter(y=>/^\d{4}$/.test(y)))].sort((a,b)=>Number(b)-Number(a));
+  $("genreFilter").innerHTML='<option value="">Todos los géneros</option>'+genres.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join("");
+  $("yearFilter").innerHTML='<option value="">Todos los años</option>'+years.map(y=>`<option value="${esc(y)}">${esc(y)}</option>`).join("");
+  $("catalogSort").value=state.sort;
+  $("catalogHeading").textContent=String(CATALOG_CONFIG.title||"Catálogo").slice(0,45);
+  $("genreFilter").addEventListener("change",e=>{state.genre=e.target.value;renderAll();});
+  $("yearFilter").addEventListener("change",e=>{state.year=e.target.value;renderAll();});
+  $("catalogSort").addEventListener("change",e=>{state.sort=e.target.value;renderAll();});
+  $("clearCatalogFilters").addEventListener("click",()=>{
+    state.genre="";state.year="";state.sort="recent";
+    $("genreFilter").value="";$("yearFilter").value="";$("catalogSort").value="recent";
+    renderAll();
+  });
 }
 
 /* ============================================================
@@ -2002,8 +2048,7 @@ function getSearchResults(query){
   const q = (query || "").trim().toLowerCase();
   if (!q) return [];
   return MOVIES.filter(m =>
-    String(m.title).toLowerCase().includes(q) ||
-    String(m.subtitle || "").toLowerCase().includes(q)
+    [m.title,m.subtitle,m.genres,m.year].some(v=>String(v||"").toLowerCase().includes(q))
   );
 }
 
@@ -2090,14 +2135,17 @@ function closeMobileSearch(){
    HERO CARRUSEL
    ============================================================ */
 function getHeroMovies(){
-  return MOVIES
-    .filter(m => m.rating > 0)
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, 6);
+  const featured=MOVIES.filter(m=>m.featured===true);
+  if(featured.length)return featured.sort((a,b)=>(Number(a.featuredOrder)||0)-(Number(b.featuredOrder)||0)).slice(0,6);
+  return MOVIES.filter(m=>m.rating>0).sort((a,b)=>b.rating-a.rating).slice(0,6);
 }
 
 function renderHero(){
-  const list = getHeroMovies();
+  const list = CATALOG_CONFIG.showHero === false ? [] : getHeroMovies();
+  const hero=$('hero');
+  hero.style.display=list.length ? "" : "none";
+  if(state.heroTimer){clearInterval(state.heroTimer);state.heroTimer=null;}
+  state.heroIndex=0;
   const slidesBox = $("heroSlides");
   const dotsBox = $("heroDots");
   if (!list.length){ slidesBox.innerHTML = ""; dotsBox.innerHTML = ""; return; }
@@ -2293,6 +2341,7 @@ function setupHeroSwipe(){
    CONTINUAR VIENDO
    ============================================================ */
 function renderContinue(){
+  if(CATALOG_CONFIG.showContinue === false){$("continueSection").style.display="none";return;}
   let tsMap = {};
   try { tsMap = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}"); } catch(e){}
 
@@ -3391,11 +3440,18 @@ window.addEventListener("message", (e) => {
 /* ============================================================
    INIT
    ============================================================ */
+setupCatalogFilters();
 renderHero();
 setupHeroSwipe();
 renderAll();
 setupInfiniteScroll();
 restoreStateIfAny();
+// Acceso rápido al inicio sin alterar navegación ni reproducción.
+const backToTop=$("backToTop");
+function syncBackToTop(){backToTop.classList.toggle("show",window.scrollY>500);}
+window.addEventListener("scroll",syncBackToTop,{passive:true});
+backToTop.addEventListener("click",()=>window.scrollTo({top:0,behavior:"smooth"}));
+syncBackToTop();
 </script>
 </body>
 </html>
