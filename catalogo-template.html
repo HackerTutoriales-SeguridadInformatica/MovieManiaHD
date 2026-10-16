@@ -3353,9 +3353,17 @@ function playableForSeries(series,season,episode){
   if(!series || series.kind!=="SERIES" || !episode)return null;
   const tmdbId=Math.abs(Number(series.id));
   const episodeId=-(100000000000+tmdbId*100000+Number(season)*1000+Number(episode.number));
+  // La ficha utiliza el fotograma (still) de TMDB. Mostrar ese mismo fotograma
+  // en la portada inicial del reproductor, pero pedirlo en tamaño original.
+  // Este cambio solo se aplica a episodios; las películas conservan su fondo.
+  const episodeStill=String(episode.still||"").trim();
+  const episodeBackdrop=/^https:\/\/image\.tmdb\.org\/t\/p\/(?:w\d+|original)\//i.test(episodeStill)
+    ? episodeStill.replace(/\/t\/p\/(?:w\d+|original)\//i,"/t/p/original/")
+    : episodeStill;
   return {...series, id:episodeId, parentSeriesId:series.id,
     title:`${series.title} · T${season}E${episode.number} · ${episode.name||"Episodio"}`,
     overview:episode.overview||series.overview,runtime:episode.runtime?episode.runtime+" min":series.runtime,
+    backdrop:episodeBackdrop||series.backdrop||series.poster||"",
     m37:episode.m37||"",m22:episode.m22||"",m18:episode.m18||""};
 }
 function selectedPlayable(){
