@@ -2618,7 +2618,7 @@ function showMobileNav() {
 /* ============================================================
    CAST / TRANSMITIR A TV
    - Video oculto se prepara al abrir el detalle
-   - El botón "Transmitir" espera a que readyState >= 1
+   - El botón "Transmitir" espera a que readyState >= 2
    - prompt() se llama cuando el video ya está cargado
    ============================================================ */
 let castVideoEl = null;
@@ -2631,32 +2631,30 @@ function ensureCastVideoElement() {
 
   castVideoEl = document.createElement("video");
   castVideoEl.id = "mmhdCastVideo";
-castVideoEl.style.position = "fixed";
-castVideoEl.style.width = "1px";
-castVideoEl.style.height = "1px";
-castVideoEl.style.opacity = "0.01";
-castVideoEl.style.pointerEvents = "none";
-castVideoEl.style.bottom = "0";
-castVideoEl.style.right = "0";
-castVideoEl.style.top = "auto";
-castVideoEl.style.left = "auto";
-castVideoEl.style.zIndex = "-9999";
-castVideoEl.style.clipPath = "inset(50%)";
-castVideoEl.style.overflow = "hidden";
+  castVideoEl.style.position = "fixed";
+  castVideoEl.style.width = "1px";
+  castVideoEl.style.height = "1px";
+  castVideoEl.style.opacity = "0.01";
+  castVideoEl.style.pointerEvents = "none";
+  castVideoEl.style.bottom = "0";
+  castVideoEl.style.right = "0";
+  castVideoEl.style.top = "auto";
+  castVideoEl.style.left = "auto";
+  castVideoEl.style.zIndex = "-9999";
+  castVideoEl.style.clipPath = "inset(50%)";
+  castVideoEl.style.overflow = "hidden";
   castVideoEl.setAttribute("playsinline", "");
   castVideoEl.setAttribute("muted", "");
   castVideoEl.muted = true;
   castVideoEl.preload = "auto";
   document.body.appendChild(castVideoEl);
 
-  console.log("[Cast] Elemento video oculto creado con ID mmhdCastVideo (320x180)");
+  console.log("[Cast] Elemento video oculto creado con ID mmhdCastVideo (1x1 recortado)");
   return castVideoEl;
 }
 
 /* ============================================================
    PREPARAR EL VIDEO OCULTO PARA CAST
-   Se llama al abrir el detalle para que el video esté listo
-   cuando el usuario presione "Transmitir"
    ============================================================ */
 function prepareCastVideo(movie) {
   if (!movie) return;
@@ -2688,7 +2686,7 @@ function prepareCastVideo(movie) {
   }
 
   const onReady = () => {
-    if (v.readyState >= 1) {
+    if (v.readyState >= 2) {
       console.log("[Cast] Video listo. readyState:", v.readyState);
       if (btn) {
         btn.disabled = false;
@@ -2705,7 +2703,7 @@ function prepareCastVideo(movie) {
 
   setTimeout(() => {
     if (btn && btn.disabled) {
-      console.log("[Cast] Timeout: habilitando botón de todos modos");
+      console.log("[Cast] Timeout: habilitando botón de todos modos. readyState:", v.readyState);
       btn.disabled = false;
       btn.style.opacity = "";
       btn.title = "Transmitir a TV";
@@ -2718,6 +2716,7 @@ function handleCast(movie) {
 
   console.log("=== CAST DEBUG ===");
   console.log("Protocolo:", location.protocol);
+  console.log("Origin:", location.origin);
 
   if (!("remote" in HTMLVideoElement.prototype)) {
     showToast("Tu navegador no soporta transmisión a TV");
@@ -2733,6 +2732,9 @@ function handleCast(movie) {
   console.log("Video.src:", v.src);
   console.log("Video.readyState:", v.readyState);
   console.log("Video.remote:", v.remote);
+  console.log("Video.isConnected:", v.isConnected);
+  console.log("Video.paused:", v.paused);
+  console.log("Video.muted:", v.muted);
 
   const promise = v.remote.prompt();
 
@@ -2750,6 +2752,15 @@ function handleCast(movie) {
       console.error("❌ Error en prompt():", err);
       console.error("err.name:", err && err.name);
       console.error("err.message:", err && err.message);
+      console.error("Detalles:", {
+        protocol: location.protocol,
+        origin: location.origin,
+        readyState: v.readyState,
+        src: v.src,
+        isConnected: v.isConnected,
+        paused: v.paused,
+        muted: v.muted
+      });
 
       if (err && err.name === "NotFoundError") {
         showToast("No se encontraron dispositivos Cast");
@@ -3364,6 +3375,12 @@ setupHeroSwipe();
 renderAll();
 setupInfiniteScroll();
 restoreStateIfAny();
+
+/* Ocultar botón Cast si no hay HTTPS */
+if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+  const castBtn = document.getElementById('btnCast');
+  if (castBtn) castBtn.style.display = 'none';
+}
 </script>
 </body>
 </html>
