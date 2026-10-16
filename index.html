@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transmitir video MP4 a la TV</title>
+    <title>Transmitir video a la TV</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -129,7 +129,7 @@
 </head>
 <body>
 
-    <h1>📺 Transmitir video MP4 a la TV</h1>
+    <h1>📺 Transmitir video a la TV</h1>
     <p class="subtitulo">Envía este video directamente a tu televisor</p>
 
 
@@ -140,11 +140,15 @@
     </div>
 
     <div class="estado" id="estado"></div>
+    <div class="instrucciones" style="margin-top:12px">
+      <h2>Diagnóstico de transmisión</h2>
+      <div id="detalles" style="overflow-wrap:anywhere">Esperando transmisión.</div>
+    </div>
 
     <div class="instrucciones">
         <h2>💡 ¿Cómo funciona?</h2>
         <ul>
-            <li><strong>Google Cast (Chromecast):</strong> Reproduce el MP4 en Chromecast, Android TV o Google TV usando el receptor por defecto (acepta video/mp4).</li>
+            <li><strong>Google Cast (Chromecast):</strong> Envía el enlace al receptor predeterminado. El formato y los códecs deben ser compatibles con el dispositivo.</li>
             <li><strong>AirPlay (Apple):</strong> Usa el menú nativo de compartir o el botón AirPlay del propio reproductor si estás en Safari.</li>
             <li>También puedes usar <em>Compartir → Transmitir</em> del navegador o duplicar pantalla desde el sistema operativo.</li>
         </ul>
@@ -154,7 +158,18 @@
 
     <script>
         const VIDEO_URL = 'https://lh3.googleusercontent.com/pw/AP1GczOy9HtaICp-rJ-xNFp_7bDF1AzBh-bOi3qlTufRQxjyuBqDyJiKsW-m4JwT8DDrt2kOFSwK2JZ707ef8ap6C5ah2ySmm3Ra1PSDrDaHILdM0EQ8NXE=dv';
-        const MIME_TYPE = 'video/mp4'; // ← Aquí se especifica que es un MP4
+        function detectarFormato(url) {
+            const ruta = new URL(url).pathname.toLowerCase();
+            if (ruta.endsWith('.mkv')) return 'video/x-matroska';
+            if (ruta.endsWith('.webm')) return 'video/webm';
+            if (ruta.endsWith('.m3u8')) return 'application/x-mpegURL';
+            return 'video/mp4'; // Valor provisional si la URL no revela el formato.
+        }
+        const MIME_TYPE = detectarFormato(VIDEO_URL);
+        let temporizadorInicio = null;
+        let escuchaMedia = null;
+        let reproduciendo = false;
+        const detalles = document.getElementById('detalles');
 
         const estado = document.getElementById('estado');
         const toast = document.getElementById('toast');
@@ -203,12 +218,61 @@
             document.head.appendChild(script);
         })();
 
+        function textoError(error) {
+            return error?.description || error?.message || error?.code || String(error);
+        }
+
+        function limpiarSeguimiento() {
+            clearTimeout(temporizadorInicio);
+            temporizadorInicio = null;
+            if (escuchaMedia) {
+                try { escuchaMedia.media.removeUpdateListener(escuchaMedia.fn); } catch (_) {}
+                escuchaMedia = null;
+            }
+        }
+
+        function seguirReproduccion(sesion) {
+            limpiarSeguimiento();
+            reproduciendo = false;
+            const media = sesion.getMediaSession();
+            if (!media) {
+                detalles.textContent = 'Chromecast aceptó la solicitud, pero todavía no informó de una sesión multimedia.';
+            } else {
+                const actualizar = () => {
+                    const actual = sesion.getMediaSession();
+                    if (!actual) return;
+                    const playerState = actual.playerState || 'DESCONOCIDO';
+                    const idleReason = actual.media?.idleReason || actual.idleReason || '';
+                    detalles.textContent = 'Estado del receptor: ' + playerState + (idleReason ? ' | Motivo: ' + idleReason : '') + ' | MIME enviado: ' + MIME_TYPE;
+                    if (playerState === 'PLAYING') {
+                        reproduciendo = true;
+                        clearTimeout(temporizadorInicio);
+                        setEstado('✅ El video está reproduciéndose en la TV.');
+                    } else if (playerState === 'IDLE' && idleReason && !reproduciendo) {
+                        clearTimeout(temporizadorInicio);
+                        setEstado('⚠️ El receptor detuvo la carga (' + idleReason + '). El enlace podría ser inaccesible o el formato no ser compatible.');
+                    }
+                };
+                media.addUpdateListener(actualizar);
+                escuchaMedia = { media, fn: actualizar };
+                actualizar();
+            }
+            temporizadorInicio = setTimeout(() => {
+                if (!reproduciendo) {
+                    setEstado('⚠️ La TV no inició el video después de 20 segundos. Comprueba si el enlace abre sin iniciar sesión y si el formato/códec es compatible con Chromecast.');
+                    detalles.textContent += ' | Tiempo de espera agotado. El MIME no se puede confirmar solo con esta URL.';
+                }
+            }, 20000);
+        }
+
         btnCast.addEventListener('click', async () => {
             if (!castListo) {
-                setEstado('Google Cast aún no está disponible. Abre la página en Chrome o Edge y espera unos segundos.');
+                setEstado('Google Cast no está disponible. Abre la página en Chrome o Edge.');
                 return;
             }
+            limpiarSeguimiento();
             try {
+                setEstado('Conectando con la TV...');
                 const contexto = cast.framework.CastContext.getInstance();
                 let sesion = contexto.getCurrentSession();
                 if (!sesion) {
@@ -216,23 +280,23 @@
                     sesion = contexto.getCurrentSession();
                 }
                 if (!sesion) throw new Error('No se obtuvo una sesión Cast.');
-
-                const mediaInfo = new chrome.cast.media.MediaInfo(VIDEO_URL, 'video/mp4');
+                const mediaInfo = new chrome.cast.media.MediaInfo(VIDEO_URL, MIME_TYPE);
                 mediaInfo.streamType = chrome.cast.media.StreamType.BUFFERED;
                 mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
                 mediaInfo.metadata.title = 'Movie Mania HD';
-                // No usar el enlace del video como imagen de portada.
                 const solicitud = new chrome.cast.media.LoadRequest(mediaInfo);
                 solicitud.autoplay = true;
                 solicitud.currentTime = 0;
+                detalles.textContent = 'Enviando URL al receptor | MIME provisional: ' + MIME_TYPE;
+                setEstado('Cargando video en la TV...');
                 await sesion.loadMedia(solicitud);
-
-                setEstado('Solicitud enviada a Chromecast. Comprueba que el video se reproduzca en la TV.');
-                mostrarToast('Solicitud de reproducción enviada');
+                seguirReproduccion(sesion);
             } catch (error) {
+                limpiarSeguimiento();
                 console.error('Error al cargar el video en Chromecast:', error);
-                const detalle = error?.description || error?.message || error?.code || String(error);
-                setEstado('Chromecast no pudo cargar el video: ' + detalle + '. Revisa la consola (F12) para más detalles.');
+                const detalle = textoError(error);
+                setEstado('Chromecast no pudo cargar el video: ' + detalle);
+                detalles.textContent = 'Error de Cast: ' + detalle;
                 mostrarToast('Error al reproducir en Chromecast');
             }
         });
@@ -243,13 +307,13 @@
         btnAirPlay.addEventListener('click', () => {
             setEstado('');
             // Safari soporta AirPlay en elementos <video> mediante webkitShowPlaybackTargetPicker
-            if (videoPreview.webkitShowPlaybackTargetPicker) {
+            if (videoPreview && typeof videoPreview.webkitShowPlaybackTargetPicker === 'function') {
                 videoPreview.webkitShowPlaybackTargetPicker();
                 setEstado('Selecciona tu dispositivo AirPlay en el menú.');
                 mostrarToast('🍎 Elige AirPlay en el menú');
             } else if (navigator.share) {
                 navigator.share({
-                    title: 'Video MP4 para TV',
+                    title: 'Video para TV',
                     url: VIDEO_URL
                 }).catch(() => {});
                 setEstado('Menú de compartir abierto. Selecciona AirPlay o tu TV.');
@@ -267,9 +331,11 @@
         });
 
         // Manejo de error del video
-        videoPreview.addEventListener('error', () => {
-            setEstado('⚠️ No se pudo cargar la vista previa del video. Puede que el enlace no sea accesible, haya expirado o no sea un MP4 válido.');
-        });
+        if (videoPreview) {
+            videoPreview.addEventListener('error', () => {
+                setEstado('⚠️ No se pudo cargar la vista previa del video.');
+            });
+        }
 
     </script>
 
