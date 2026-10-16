@@ -2857,8 +2857,10 @@ function toggleMyList(id, fromHero = false){
 }
 
 /* ============================================================
-   DESCARGA DIRECTA — administrada por el navegador
+   DESCARGA CON PROGRESO REAL CUANDO CORS LO PERMITE
+   Sin proxy: si el origen bloquea fetch, descarga directa.
    ============================================================ */
+let activeDownload = false;
 function startBrowserDownload(url, filename){
   const a = document.createElement("a");
   a.href = url;
@@ -2868,9 +2870,16 @@ function startBrowserDownload(url, filename){
   a.click();
   a.remove();
 }
-function showDownloadBox(){
+function formatDownloadBytes(bytes){
+  if (!Number.isFinite(bytes)) return "?";
+  const units = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  while (bytes >= 1024 && i < units.length - 1){ bytes /= 1024; i++; }
+  return bytes.toFixed(i ? 1 : 0) + " " + units[i];
+}
+async function showDownloadBox(){
   const m = state.currentMovie;
-  if (!m) return;
+  if (!m || activeDownload) return;
   const sourceUrl = m.m37 || m.m22 || m.m18 || "";
   if (!sourceUrl){ alert("Esta película no tiene URLs configuradas."); return; }
   const downloadUrl = sourceUrl.replace(/=m\d+$/, "=dv");
@@ -2881,9 +2890,68 @@ function showDownloadBox(){
   box.classList.add("show");
   fill.style.width = "0%";
   pctEl.textContent = "—";
-  label.textContent = "Descarga directa";
-  status.textContent = "La descarga se administra desde el navegador. Consulta su progreso en Descargas (Ctrl+J).";
-  startBrowserDownload(downloadUrl, filename);
+  label.textContent = "Preparando descarga…";
+  status.textContent = "Comprobando si se puede medir el progreso real…";
+
+  // No hay API web que lea el progreso de una descarga normal de Chrome.
+  // El modo medible exige CORS y tamaño Content-Length accesible.
+  // Para no agotar la memoria con películas grandes, el límite del modo
+  // Blob es 512 MiB. Los archivos mayores usan descarga directa.
+  const MAX_BLOB_BYTES = 512 * 1024 * 1024;
+  let reader = null;
+  let bytesReceived = 0;
+  try {
+    activeDownload = true;
+    const response = await fetch(downloadUrl, { mode: "cors", credentials: "omit", cache: "no-store" });
+    if (!response.ok || !response.body) throw new Error("No se puede leer el video");
+    const total = Number(response.headers.get("content-length"));
+    if (!Number.isFinite(total) || total <= 0 || total > MAX_BLOB_BYTES) {
+      await response.body.cancel();
+      throw new Error("Tamaño no disponible o archivo grande");
+    }
+    reader = response.body.getReader();
+    const chunks = [];
+    const started = performance.now();
+    label.textContent = "Descargando…";
+    while (true){
+      const {done, value} = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      bytesReceived += value.byteLength;
+      if (bytesReceived > MAX_BLOB_BYTES) throw new Error("Archivo demasiado grande");
+      const percent = Math.min(99, Math.floor(bytesReceived * 100 / total));
+      fill.style.width = percent + "%";
+      pctEl.textContent = percent + "%";
+      const elapsed = Math.max(.1, (performance.now() - started) / 1000);
+      status.textContent = `${formatDownloadBytes(bytesReceived)} de ${formatDownloadBytes(total)} · ${formatDownloadBytes(bytesReceived / elapsed)}/s`;
+    }
+    if (bytesReceived !== total) throw new Error("Descarga incompleta");
+    const blob = new Blob(chunks, {type: "video/mp4"});
+    const objectUrl = URL.createObjectURL(blob);
+    startBrowserDownload(objectUrl, filename);
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    fill.style.width = "100%";
+    pctEl.textContent = "100%";
+    label.textContent = "Descarga completada";
+    status.textContent = `${formatDownloadBytes(bytesReceived)} recibidos. El navegador está guardando el archivo.`;
+    box.classList.add("done");
+  } catch (error){
+    try { await reader?.cancel(); } catch (_) {}
+    if (bytesReceived > 0){
+      label.textContent = "Descarga interrumpida";
+      pctEl.textContent = "—";
+      status.textContent = "No se pudo completar la descarga medida. Presiona Descargar para intentarlo de nuevo.";
+      box.classList.add("error");
+    } else {
+      label.textContent = "Descarga directa en Chrome";
+      pctEl.textContent = "—";
+      fill.style.width = "0%";
+      status.textContent = "El servidor no permite medir el progreso aquí. Consulta el progreso real en Chrome (Ctrl+J).";
+      startBrowserDownload(downloadUrl, filename);
+    }
+  } finally {
+    activeDownload = false;
+  }
 }
 
 /* ============================================================
