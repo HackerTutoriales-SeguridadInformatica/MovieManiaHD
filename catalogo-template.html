@@ -2631,20 +2631,25 @@ function ensureCastVideoElement() {
   castVideoEl = document.createElement("video");
   castVideoEl.id = "mmhdCastVideo";
   castVideoEl.style.position = "fixed";
-  castVideoEl.style.width = "1px";
-  castVideoEl.style.height = "1px";
-  castVideoEl.style.opacity = "0.01";
+  // 👇 320x180 — suficiente para que Chrome acepte el Cast
+  castVideoEl.style.width = "320px";
+  castVideoEl.style.height = "180px";
+  // 👇 Casi transparente pero NO invisible
+  castVideoEl.style.opacity = "0.001";
   castVideoEl.style.pointerEvents = "none";
-  castVideoEl.style.top = "0";
-  castVideoEl.style.left = "0";
-  castVideoEl.style.zIndex = "999999";
+  // 👇 Fuera del viewport visible (esquina inferior derecha, oculto detrás)
+  castVideoEl.style.bottom = "-200px";
+  castVideoEl.style.right = "-320px";
+  castVideoEl.style.top = "auto";
+  castVideoEl.style.left = "auto";
+  castVideoEl.style.zIndex = "-1";
   castVideoEl.setAttribute("playsinline", "");
   castVideoEl.setAttribute("muted", "");
   castVideoEl.muted = true;
   castVideoEl.preload = "auto";
   document.body.appendChild(castVideoEl);
 
-  console.log("[Cast] Elemento video oculto creado con ID mmhdCastVideo");
+  console.log("[Cast] Elemento video oculto creado con ID mmhdCastVideo (320x180)");
   return castVideoEl;
 }
 
