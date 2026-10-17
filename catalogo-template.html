@@ -439,7 +439,7 @@ a{color:inherit;text-decoration:none}
 }
 
 /* ============ FASE 8: CONTINUAR VIENDO SERIES ============ */
-/* Las tarjetas de películas mantienen su diseño de la Fase 7. */
+/* La Fase 8.1 comparte las mismas proporciones entre series y películas. */
 .continue-card-series{cursor:default;align-self:flex-start}
 .continue-card-series:hover{transform:none}
 .continue-series-thumb{aspect-ratio:16/8.4;background-position:center}
@@ -471,6 +471,35 @@ a{color:inherit;text-decoration:none}
 }
 @media(prefers-reduced-motion:reduce){
   .continue-series-fill,.continue-series-play{transition:none}
+}
+
+/* ============ FASE 8.1: TARJETAS UNIFORMES (SERIES / PELÍCULAS) ============ */
+.continue-row .continue-card-series,.continue-row .continue-card-movie{
+  flex:0 0 320px;display:flex;flex-direction:column;align-self:stretch;
+}
+.continue-row .continue-card-movie{cursor:pointer}
+.continue-card-movie:hover{transform:none}
+.continue-card-movie:focus-within{border-color:#477bea}
+.continue-row .continue-uniform-thumb{flex:none;aspect-ratio:16/8.4}
+.continue-row .continue-series-body{
+  flex:1;min-height:153px;padding:12px 13px 13px;
+  display:flex;flex-direction:column;gap:8px;
+}
+.continue-row .continue-series-title{
+  height:20px;flex:none;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;
+}
+.continue-row .continue-series-episode{
+  height:31px;min-height:31px;flex:none;line-height:1.4;
+}
+.continue-row .continue-series-play{margin-top:auto;flex:none}
+.continue-row .continue-series-track{flex:none}
+.continue-movie-percent{white-space:nowrap}
+@media(max-width:600px){
+  .continue-row .continue-card-series,.continue-row .continue-card-movie{flex:0 0 250px}
+  .continue-row .continue-uniform-thumb{aspect-ratio:16/8.5}
+  .continue-row .continue-series-body{padding:9px 10px 10px;gap:7px;min-height:138px}
+  .continue-row .continue-series-title{height:17px}
+  .continue-row .continue-series-episode{height:28px;min-height:28px}
 }
 
 /* ============ GRID PÓSTERS ============ */
@@ -3077,7 +3106,7 @@ function seriesContinueHTML(series){
   const image=ep.data.still || series.backdrop;
   const subtitle=`Temporada ${ep.season} · Episodio ${ep.episode}${ep.data.name?" — "+ep.data.name:""}`;
   return `<div class="continue-card continue-card-series" data-id="${series.id}">
-    <div class="continue-thumb continue-series-thumb" style="background-image:url('${esc(backdropOptimized(image,true))}')">
+    <div class="continue-thumb continue-series-thumb continue-uniform-thumb" style="background-image:url('${esc(backdropOptimized(image,true))}')">
       <div class="continue-tag"><i class="fa-solid fa-tv" aria-hidden="true"></i> SERIE</div>
       <button type="button" class="continue-close" data-remove="${series.id}" title="Quitar de Continuar viendo" aria-label="Quitar ${esc(series.title)} de Continuar viendo"><i class="fa-solid fa-xmark"></i></button>
     </div>
@@ -3127,26 +3156,38 @@ function renderContinue(){
 
   row.innerHTML=list.map(m=>{
     if(m.kind==="SERIES")return seriesContinueHTML(m);
-    // La tarjeta de película permanece idéntica a la de Fase 7.
-    const pct=Math.min(95,progress[m.id]||0);
-    const remaining=m.runtime && m.runtime.includes("min")
-      ? `Quedan ${Math.max(1,Math.round((100-pct)/100*parseInt(m.runtime)))}m`
+    // Fase 8.1: las películas usan la misma estructura y altura que las series.
+    // El clic fuera del botón sigue abriendo la ficha; el botón abre el reproductor.
+    const pct=Math.max(0,Math.min(99,Number(progress[m.id])||0));
+    const runtimeMinutes=parseInt(String(m.runtime||""),10);
+    const remaining=Number.isFinite(runtimeMinutes)&&runtimeMinutes>0
+      ? `${Math.max(1,Math.round((100-pct)/100*runtimeMinutes))} min restantes`
       : "En progreso";
-    return `<div class="continue-card" data-id="${m.id}">
-        <div class="continue-thumb" style="background-image:url('${esc(backdropOptimized(m.backdrop,true))}')">
-          <div class="continue-tag"><i class="fa-solid fa-${m.kind === "SERIES" ? "tv" : "film"}"></i>
-            ${m.kind === "SERIES" ? "SERIE" : "PELÍCULA"}</div>
-          <button class="continue-close" data-remove="${m.id}" title="Quitar"><i class="fa-solid fa-xmark"></i></button>
-          <div class="continue-info"><div class="continue-title">${esc(m.title)}</div>
-            <div class="continue-remain">${esc(m.year)} · <b>${esc(remaining)}</b></div></div>
-          <div class="continue-progress"><div class="continue-progress-fill" style="width:${pct}%"></div></div>
-        </div>
-      </div>`;
+    return `<div class="continue-card continue-card-movie" data-id="${m.id}">
+      <div class="continue-thumb continue-series-thumb continue-uniform-thumb" style="background-image:url('${esc(backdropOptimized(m.backdrop,true))}')">
+        <div class="continue-tag"><i class="fa-solid fa-film" aria-hidden="true"></i> PELÍCULA</div>
+        <button type="button" class="continue-close" data-remove="${m.id}" title="Quitar de Continuar viendo" aria-label="Quitar ${esc(m.title)} de Continuar viendo"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="continue-series-body">
+        <div class="continue-series-title" title="${esc(m.title)}">${esc(m.title)}</div>
+        <div class="continue-series-episode">Película${m.year?` · ${esc(m.year)}`:""}</div>
+        <div class="continue-series-numbers"><span class="continue-series-percent continue-movie-percent">${Math.round(pct)}% reproducido</span><span class="continue-series-remaining continue-remain"><b>${esc(remaining)}</b></span></div>
+        <div class="continue-series-track" role="progressbar" aria-label="Progreso de la película" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><div class="continue-series-fill continue-progress-fill" style="width:${pct}%"></div></div>
+        <button type="button" class="continue-series-play" data-continue-movie="${m.id}" aria-label="Continuar película ${esc(m.title)}"><i class="fa-solid fa-play" aria-hidden="true"></i> Continuar película</button>
+      </div>
+    </div>`;
   }).join("");
-  row.querySelectorAll(".continue-card:not(.continue-card-series)").forEach(card=>{
+  row.querySelectorAll(".continue-card-movie").forEach(card=>{
     card.addEventListener("click",e=>{
-      if(e.target.closest("[data-remove]"))return;
+      if(e.target.closest("[data-remove], [data-continue-movie]"))return;
       openDetail(Number(card.dataset.id));
+    });
+  });
+  row.querySelectorAll("[data-continue-movie]").forEach(btn=>{
+    btn.addEventListener("click",e=>{
+      e.stopPropagation();
+      const movie=MOVIES.find(m=>m.kind!=="SERIES"&&m.id===Number(btn.dataset.continueMovie));
+      if(movie)openPlayer(movie);
     });
   });
   row.querySelectorAll("[data-continue-series]").forEach(btn=>{
@@ -4780,10 +4821,14 @@ window.addEventListener("message", (e) => {
     if (card) {
       const fill = card.querySelector(".continue-progress-fill");
       if (fill) fill.style.width = pct + "%";
+      const percentageEl=card.querySelector(".continue-movie-percent");
+      if(percentageEl)percentageEl.textContent=`${Math.round(pct)}% reproducido`;
+      const track=card.querySelector(".continue-series-track");
+      if(track)track.setAttribute("aria-valuenow",String(Math.round(pct)));
       const remainEl = card.querySelector(".continue-remain b");
       if (remainEl && data.duration) {
         const remainingMin = Math.max(1, Math.round((data.duration - data.currentTime) / 60));
-        remainEl.textContent = `Quedan ${remainingMin}m`;
+        remainEl.textContent = `${remainingMin} min restantes`;
       }
     } else {
       renderContinue();
