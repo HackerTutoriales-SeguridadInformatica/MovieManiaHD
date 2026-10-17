@@ -1726,6 +1726,21 @@ a{color:inherit;text-decoration:none}
 .detail-episode-info{min-width:0}
 .detail-episode-info b{font-size:13px;display:block;color:#fff;margin-bottom:6px}
 .detail-episode-info small{font-size:11px;color:#b0bbcf;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* Fase 7: estado, progreso y marcado individual de capítulos */
+.episode-season-count{font-size:12px;color:#b0bbcf;font-weight:700;margin-right:auto}
+.episode-watch-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.episode-watch-state{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#929bae}
+.detail-episode.is-watched .episode-watch-state{color:#51d0a4}
+.detail-episode.is-in-progress .episode-watch-state{color:#8bb7ff}
+.episode-mark-watched{font:600 11px Inter,Arial,sans-serif;border:1px solid #404b69;border-radius:8px;
+  padding:6px 9px;background:#222c42;color:#d8e5ff;min-height:30px;cursor:pointer;transition:.18s}
+.episode-mark-watched:hover{border-color:#7ba9ff;background:#304265}
+.episode-mark-watched:focus-visible{outline:2px solid #8ab4ff;outline-offset:2px}
+.episode-progress-track{width:100%;height:4px;margin-top:9px;border-radius:9px;overflow:hidden;background:#323951}
+.episode-progress-track[hidden]{display:none!important}
+.episode-progress-fill{height:100%;width:0;background:#3b82f6;border-radius:9px;transition:width .2s ease}
+.detail-episode.is-watched .episode-progress-fill{background:#10b981}
+@media(max-width:600px){.episode-season-count{width:100%;order:3}.episode-mark-watched{min-height:34px}}
 .detail-episode .episode-ready{font-size:11px;color:#8ac6ff;white-space:nowrap}
 .detail-episode .episode-ready.pending{color:#808698}
 .detail-episodes-note{margin:10px 0 0;color:#a9b4c4;font-size:11px}
@@ -1956,6 +1971,7 @@ a{color:inherit;text-decoration:none}
     <section class="detail-episodes" id="detailEpisodes" aria-label="Temporadas y episodios" hidden>
       <div class="detail-episodes-head">
         <h3>Temporadas y episodios</h3>
+        <span id="seasonSeenCount" class="episode-season-count" aria-live="polite"></span>
         <select id="detailSeason" aria-label="Elegir temporada"></select>
       </div>
       <div class="detail-episode-list" id="detailEpisodeList"></div>
@@ -2078,6 +2094,9 @@ const LS_DOWNLOADS = "mmhd_downloads";
 const LS_PROGRESS_TS = "mmhd_progress_ts";
 const LS_PROGRESS_SECONDS = "mmhd_progress_seconds";
 const LS_RECENT_SERIES_EPISODES = "mmhd_recent_series_episodes";
+// Fase 7: registro independiente para capítulos finalizados (sin confundirlo
+// con el botón general Marcar visto de una serie o de una película).
+const LS_WATCHED_EPISODES = "mmhd_series_episode_watched";
 
 function loadSet(key){
   try { return new Set(JSON.parse(localStorage.getItem(key) || "[]")); }
@@ -2099,6 +2118,7 @@ const watched = loadSet(LS_WATCHED);
 const progress = loadObj(LS_PROGRESS);
 const progressSeconds = loadObj(LS_PROGRESS_SECONDS);
 const recentSeriesEpisodes = loadObj(LS_RECENT_SERIES_EPISODES);
+const watchedEpisodes = loadSet(LS_WATCHED_EPISODES);
 const downloads = loadObj(LS_DOWNLOADS);
 // Registro local del navegador. No equivale a detectar archivos físicos en el dispositivo.
 function recordDownload(movie, status){
@@ -2260,157 +2280,94 @@ function buildNextEpisodeAutostartScript(){
   return `
 <script>
 (function(){
-  // Esta capa existe SOLO para el episodio siguiente de una serie.
-  // iOS/WebKit permite autoplay sin interacción cuando está silenciado y en línea.
-  var mobile=/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent)
-    || (navigator.maxTouchPoints>1 && matchMedia('(max-width: 800px)').matches);
   var started=false;
   var pending=false;
   var lastTry=0;
   var tries=0;
   var fallbackMuted=false;
-  var manualPause=false;
-  var video=null;
-  var boot=Date.now();
-  var retryTimer=null;
-  var soundBtn=null;
-  var resumeBtn=null;
-  var status='';
+  var noticedManual=false;
+  var el=null;
+  var startTime=Date.now();
+  var checkTimer=null;
+  var muteButton=null;
 
-  function removeResume(){if(resumeBtn){resumeBtn.remove();resumeBtn=null;}}
-  function showResume(message){
-    if(started || manualPause)return;
-    if(!resumeBtn){
-      resumeBtn=document.createElement('button');
-      resumeBtn.type='button';
-      resumeBtn.setAttribute('aria-label','Iniciar reproducción del siguiente episodio');
-      resumeBtn.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);'
-        +'z-index:2147483647;min-width:190px;max-width:calc(100vw - 40px);padding:14px 16px;'
-        +'background:#2563eb;color:white;border:1px solid #9dbcf5;border-radius:12px;'
-        +'font:700 14px Arial,sans-serif;box-shadow:0 10px 28px rgba(0,0,0,.65);cursor:pointer';
-      resumeBtn.addEventListener('click',function(){
-        var el=document.querySelector('video');
-        removeResume();
-        if(el){
-          setInline(el);
-          // El toque debe ejecutar play() directamente, dentro del iframe.
-          // No usar postMessage: en iOS se perdería el gesto del usuario.
-          try{
-            var r=el.play();
-            if(r&&typeof r.catch==='function')r.catch(function(){showResume('Toca para reproducir');});
-          }catch(e){showResume('Toca para reproducir');}
-        }else{
-          // Algunos reproductores crean el video solo al pulsar su portada.
-          // No fingir que se está reproduciendo si aún no existe el elemento.
-          try{if(window.player1&&typeof window.player1.play==='function')window.player1.play();}catch(e){}
-          if(!document.querySelector('video'))showResume('Toca Play en el reproductor');
-        }
-      });
-    }
-    var label=message || '▶ Reproducir siguiente episodio';
-    if(resumeBtn.textContent!==label)resumeBtn.textContent=label;
-    if(document.body && resumeBtn.parentNode!==document.body)document.body.appendChild(resumeBtn);
-  }
-  function soundButton(el){
-    if(soundBtn)return;
+  function soundButton(video){
+    if(muteButton) return;
     var btn=document.createElement('button');
-    btn.type='button';btn.textContent='🔊 Activar sonido';
+    btn.type='button';
+    btn.textContent='🔊 Activar sonido';
     btn.setAttribute('aria-label','Activar sonido del siguiente episodio');
     btn.style.cssText='position:fixed;top:12px;right:12px;z-index:2147483647;'
       +'padding:11px 15px;border-radius:9px;border:1px solid #4d659e;'
       +'background:#1b315a;color:white;font:600 13px Arial,sans-serif;'
       +'box-shadow:0 4px 16px #000a;cursor:pointer';
     btn.addEventListener('click',function(){
-      try{el.muted=false;el.defaultMuted=false;el.removeAttribute('muted');el.volume=1;}catch(e){}
-      if(!el.muted){btn.remove();soundBtn=null;}
-      // Algunos iPhone pausan cuando se activa audio: el toque permite reanudar.
-      if(el.paused){try{var r=el.play();if(r&&r.catch)r.catch(function(){});}catch(e){}}
+      try{video.muted=false;video.volume=Math.max(video.volume||0,0.7);}catch(e){}
+      if(!video.muted){btn.remove();muteButton=null;}
     });
-    (document.body||document.documentElement).appendChild(btn);
-    soundBtn=btn;
+    document.body.appendChild(btn);
+    muteButton=btn;
   }
-  function setInline(el){
-    el.playsInline=true;
-    el.setAttribute('playsinline','');
-    el.setAttribute('webkit-playsinline','');
-    el.autoplay=true;
-    el.setAttribute('autoplay','');
-    if(mobile && !started){
-      // MUY IMPORTANTE: aplicar muted ANTES del primer play().
-      el.defaultMuted=true;
-      el.muted=true;
-      el.setAttribute('muted','');
-      fallbackMuted=true;
-    }
-  }
+
   function playbackStarted(){
-    started=true;pending=false;removeResume();
-    if(retryTimer){clearInterval(retryTimer);retryTimer=null;}
-    if(video && video.muted)soundButton(video);
+    started=true;
+    pending=false;
+    if(checkTimer){clearInterval(checkTimer);checkTimer=null;}
+    if(el && el.muted)soundButton(el);
   }
-  function attempt(el){
-    if(!el || started || pending || manualPause)return;
-    if(!el.paused){video=el;playbackStarted();return;}
-    setInline(el);
-    var hasSource=!!(el.currentSrc || el.getAttribute('src') || el.querySelector('source[src]'));
-    if(!hasSource)return;
-    if(Date.now()-lastTry<850 || tries>=45 || Date.now()-boot>45000)return;
-    tries++;lastTry=Date.now();pending=true;
+  function attempt(video){
+    if(!video || started || pending || noticedManual) return;
+    if(!video.paused){el=video;playbackStarted();return;}
+    // No llamar play() mientras FWDEV aún no ha establecido la fuente.
+    if(!video.currentSrc && !video.getAttribute('src') && !video.querySelector('source[src]')) return;
+    if(Date.now()-lastTry<950)return;
+    if(tries>=30 || Date.now()-startTime>65000)return;
+    tries++;
+    lastTry=Date.now();
+    pending=true;
     try{
-      var r=el.play();
-      if(r && typeof r.then==='function'){
-        r.then(function(){pending=false;playbackStarted();}).catch(function(error){
+      video.autoplay=true;
+      video.playsInline=true;
+      video.setAttribute('playsinline','');
+      var result=video.play();
+      if(result && typeof result.then==='function'){
+        result.then(function(){pending=false;playbackStarted();}).catch(function(error){
           pending=false;
-          if(error && error.name==='NotAllowedError'){
-            if(!fallbackMuted){
-              fallbackMuted=true;setInline(el);
-              el.defaultMuted=true;el.muted=true;el.setAttribute('muted','');lastTry=0;
-              attempt(el);
-            }else if(tries>=3){
-              status='blocked';showResume('▶ Reproducir siguiente episodio');
-            }
-          }else if(tries>=8){
-            status='error';showResume('▶ Iniciar siguiente episodio');
+          // Autoplay con sonido se bloquea en algunos navegadores.
+          // Se intenta reproducir silenciado y se ofrece activar sonido con un toque.
+          if(error && error.name==='NotAllowedError' && !fallbackMuted){
+            fallbackMuted=true;
+            video.muted=true;
+            lastTry=0;
+            attempt(video);
           }
         });
-      }else{pending=false;}
+      }else{
+        pending=false;
+      }
     }catch(e){pending=false;}
   }
-  function bind(el){
-    if(video===el)return;
-    video=el;
-    // Configurar inmediatamente, antes de que se asigne la fuente al video.
-    setInline(el);
-    el.addEventListener('playing',playbackStarted,{once:true});
-    ['canplay','loadeddata','loadedmetadata','durationchange'].forEach(function(name){
-      el.addEventListener(name,function(){attempt(el);});
-    });
-    el.addEventListener('pause',function(){if(started)manualPause=true;});
+  function bind(video){
+    if(el===video)return;
+    el=video;
+    video.addEventListener('playing',playbackStarted,{once:true});
+    video.addEventListener('canplay',function(){attempt(video)});
+    video.addEventListener('loadeddata',function(){attempt(video)});
+    video.addEventListener('loadedmetadata',function(){attempt(video)});
+    // Si el usuario pausa el video después de que comenzó, nunca lo reiniciamos.
+    video.addEventListener('pause',function(){if(started)noticedManual=true;});
   }
-  // MutationObserver también detecta videos que FWDEV crea tarde en móvil.
-  function scan(){
-    if(started || manualPause)return;
-    var current=document.querySelector('video');
-    if(current){bind(current);attempt(current);}
-    var elapsed=Date.now()-boot;
-    if(elapsed>=5500 && !current)showResume('▶ Iniciar siguiente episodio');
-    else if(elapsed>=10000 && current && current.paused && !pending)
-      showResume('▶ Reproducir siguiente episodio');
-  }
-  if(typeof MutationObserver!=='undefined'){
-    var observer=new MutationObserver(function(){
-      if(!started)scan();
-      else observer.disconnect();
-    });
-    observer.observe(document.documentElement,{childList:true,subtree:true});
-  }
-  retryTimer=setInterval(function(){
-    if(started || manualPause || Date.now()-boot>65000){
-      clearInterval(retryTimer);retryTimer=null;return;
+  checkTimer=setInterval(function(){
+    if(started || noticedManual || Date.now()-startTime>65000){
+      clearInterval(checkTimer);checkTimer=null;return;
     }
-    scan();
-  },400);
-  scan();
+    var video=document.querySelector('video');
+    if(!video)return;
+    bind(video);
+    attempt(video);
+  },350);
+  var current=document.querySelector('video');
+  if(current){bind(current);attempt(current);}
 })();
 <\/script>
 `;
@@ -2569,10 +2526,6 @@ function getPlayerHtml(movie, autoNext=false){
     html=html.replace(/\bautoPlay\s*:\s*["']no["']/i,'autoPlay:"yes"');
     html=html.replace(/FWDEVPlayer\.videoStartBehaviour\s*=\s*["']pause["']\s*;/i,
       'FWDEVPlayer.videoStartBehaviour = "play";');
-    // FWDEVPlayer necesita permitir reproducción en línea en iOS.
-    // Solo se aplica al episodio que se abre automáticamente (no a películas).
-    html=html.replace(/(autoPlay\s*:\s*["']yes["']\s*,)/i,
-      '$1\n    playsinline:"yes",\n    goFullScreenOnButtonPlay:"no",');
   }
   const nextEpisode=movie.parentSeriesId!=null ? getNextSeriesEpisode(movie) : null;
   const scriptTag=buildProgressScript(movie.id)
@@ -3034,6 +2987,8 @@ function resetSeriesContinueHistory(series){
 
   (series.seasons||[]).forEach(season=>{
     (season.episodes||[]).forEach(episode=>{
+      // Al quitar una serie de Continuar viendo, cada capítulo vuelve a pendiente.
+      watchedEpisodes.delete(seriesEpisodeKey(series.id,season.number,episode.number));
       const playable=playableForSeries(series,season.number,episode);
       if(!playable)return;
       delete progress[playable.id];
@@ -3045,6 +3000,7 @@ function resetSeriesContinueHistory(series){
   saveObj(LS_PROGRESS,progress);
   saveObj(LS_PROGRESS_SECONDS,progressSeconds);
   saveObj(LS_PROGRESS_TS,timestamps);
+  saveSet(LS_WATCHED_EPISODES,watchedEpisodes);
 
   if(state.currentMovie?.id===series.id)renderSeriesSeasons(series);
 }
@@ -3750,6 +3706,71 @@ function setupCastPeopleNav(){
 /* Series: el episodio se transforma en un objeto reproducible con las mismas claves
    que una película. Los enlaces del episodio nunca se mezclan con los de otro. */
 let selectedSeriesEpisode=null;
+function seriesEpisodeKey(seriesId,seasonNumber,episodeNumber){
+  return `${seriesId}:${Number(seasonNumber)}:${Number(episodeNumber)}`;
+}
+function isSeriesEpisodeWatched(seriesId,seasonNumber,episodeNumber){
+  return watchedEpisodes.has(seriesEpisodeKey(seriesId,seasonNumber,episodeNumber));
+}
+function saveEpisodeWatched(seriesId,seasonNumber,episodeNumber,seen){
+  const key=seriesEpisodeKey(seriesId,seasonNumber,episodeNumber);
+  if(seen)watchedEpisodes.add(key);
+  else watchedEpisodes.delete(key);
+  saveSet(LS_WATCHED_EPISODES,watchedEpisodes);
+  refreshVisibleEpisodeStatuses(seriesId);
+}
+function markFinishedSeriesEpisode(movie){
+  if(movie?.parentSeriesId==null)return;
+  saveEpisodeWatched(movie.parentSeriesId,movie.episodeSeason,movie.episodeNumber,true);
+}
+function episodeDisplayState(seriesId,season,episode){
+  const watched=isSeriesEpisodeWatched(seriesId,season,episode.number);
+  const series=MOVIES.find(m=>m.id===seriesId&&m.kind==="SERIES");
+  const playable=playableForSeries(series,season,episode);
+  const percentage=playable?Math.max(0,Math.min(99,Number(progress[playable.id])||0)):0;
+  if(watched)return {status:"watched",percent:100,text:"Visto",icon:"fa-circle-check"};
+  if(percentage>0)return {status:"progress",percent:percentage,text:`En progreso · ${Math.round(percentage)}%`,icon:"fa-circle-play"};
+  if(!isPlayableEpisode(episode))return {status:"pending",percent:0,text:"Sin video configurado",icon:"fa-clock"};
+  return {status:"pending",percent:0,text:"Pendiente",icon:"fa-clock"};
+}
+function updateEpisodeCardStatus(row,series,season,episode){
+  const data=episodeDisplayState(series.id,season,episode);
+  row.classList.toggle("is-watched",data.status==="watched");
+  row.classList.toggle("is-in-progress",data.status==="progress");
+  const label=row.querySelector(".episode-watch-state");
+  if(label){
+    label.replaceChildren();
+    const icon=document.createElement("i");icon.className=`fa-solid ${data.icon}`;icon.setAttribute("aria-hidden","true");
+    label.append(icon,document.createTextNode(data.text));
+  }
+  const bar=row.querySelector(".episode-progress-track");
+  if(bar){
+    bar.hidden=data.percent<=0;
+    bar.setAttribute("aria-valuenow",String(Math.round(data.percent)));
+    bar.querySelector(".episode-progress-fill").style.width=`${data.percent}%`;
+  }
+  const toggle=row.querySelector(".episode-mark-watched");
+  if(toggle){
+    const seen=data.status==="watched";
+    toggle.setAttribute("aria-pressed",String(seen));
+    toggle.setAttribute("aria-label",`${seen?"Desmarcar visto":"Marcar visto"}: temporada ${season}, episodio ${episode.number}`);
+    toggle.textContent=seen?"Desmarcar visto":"Marcar visto";
+  }
+}
+function refreshVisibleEpisodeStatuses(seriesId){
+  const series=state.currentMovie;
+  if(!series||series.kind!=="SERIES"||Number(series.id)!==Number(seriesId))return;
+  const seasonNumber=Number($("detailSeason").value);
+  const season=series.seasons?.find(s=>Number(s.number)===seasonNumber);
+  if(!season)return;
+  const episodes=season.episodes||[];
+  const seen=episodes.filter(ep=>isSeriesEpisodeWatched(series.id,seasonNumber,ep.number)).length;
+  $("seasonSeenCount").textContent=`${seen} de ${episodes.length} vistos`;
+  document.querySelectorAll("#detailEpisodeList .detail-episode").forEach(row=>{
+    const episode=episodes.find(ep=>Number(ep.number)===Number(row.dataset.episode));
+    if(episode)updateEpisodeCardStatus(row,series,seasonNumber,episode);
+  });
+}
 function playableForSeries(series,season,episode){
   if(!series || series.kind!=="SERIES" || !episode)return null;
   const tmdbId=Math.abs(Number(series.id));
@@ -3904,6 +3925,19 @@ function renderSeriesSeasons(series,chosenSeason){
     const heading=document.createElement("b");heading.textContent=`${ep.number}. ${ep.name||"Episodio"}`;
     const desc=document.createElement("small");desc.textContent=(ep.runtime?`${ep.runtime} min · `:"")+(ep.overview||"Sin descripción");
     info.append(heading,desc);
+    const watchLine=document.createElement("div");watchLine.className="episode-watch-line";
+    const stateLabel=document.createElement("span");stateLabel.className="episode-watch-state";
+    const markBtn=document.createElement("button");markBtn.className="episode-mark-watched";markBtn.type="button";
+    markBtn.addEventListener("click",()=>{
+      const wasWatched=isSeriesEpisodeWatched(series.id,current.number,ep.number);
+      saveEpisodeWatched(series.id,current.number,ep.number,!wasWatched);
+    });
+    watchLine.append(stateLabel,markBtn);
+    const track=document.createElement("div");track.className="episode-progress-track";
+    track.setAttribute("role","progressbar");track.setAttribute("aria-valuemin","0");track.setAttribute("aria-valuemax","100");
+    track.setAttribute("aria-label",`Progreso del episodio ${ep.number}`);
+    const fill=document.createElement("div");fill.className="episode-progress-fill";track.appendChild(fill);
+    info.append(watchLine,track);
     const actions=document.createElement("div");actions.className="detail-episode-actions";
     const buttons=[
       {name:"Reproducir",icon:"play",primary:true,action:()=>openPlayer(playableForSeries(series,current.number,ep))},
@@ -3927,6 +3961,8 @@ function renderSeriesSeasons(series,chosenSeason){
     ? "Cada capítulo tiene sus controles independientes. Los episodios pendientes se habilitan desde el panel."
     : "Todavía no hay temporadas configuradas para esta serie.";
   syncSeriesEpisodeActive();
+  if(current)refreshVisibleEpisodeStatuses(series.id);
+  else $("seasonSeenCount").textContent="0 episodios";
 }
 /* ============================================================
    DETALLE
@@ -4180,6 +4216,8 @@ function advanceEpisode(finished,skip=false){
   if(skip && finished.parentSeriesId==null)return;
   const next=finished.parentSeriesId!=null ? getNextSeriesEpisode(finished) : null;
   if(skip && next?.status!=="ready")return;
+  // Solo episodios: terminar normalmente o pulsar Siguiente marca el capítulo visto.
+  markFinishedSeriesEpisode(finished);
   hidePlayerNextBanner();
   const id=finished.id, parentId=finished.parentSeriesId??null;
   // Al adelantar o finalizar, eliminar los segundos del capítulo anterior.
@@ -4631,6 +4669,7 @@ window.addEventListener("message", (e) => {
       localStorage.setItem(LS_PROGRESS_TS, JSON.stringify(ts));
     } catch(e){}
     saveObj(LS_PROGRESS, progress);
+    if(parentId!=null)refreshVisibleEpisodeStatuses(parentId);
     lastEpisodeProgress={currentTime:data.currentTime,duration:data.duration};
     refreshPlayerNextBanner(data.currentTime,data.duration);
 
