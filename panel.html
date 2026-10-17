@@ -893,7 +893,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <label for="m18">URL 420p (m18)</label>
 <div class="quality-check-line"><input id="m18" placeholder="Se rellena automáticamente" type="url"/><span class="quality-check-badge" id="qualityStatus-m18" data-state="idle" role="status" aria-label="420p sin verificar">Sin verificar</span></div>
 <div class="quality-check-controls"><button class="secondary" type="button" id="btnCheckQualities"><i class="fa-solid fa-circle-play"></i> Verificar reproducción</button><span class="quality-check-summary" id="qualityCheckSummary" aria-live="polite">Se comprobarán los enlaces después de extraerlos.</span></div>
-<p class="quality-check-note">Verificación HTML5 silenciosa, una calidad a la vez (hasta 15 s por enlace). Verde: el video avanzó; rojo: error confirmado; amarillo: resultado no concluyente. No descarga la película completa.</p>
+<p class="quality-check-note">Verificación HTML5 silenciosa, las tres calidades al mismo tiempo (hasta 30 s por enlace). Verde: el video avanzó; rojo: error confirmado; amarillo: resultado no concluyente. No descarga la película completa.</p>
 <button class="secondary full" id="btnAddMovie"><i class="fa-solid fa-plus"></i> Agregar al catálogo</button>
 <button class="secondary full" id="btnCancelEdit" style="display:none" type="button"><i class="fa-solid fa-xmark"></i> Cancelar edición</button>
 </section>
@@ -1778,9 +1778,9 @@ async function loadMovie(id){
    ============================================================ */
 const QUALITY_IDS = ["m37","m22","m18"];
 const QUALITY_NAMES = {m37:"1080p",m22:"720p",m18:"420p"};
-const QUALITY_TIMEOUT_MS = 15000;
+const QUALITY_TIMEOUT_MS = 30000;
 let qualityCheckGeneration = 0;
-let qualityCheckAbort = null;
+const qualityCheckAborts = new Set();
 function setQualityState(q,state,label,detail=""){
   const badge = $("qualityStatus-"+q);
   if(!badge)return;
@@ -1791,7 +1791,9 @@ function setQualityState(q,state,label,detail=""){
 }
 function stopQualityChecks(message=""){
   qualityCheckGeneration++;
-  if(qualityCheckAbort){const abort=qualityCheckAbort;qualityCheckAbort=null;abort();}
+  // Cancelar y liberar los tres elementos HTML5 de la comprobación anterior.
+  for(const abort of Array.from(qualityCheckAborts))abort();
+  qualityCheckAborts.clear();
   if($("btnCheckQualities"))$("btnCheckQualities").disabled=false;
   if(message && $("qualityCheckSummary"))$("qualityCheckSummary").textContent=message;
 }
@@ -1832,7 +1834,7 @@ function checkQualityHtml5(q,url,generation){
       v.removeEventListener("timeupdate",onProgress);
       v.removeEventListener("ended",onProgress);
       try{v.pause();v.removeAttribute("src");v.load();v.remove();}catch{}
-      if(qualityCheckAbort===abort)qualityCheckAbort=null;
+      qualityCheckAborts.delete(abort);
       resolve({state,label,detail});
     }
     function abort(){finish("cancelled","Cancelada","");}
@@ -1846,12 +1848,12 @@ function checkQualityHtml5(q,url,generation){
       if(v.currentTime >= startedAt+0.12 || (v.ended && v.currentTime>0))
         finish("ok","Reproduce","Reproducción HTML5 confirmada (el video avanzó)");
     }
-    qualityCheckAbort=abort;
+    qualityCheckAborts.add(abort);
     v.addEventListener("error",onError);
     v.addEventListener("playing",onPlaying);
     v.addEventListener("timeupdate",onProgress);
     v.addEventListener("ended",onProgress);
-    timeoutId=setTimeout(()=>finish("unknown","Sin confirmar","No avanzó en 15 segundos; podría estar lento o bloqueado"),QUALITY_TIMEOUT_MS);
+    timeoutId=setTimeout(()=>finish("unknown","Sin confirmar","No avanzó en 30 segundos; podría estar lento o bloqueado"),QUALITY_TIMEOUT_MS);
     document.body.appendChild(v);
     try{
       v.src=url;
@@ -1873,21 +1875,25 @@ async function verifyVideoQualities(){
   const available=QUALITY_IDS.filter(q=>!!urls[q]);
   if(!available.length){resetQualityChecks("No hay URLs para verificar.");return;}
   $("btnCheckQualities").disabled=true;
-  for(const q of QUALITY_IDS)setQualityState(q,urls[q]?"idle":"empty",urls[q]?"En espera":"Sin enlace");
+  for(const q of QUALITY_IDS)setQualityState(q,urls[q]?"checking":"empty",urls[q]?"Probando…":"Sin enlace",urls[q]?"Verificación HTML5 en curso (máximo 30 segundos)":"Sin URL");
   const counts={ok:0,error:0,unknown:0};
-  for(let i=0;i<available.length;i++){
-    if(generation!==qualityCheckGeneration)return;
-    const q=available[i],url=urls[q];
-    $("qualityCheckSummary").textContent=`Comprobando ${QUALITY_NAMES[q]} (${i+1} de ${available.length})…`;
-    setQualityState(q,"checking","Probando…","Intentando reproducir en HTML5 (silenciado)");
+  let completed=0;
+  $("qualityCheckSummary").textContent=`Comprobando ${available.length} ${available.length===1?"calidad":"calidades"} al mismo tiempo (hasta 30 s)…`;
+  // Promise.all inicia simultáneamente las comprobaciones; cada calidad tiene
+  // su propio video, temporizador y resultado, y se limpia al finalizar.
+  await Promise.all(available.map(async q=>{
+    const url=urls[q];
     let result;
     if(!validQualityProbeUrl(url,q))result={state:"error",label:"URL inválida",detail:"Se esperaba una URL HTTPS de googleusercontent.com terminada en ="+q};
     else result=await checkQualityHtml5(q,url,generation);
-    if(generation!==qualityCheckGeneration || url!==$(q).value.trim())return;
-    if(result.state==="cancelled")return;
+    if(generation!==qualityCheckGeneration || url!==$(q).value.trim() || result.state==="cancelled")return;
     setQualityState(q,result.state,result.label,result.detail);
     counts[result.state]=(counts[result.state]||0)+1;
-  }
+    completed++;
+    if(completed<available.length){
+      $("qualityCheckSummary").textContent=`Verificadas ${completed} de ${available.length} · Verdes: ${counts.ok} · Rojas: ${counts.error} · Amarillas: ${counts.unknown}. Esperando las restantes…`;
+    }
+  }));
   if(generation!==qualityCheckGeneration)return;
   $("btnCheckQualities").disabled=false;
   $("qualityCheckSummary").textContent=`Verdes: ${counts.ok} · Rojas: ${counts.error} · Amarillas: ${counts.unknown}. ${counts.ok?"Al menos una calidad se reproduce en HTML5.":"No se confirmó ninguna reproducción."}`;
