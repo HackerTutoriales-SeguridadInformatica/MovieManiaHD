@@ -437,6 +437,106 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 @media(max-width:520px){.rail-link span{font-size:10px}.rail-link{gap:6px;padding:9px 10px}.rail-link i{font-size:13px}.rail-nav{min-width:max-content}.workspace-header{top:42px}.workspace-header .brand-mark{width:33px;height:33px}.workspace-header .brand-text h1{font-size:12px}.workspace-header .header-right .chip.ok{display:none}.admin-pages{padding:18px 12px 65px}.page-heading h2{font-size:22px}.page-heading p{font-size:11px}.page-actions{width:100%}.page-actions button{flex:1}.quick-grid{grid-template-columns:1fr}.admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}.admin-stat{padding:14px!important;min-height:90px}.admin-stat strong{font-size:23px!important}.editor-columns .results{grid-template-columns:1fr}#view-editor .preview{grid-template-columns:94px minmax(0,1fr)}#view-editor .preview img{width:94px;height:145px}#view-editor .grid{grid-template-columns:1fr}#view-editor .info{grid-template-columns:repeat(2,minmax(0,1fr))}.publish-actions button{width:100%;min-width:0}.appearance-columns>.panel{padding:16px}}
 @media(prefers-reduced-motion:reduce){.admin-view{animation:none}}
 
+
+/* ============================================================
+   FASE 10.1.1 · EQUILIBRIO DEL BUSCADOR Y EDITOR
+   Exclusivamente CSS: conserva IDs, eventos, guardado y TMDB.
+   ============================================================ */
+/* El buscador ocupa menos alto y aprovecha realmente su anchura. */
+#view-editor .editor-search-top>.panel{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 148px 122px;
+  column-gap:10px;row-gap:10px;align-items:end;
+  padding:16px 20px 18px;
+}
+#view-editor .editor-search-top .panel-title{grid-column:1/-1;margin:0 0 1px}
+#view-editor .editor-search-top .media-switch{grid-column:1/-1;max-width:370px;margin:0}
+#view-editor .editor-search-top #movieSearch{grid-column:1;max-width:none;min-width:0;height:43px;margin:0}
+#view-editor .editor-search-top #btnSearch{grid-column:2}
+#view-editor .editor-search-top #btnClear{grid-column:3}
+#view-editor .editor-search-top button.full{display:flex;width:100%;min-width:0;margin:0;height:43px;align-items:center;justify-content:center}
+#view-editor .editor-search-top #status{grid-column:1/-1;margin-top:0}
+/* Reparto visual: resultados 39%, configuración 61%, nunca 325px rígidos. */
+#view-editor .editor-columns{grid-template-columns:minmax(0,39fr) minmax(0,61fr);gap:18px}
+#view-editor #searchResultsHolder,#view-editor #editorContentHolder{min-width:0}
+#view-editor .results-panel{padding:16px}
+#view-editor .results-panel .panel-title{font-size:11px}
+#view-editor .results{max-height:min(66vh,680px);padding-right:2px;gap:8px}
+#view-editor .results .result{min-width:0;grid-template-columns:50px minmax(0,1fr) 12px;gap:11px;padding:9px}
+#view-editor .results .result img{width:50px;height:70px}
+#view-editor .results .result b{font-size:12px}
+#view-editor .results .result:after{font-size:19px;padding:0}
+/* Con espacio suficiente el listado aprovecha dos columnas. */
+#view-editor #searchResultsHolder{container-type:inline-size}
+@container (min-width:520px){
+  #view-editor .results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start}
+  #view-editor .results .result{grid-template-columns:43px minmax(0,1fr) 10px;gap:7px;padding:7px}
+  #view-editor .results .result img{width:43px;height:61px}
+  #view-editor .results .result b{font-size:11px}
+}
+/* Al abrir una película guardada sin hacer una búsqueda TMDB, no mostrar una columna vacía. */
+#view-editor .editor-columns:has(#results:empty):has(#movieCard[style*="display: block"]){grid-template-columns:minmax(0,1fr)}
+#view-editor .editor-columns:has(#results:empty):has(#movieCard[style*="display: block"]) #searchResultsHolder{display:none}
+#view-editor .editor-columns:has(#results:empty):has(#movieCard[style*="display: block"]) #editorContentHolder{width:100%;max-width:1000px;margin-inline:auto}
+/* Ficha visual con poster moderado y metadatos legibles, no un backdrop dominante. */
+#view-editor .movie-panel.has-backdrop:before{
+  background-image:linear-gradient(95deg,rgba(10,17,30,.96) 0%,rgba(11,20,35,.92) 54%,rgba(10,17,30,.78) 100%),var(--hero-backdrop);
+  background-position:center;background-size:cover;
+}
+#view-editor .movie-inner{padding:18px}
+#view-editor .preview{grid-template-columns:116px minmax(0,1fr);gap:16px}
+#view-editor .preview img{width:116px;height:174px;border-radius:10px}
+#view-editor .preview h2{font-size:clamp(19px,1.65vw,24px);line-height:1.17;margin:2px 0 10px;letter-spacing:-.5px}
+#view-editor .preview .overview{-webkit-line-clamp:3;line-height:1.6;font-size:11.5px;color:#b8cce1}
+#view-editor .info{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:11px}
+#view-editor .info[style]{margin-top:7px!important}
+#view-editor .info div{padding:9px 10px;min-width:0;background:rgba(7,14,25,.86)}
+#view-editor .info small{font-size:9px;white-space:nowrap;margin-bottom:5px}
+#view-editor .info strong{display:block;font-size:11px;overflow-wrap:anywhere;line-height:1.3}
+#view-editor .info[style] div:first-child{grid-column:span 2}
+#view-editor .artwork-list:has(>.tmdb){min-height:0;padding:4px 0 7px}
+#view-editor .artwork-heading{margin:7px 0}
+#view-editor #linksGrid{grid-template-columns:minmax(0,1.6fr) minmax(185px,.74fr);align-items:start}
+#view-editor #generateCard{align-self:start}
+#view-editor .steps{padding:7px;gap:4px}
+#view-editor .step{min-width:0;padding:7px 8px;font-size:10px;gap:7px}
+#view-editor .step .n{width:20px;height:20px}
+/* Ventanas intermedias y pantallas pequeñas: priorizar que todo sea usable. */
+@media(max-width:1160px){
+  #view-editor .editor-columns{grid-template-columns:minmax(0,36fr) minmax(0,64fr);gap:13px}
+  #view-editor .preview{grid-template-columns:104px minmax(0,1fr);gap:13px}
+  #view-editor .preview img{width:104px;height:155px}
+  #view-editor .info{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #view-editor .info[style] div:first-child{grid-column:auto}
+  #view-editor #linksGrid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:780px){
+  #view-editor .editor-search-top>.panel{grid-template-columns:minmax(0,1fr) 118px 100px}
+  #view-editor .editor-columns{grid-template-columns:minmax(0,1fr);gap:12px}
+  #view-editor .results-panel{position:static}
+  #view-editor .results{max-height:255px}
+  #view-editor .editor-columns .results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  #view-editor .preview{grid-template-columns:112px minmax(0,1fr)}
+  #view-editor .preview img{width:112px;height:168px}
+}
+@media(max-width:520px){
+  #view-editor .editor-search-top>.panel{grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding:14px;gap:9px}
+  #view-editor .editor-search-top #movieSearch{grid-column:1/-1}
+  #view-editor .editor-search-top #btnSearch{grid-column:1}
+  #view-editor .editor-search-top #btnClear{grid-column:2}
+  #view-editor .editor-columns .results{grid-template-columns:1fr}
+  #view-editor .results{max-height:250px}
+  #view-editor .movie-inner{padding:14px}
+  #view-editor .preview{grid-template-columns:88px minmax(0,1fr);gap:12px}
+  #view-editor .preview img{width:88px;height:132px}
+  #view-editor .preview h2{font-size:18px;margin:0 0 8px}
+  #view-editor .preview .overview{-webkit-line-clamp:3;font-size:11px}
+  #view-editor .info{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  #view-editor .info div{padding:8px}
+  #view-editor .info small{font-size:8px;white-space:normal}
+  #view-editor .info strong{font-size:10px}
+}
+
 </style>
 </head>
 <body>
