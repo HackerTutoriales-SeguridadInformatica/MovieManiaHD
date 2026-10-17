@@ -331,6 +331,43 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
 .episode-admin-item small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
 .series-status-label{font-size:11px;color:#a5b5c9}
 @media(max-width:700px){.episode-admin-item{grid-template-columns:52px minmax(0,1fr) auto}.episode-admin-item img{width:52px;height:32px}}
+/* Fase 10 — Indicadores de estado, auditoría y administración de series */
+.admin-insights{padding:15px;margin-bottom:14px;background:linear-gradient(135deg,#091b2c,#0b1323);border:1px solid #27445f;border-radius:12px}
+.admin-insights h3{margin:0 0 5px;font-size:14px}
+.admin-help{font-size:11px;color:#93abc0;line-height:1.55;margin:0 0 12px}
+.admin-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.admin-stat{background:#0a1322;border:1px solid #29405b;border-radius:10px;padding:12px 10px;min-width:0}
+.admin-stat strong{display:block;color:#f5f9fd;font-size:22px;font-weight:850;line-height:1.2}
+.admin-stat span{display:block;font-size:10px;color:#a7bbd2;margin-top:5px;line-height:1.3}
+.admin-stat.warn strong{color:#ffc56d}.admin-stat.ok strong{color:#83f2cc}
+.admin-audit-heading{display:flex;gap:9px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:17px}
+.admin-audit-heading h4{margin:0;font-size:12px}.admin-audit-heading select{width:auto;min-width:190px;padding:8px 30px 8px 10px}
+.admin-audit-list{display:grid;gap:10px;margin-top:10px;max-height:490px;overflow:auto}
+.admin-audit-series{border:1px solid #29405b;background:#091725;border-radius:10px;padding:9px 11px}
+.admin-audit-series>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:9px;cursor:pointer;font-size:12px;font-weight:750}
+.admin-audit-series>summary::-webkit-details-marker{display:none}
+.admin-audit-series>summary::after{content:'▾';color:#92bddc;font-size:16px}
+.admin-audit-series[open]>summary::after{content:'▴'}
+.admin-audit-series>summary .audit-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.audit-tags{font-size:10px;color:#9eb6cd;font-weight:500;white-space:nowrap}
+.audit-seasons{display:grid;gap:8px;padding-top:12px}
+.audit-season{display:grid;gap:6px;padding:10px;border-radius:9px;border:1px solid #244059;background:#091d2d}
+.audit-season-top{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.audit-season-top strong{font-size:11px}
+.audit-sub{font-size:10px;color:#9fb8cc;line-height:1.5}
+.audit-meter{height:5px;background:#193047;border-radius:5px;overflow:hidden}
+.audit-meter>span{display:block;height:100%;background:#1cc896;border-radius:5px}
+.audit-btn{font-size:10px;padding:6px 9px;border:1px solid #3b6b8e;border-radius:7px;color:#b9e6ff;background:#132f43}
+.audit-btn:hover{background:#1d455d}
+.audit-pending{display:flex;flex-wrap:wrap;gap:6px;margin-top:3px}
+.admin-series-summary{font-size:11px;color:#b7cddd;line-height:1.65;margin:6px 0 10px;padding:9px 11px;background:#11273b;border:1px solid #315273;border-radius:9px}
+.admin-series-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.admin-series-actions button{padding:9px 12px}
+.admin-series-actions .tmdb{flex:1;min-width:200px}
+.episode-admin-item.missing-link{border-left:3px solid #f5a742}
+.episode-admin-item .episode-flag{font-size:10px;color:#ffcc8b}
+@media(max-width:1050px){.admin-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-audit-series>summary{align-items:flex-start;flex-wrap:wrap}.admin-audit-list{max-height:380px}}
 </style>
 </head>
 <body>
@@ -457,6 +494,12 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
       <label for="seriesSeason">Temporada</label>
       <select id="seriesSeason"></select>
       <div id="seriesSeasonStatus" class="series-status-label" role="status"></div>
+      <div id="adminSeriesSummary" class="admin-series-summary" role="status"></div>
+      <div class="admin-series-actions">
+        <button type="button" id="btnNextPending" class="secondary"><i class="fa-solid fa-forward"></i> Siguiente capítulo pendiente</button>
+        <button type="button" id="btnLoadAllSeasons" class="secondary"><i class="fa-solid fa-list-check"></i> Revisar todas las temporadas (TMDB)</button>
+        <span id="adminBulkStatus" class="tmdb" role="status" aria-live="polite"></span>
+      </div>
       <div id="episodeAdminList" class="episode-admin-list"></div>
       <div id="episodeAdminSelected" class="series-status-label">Selecciona un episodio para configurar sus enlaces.</div>
     </section>
@@ -500,6 +543,21 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
         <div class="panel-title"><span class="icon"><i class="fa-solid fa-layer-group"></i></span> Catálogo</div>
         <span class="badge" id="collectionBadge">0</span>
       </div>
+      <section class="admin-insights" id="adminInsights" aria-label="Estado de la colección">
+        <h3><i class="fa-solid fa-chart-column"></i> Panel de control</h3>
+        <p class="admin-help">Cifras sobre tu colección guardada. “Sin revisar” corresponde a temporadas o capítulos de TMDB que aún no se han cargado en el panel, y no necesariamente a enlaces faltantes.</p>
+        <div id="adminStats" class="admin-stats" aria-live="polite"></div>
+        <div class="admin-audit-heading">
+          <h4><i class="fa-solid fa-clipboard-check"></i> Estado de temporadas</h4>
+          <select id="adminAuditFilter" aria-label="Filtrar estado de series">
+            <option value="all">Todas las series</option>
+            <option value="pending">Con capítulos pendientes</option>
+            <option value="unknown">Con temporadas sin revisar</option>
+            <option value="complete">Temporadas revisadas completas</option>
+          </select>
+        </div>
+        <div id="adminAuditList" class="admin-audit-list"></div>
+      </section>
       <div class="featured-panel">
         <h3><i class="fa-solid fa-star"></i> Títulos destacados <span class="badge" id="featuredCount">0/6</span></h3>
         <div class="tmdb">Marca la estrella junto a una película o serie para mostrarla en el carrusel principal. Ordena con las flechas. Si no eliges ninguna, aparecerán las mejor valoradas como antes.</div>
@@ -636,7 +694,7 @@ const state = {
   movie: null, backdrop: null, poster: null,
   genres: "", cert: "", tagline: "",
   collection: loadSavedCollection(), validated: false,
-  searchKind:"movie", selectedEpisode:null, seasonRequestId:0,
+  searchKind:"movie", selectedEpisode:null, seasonRequestId:0, bulkLoading:false,
   editingId: null, posterOptions: [], backdropOptions: [],
   addedAt: null,
   catalogSettings: loadCatalogSettings()
@@ -842,6 +900,74 @@ async function enrichSavedMovies(){
 function seriesEpisodeCount(item, linkedOnly=false){
   return (Array.isArray(item?.seasons)?item.seasons:[]).reduce((sum,season)=>sum+(season.episodes||[]).filter(e=>!linkedOnly||(e.m37||e.m22||e.m18)).length,0);
 }
+// Fase 10: los episodios aún no importados se cuentan por separado de los enlaces pendientes.
+function hasAdminVideo(ep){return !!(String(ep?.m37||"").trim()||String(ep?.m22||"").trim()||String(ep?.m18||"").trim());}
+function adminSeriesReport(item){
+  const summaries=Array.isArray(item?.seasonSummaries)?item.seasonSummaries:[];
+  const loaded=Array.isArray(item?.seasons)?item.seasons:[];
+  const allNums=new Set([...summaries.map(x=>Number(x.number)),...loaded.map(x=>Number(x.number))].filter(n=>Number.isFinite(n)&&n>=1));
+  const seasons=[...allNums].sort((a,b)=>a-b).map(number=>{
+    const summary=summaries.find(x=>Number(x.number)===number);
+    const data=loaded.find(x=>Number(x.number)===number);
+    const episodes=Array.isArray(data?.episodes)?data.episodes:[];
+    const seen=new Set(episodes.map(e=>Number(e.number)));
+    const unique=episodes.filter(e=>seen.has(Number(e.number)) && (seen.delete(Number(e.number)),true));
+    const linked=unique.filter(hasAdminVideo).length;
+    const pending=unique.filter(e=>!hasAdminVideo(e));
+    const expected=Math.max(unique.length,Number(summary?.episode_count)||0);
+    const unknown=Math.max(0,expected-unique.length);
+    return {number,name:summary?.name||data?.name||`Temporada ${number}`,linked,pending,unknown,expected,loaded:unique.length};
+  });
+  return {seasons,linked:seasons.reduce((a,s)=>a+s.linked,0),
+    pending:seasons.reduce((a,s)=>a+s.pending.length,0),
+    unknown:seasons.reduce((a,s)=>a+s.unknown,0),
+    total:seasons.reduce((a,s)=>a+s.expected,0),
+    complete:seasons.length>0&&seasons.every(s=>s.pending.length===0&&s.unknown===0)};
+}
+function renderAdminDashboard(){
+  const movies=state.collection.filter(x=>x.kind!=="SERIES");
+  const series=state.collection.filter(x=>x.kind==="SERIES");
+  const reports=series.map(item=>({item,report:adminSeriesReport(item)}));
+  const linked=reports.reduce((n,x)=>n+x.report.linked,0);
+  const pending=reports.reduce((n,x)=>n+x.report.pending,0);
+  const unknown=reports.reduce((n,x)=>n+x.report.unknown,0);
+  const movieMissing=movies.filter(x=>!hasAdminVideo(x)).length;
+  const completeSeasons=reports.reduce((n,x)=>n+x.report.seasons.filter(s=>s.unknown===0&&s.pending.length===0&&s.expected>0).length,0);
+  $("adminStats").innerHTML=[
+    [movies.length,"Películas", ""],[series.length,"Series",""],
+    [linked,"Capítulos con enlace","ok"],[pending,"Capítulos pendientes","warn"],
+    [unknown,"Capítulos sin revisar","warn"],[completeSeasons,"Temporadas completas","ok"]
+  ].map(([num,label,kind])=>`<div class="admin-stat ${kind}"><strong>${num}</strong><span>${label}</span></div>`).join("")+
+  `<div class="admin-stat ${movieMissing?"warn":"ok"}"><strong>${movieMissing}</strong><span>Películas sin video</span></div>`;
+  const filt=$("adminAuditFilter").value;
+  const filtered=reports.filter(x=>filt==="pending"?x.report.pending>0:filt==="unknown"?x.report.unknown>0:filt==="complete"?x.report.complete:true)
+    .sort((a,b)=>(b.report.pending+b.report.unknown)-(a.report.pending+a.report.unknown));
+  const list=$("adminAuditList");
+  if(!filtered.length){list.innerHTML=`<div class="empty">${series.length?"No hay series con este estado.":"Cuando agregues una serie, aquí verás el estado de sus temporadas."}</div>`;return;}
+  const opened=new Set([...list.querySelectorAll("details.admin-audit-series[open]")].map(el=>el.dataset.auditId));
+  list.innerHTML=filtered.map(({item,report})=>`<details class="admin-audit-series" data-audit-id="${escHtml(item.id)}" ${opened.has(String(item.id))?"open":""}>
+    <summary><span class="audit-name">${escHtml(item.title)}</span><span class="audit-tags">${report.linked}/${report.total} con enlace · ${report.pending} pendientes · ${report.unknown} sin revisar</span></summary>
+    <div class="audit-seasons">${report.seasons.map(season=>`
+      <div class="audit-season"><div class="audit-season-top"><strong>${escHtml(season.name)}</strong><span class="audit-sub">${season.linked}/${season.expected} con enlace${season.unknown?` · ${season.unknown} sin revisar`:""}</span></div>
+      <div class="audit-meter"><span style="width:${season.expected?Math.min(100,Math.round(season.linked/season.expected*100)):0}%"></span></div>
+      <div class="audit-season-top"><span class="audit-sub">${season.pending.length?`${season.pending.length} pendiente(s)`:season.unknown?"Se necesita revisar TMDB":"Temporada completa"}</span>
+      <button type="button" class="audit-btn" data-audit-series="${escHtml(item.id)}" data-audit-season="${season.number}" data-audit-episode="${season.pending[0]?.number||0}">${season.unknown?"Revisar temporada":season.pending.length?"Completar enlaces":"Editar temporada"}</button></div>
+      ${season.pending.length?`<div class="audit-pending">${season.pending.map(ep=>`<button type="button" class="audit-btn" data-audit-series="${escHtml(item.id)}" data-audit-season="${season.number}" data-audit-episode="${Number(ep.number)}" title="Editar enlace de este capítulo">E${Number(ep.number)} · ${escHtml(ep.name||"Sin título")}</button>`).join("")}</div>`:""}
+      </div>`).join("")||"<div class='tmdb'>No hay temporadas registradas. Abre la serie para consultar TMDB.</div>"}</div>
+  </details>`).join("");
+}
+async function openAdminAuditEpisode(seriesId,seasonNumber,episodeNumber){
+  const item=state.collection.find(x=>String(x.id)===String(seriesId)&&x.kind==="SERIES");if(!item)return;
+  editSavedSeries(item);
+  if(!state.movie?.seasonSummaries.some(s=>Number(s.number)===seasonNumber))return;
+  await loadSeriesSeason(seasonNumber);
+  if(String(state.movie?.id)!==String(item.id))return;
+  const season=state.movie.seasons.find(s=>Number(s.number)===seasonNumber);
+  const episode=Number(episodeNumber)>0?season?.episodes.find(e=>Number(e.number)===Number(episodeNumber)):null;
+  const desired=episode||season?.episodes.find(e=>!hasAdminVideo(e));
+  if(desired)chooseAdminEpisode(Number(desired.number));
+  $("seriesPanel").scrollIntoView({behavior:"smooth",block:"start"});
+}
 function activeAdminEpisode(){
   if(!state.movie || !state.selectedEpisode)return null;
   const {season,episode}=state.selectedEpisode;
@@ -860,8 +986,12 @@ function renderSeriesAdmin(){
   if(chosen!=null && summaries.some(s=>s.number===chosen))select.value=String(chosen);
   const season=state.movie.seasons?.find(s=>s.number===Number(select.value));
   const list=$("episodeAdminList");
-  list.innerHTML=(season?.episodes||[]).map(ep=>`<button type="button" class="episode-admin-item ${state.selectedEpisode?.season===season.number&&state.selectedEpisode.episode===ep.number?"active":""}" data-episode="${ep.number}">
-  <img src="${escHtml(ep.still||"")}" alt="" loading="lazy"><span><b>${ep.number}. ${escHtml(ep.name)}</b><small>${ep.runtime||"?"} min · ${ep.m37||ep.m22||ep.m18?"✓ Enlace configurado":"Pendiente"}</small></span><i class="fa-solid fa-chevron-right"></i></button>`).join("");
+  const report=adminSeriesReport(state.movie);
+  $("adminSeriesSummary").textContent=`${report.linked} de ${report.total} capítulos con enlace · ${report.pending} pendientes · ${report.unknown} sin revisar en TMDB. Los cambios se guardan con “Guardar cambios”.`;
+  $("btnNextPending").disabled=!report.pending && !report.unknown || state.bulkLoading;
+  $("btnLoadAllSeasons").disabled=state.bulkLoading || !report.unknown;
+  list.innerHTML=(season?.episodes||[]).map(ep=>`<button type="button" class="episode-admin-item ${!hasAdminVideo(ep)?"missing-link":""} ${state.selectedEpisode?.season===season.number&&state.selectedEpisode.episode===ep.number?"active":""}" data-episode="${ep.number}">
+  <img src="${escHtml(ep.still||"")}" alt="" loading="lazy"><span><b>${ep.number}. ${escHtml(ep.name)}</b><small>${ep.runtime||"?"} min · ${hasAdminVideo(ep)?"✓ Enlace configurado":"⚠ Pendiente"}</small></span><i class="fa-solid fa-chevron-right"></i></button>`).join("");
   if(!season)list.innerHTML='<div class="tmdb">Elige una temporada para descargar la lista de episodios.</div>';
   $("episodeAdminSelected").textContent=state.selectedEpisode?`Configurando T${state.selectedEpisode.season} · E${state.selectedEpisode.episode}`:"Selecciona un capítulo de la lista.";
 }
@@ -900,6 +1030,51 @@ async function loadSeriesSeason(number){
   $("seriesSeason").value=String(number);
   renderSeriesAdmin();
 }
+// Completa metadatos que faltan sin sobrescribir enlaces previamente guardados.
+async function reviewAllAdminSeasons(){
+  if(state.movie?.kind!=="SERIES"||state.bulkLoading)return;
+  if(!credentialValue()){$("adminBulkStatus").textContent="Introduce primero tu credencial TMDB.";return;}
+  storeAdminEpisodeFields();
+  const movie=state.movie, seq=++state.seasonRequestId;
+  state.bulkLoading=true;renderSeriesAdmin();
+  const missing=(adminSeriesReport(movie).seasons).filter(s=>s.unknown>0);
+  let completed=0,failed=0;
+  for(const data of missing){
+    if(state.movie!==movie||state.seasonRequestId!==seq)break;
+    $("adminBulkStatus").textContent=`Consultando TMDB: temporada ${data.number} (${completed+failed+1}/${missing.length})…`;
+    try{
+      const res=await tmdbGet(`https://api.themoviedb.org/3/tv/${movie.tmdbId}/season/${data.number}?language=es-MX`,credentialValue());
+      if(state.movie!==movie||state.seasonRequestId!==seq)break;
+      const seasons=movie.seasons||(movie.seasons=[]);
+      let current=seasons.find(s=>Number(s.number)===data.number);
+      if(!current){current={number:data.number,name:res.name||`Temporada ${data.number}`,episodes:[]};seasons.push(current);}
+      const existing=new Map((current.episodes||[]).map(e=>[Number(e.number),e]));
+      for(const e of res.episodes||[]){
+        const n=Number(e.episode_number);if(n<1)continue;
+        const old=existing.get(n);
+        if(old){old.name=old.name||e.name||`Episodio ${n}`;old.overview=old.overview||e.overview||"";old.runtime=old.runtime||Number(e.runtime)||0;old.still=old.still||(e.still_path?TMDB_IMG+"w300"+e.still_path:"");}
+        else {current.episodes.push({number:n,name:e.name||`Episodio ${n}`,overview:e.overview||"",runtime:Number(e.runtime)||0,still:e.still_path?TMDB_IMG+"w300"+e.still_path:"",googleUrl:"",m37:"",m22:"",m18:""});}
+      }
+      completed++;
+    }catch(e){failed++;$("adminBulkStatus").textContent=`No se pudo cargar temporada ${data.number}: ${e.message}`;}
+  }
+  state.bulkLoading=false;
+  if(state.movie===movie){renderSeriesAdmin();$("adminBulkStatus").textContent=`${completed} temporada(s) revisada(s)${failed?` · ${failed} con error`:""}. Pulsa Guardar cambios para conservar la información.`;}
+}
+async function goNextPendingAdmin(){
+  if(state.movie?.kind!=="SERIES")return;
+  storeAdminEpisodeFields();
+  const reports=adminSeriesReport(state.movie);
+  const all=reports.seasons.flatMap(s=>s.pending.map(e=>({season:s.number,episode:Number(e.number)})));
+  const current=state.selectedEpisode;
+  const next=all.find(a=>!current||a.season>current.season||(a.season===current.season&&a.episode>current.episode))||all[0];
+  if(next){
+    if(Number($("seriesSeason").value)!==next.season)await loadSeriesSeason(next.season);
+    if(state.movie?.kind==="SERIES")chooseAdminEpisode(next.episode);
+  }else if(reports.unknown){
+    $("adminBulkStatus").textContent="Quedan capítulos sin revisar. Usa Revisar todas las temporadas (TMDB).";
+  }else $("adminBulkStatus").textContent="¡Todos los episodios revisados tienen enlace!";
+}
 async function loadSeries(tmdbId){
   const existing=state.collection.find(item=>item.kind==="SERIES" && Number(item.tmdbId||Math.abs(Number(item.id)))===Number(tmdbId));
   if(existing){
@@ -908,7 +1083,7 @@ async function loadSeries(tmdbId){
     return;
   }
   const requestId=++movieRequestId;
-  ++state.seasonRequestId;state.selectedEpisode=null;state.editingId=null;
+  ++state.seasonRequestId;state.selectedEpisode=null;state.editingId=null;state.bulkLoading=false;
   clearVideoFields();state.movie=null;
   $("seriesPanel").hidden=true;
   $("movieCard").style.display="none";$("linksGrid").style.display="none";
@@ -944,7 +1119,7 @@ async function loadSeries(tmdbId){
   }catch(err){if(requestId===movieRequestId)showStatus("No se pudo cargar la serie: "+err.message,"err");}
 }
 function editSavedSeries(item){
-  ++movieRequestId;++state.seasonRequestId;
+  ++movieRequestId;++state.seasonRequestId;state.bulkLoading=false;
   clearVideoFields();state.selectedEpisode=null;
   state.editingId=item.id;
   state.movie={id:Number(item.id),tmdbId:Number(item.tmdbId)||Math.abs(Number(item.id)),kind:"SERIES",
@@ -957,6 +1132,7 @@ function editSavedSeries(item){
   state.genres=item.genres||"";state.cert=item.cert||"";state.tagline=item.subtitle||"";
   state.posterOptions=buildArtworkOptions("poster",state.poster,[]);
   state.backdropOptions=buildArtworkOptions("backdrop",state.backdrop,[]);
+  $("adminBulkStatus").textContent="";
   renderSelectedMovie();
   const first=state.movie.seasonSummaries[0]?.number;
   if(first!=null)loadSeriesSeason(first);
@@ -1408,6 +1584,7 @@ function renderCollection(){
   $("collectionCount").textContent=count;
   $("collectionBadge").textContent=count;
   renderFeatured();
+  renderAdminDashboard();
   let canUndo=false;
   try {canUndo=Array.isArray(JSON.parse(localStorage.getItem(COLLECTION_RECOVERY_KEY)||"null"));}catch{}
   card.style.display=count || canUndo ? "block" : "none";
@@ -1859,6 +2036,13 @@ function changeSearchKind(kind){
 $("kindMovie").addEventListener("click",()=>changeSearchKind("movie"));
 $("kindSeries").addEventListener("click",()=>changeSearchKind("tv"));
 $("seriesSeason").addEventListener("change",()=>loadSeriesSeason(Number($("seriesSeason").value)));
+$("btnNextPending").addEventListener("click",goNextPendingAdmin);
+$("btnLoadAllSeasons").addEventListener("click",reviewAllAdminSeasons);
+$("adminAuditFilter").addEventListener("change",renderAdminDashboard);
+$("adminAuditList").addEventListener("click",event=>{
+  const btn=event.target.closest("[data-audit-series][data-audit-season]");
+  if(btn)openAdminAuditEpisode(btn.dataset.auditSeries,Number(btn.dataset.auditSeason),Number(btn.dataset.auditEpisode));
+});
 $("episodeAdminList").addEventListener("click",event=>{
   const btn=event.target.closest("[data-episode]");
   if(btn)chooseAdminEpisode(Number(btn.dataset.episode));
@@ -1874,7 +2058,7 @@ function resetSelection(){
   movieRequestId++;
   state.movie=state.backdrop=state.poster=null;
   state.editingId=null;state.posterOptions=[];state.backdropOptions=[];
-  state.selectedEpisode=null;state.seasonRequestId++;
+  state.selectedEpisode=null;state.seasonRequestId++;state.bulkLoading=false;
   $("seriesPanel").hidden=true;
   clearVideoFields();
   $("btnExtract").disabled=false;
