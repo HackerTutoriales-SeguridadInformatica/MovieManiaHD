@@ -457,11 +457,18 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 #view-editor .editor-search-top button.full{display:flex;width:100%;min-width:0;margin:0;height:43px;align-items:center;justify-content:center}
 #view-editor .editor-search-top #status{grid-column:1/-1;margin-top:0}
 /* Reparto visual: resultados 39%, configuración 61%, nunca 325px rígidos. */
-#view-editor .editor-columns{grid-template-columns:minmax(0,39fr) minmax(0,61fr);gap:18px}
+#view-editor .editor-columns{grid-template-columns:minmax(0,39fr) minmax(0,61fr);gap:18px;align-items:stretch}
 #view-editor #searchResultsHolder,#view-editor #editorContentHolder{min-width:0}
-#view-editor .results-panel{padding:16px}
+#view-editor #searchResultsHolder,#view-editor #editorContentHolder{display:flex;flex-direction:column}
+#view-editor .results-panel,
+#view-editor #editorTopContent{min-height:min(66vh,680px);max-height:min(66vh,680px)}
+#view-editor .results-panel{padding:16px;display:flex;flex-direction:column}
 #view-editor .results-panel .panel-title{font-size:11px}
-#view-editor .results{max-height:min(66vh,680px);padding-right:2px;gap:8px}
+#view-editor .results{flex:1;max-height:none;padding-right:2px;gap:8px;align-content:start}
+#view-editor #resultsHint{margin-top:10px}
+#view-editor #editorTopContent{display:flex;flex-direction:column;gap:14px;overflow:auto;padding:0}
+#view-editor #editorTopContent > .empty{min-height:220px;display:grid;place-items:center}
+#view-editor #editorBottomHolder{margin-top:18px}
 #view-editor .results .result{min-width:0;grid-template-columns:50px minmax(0,1fr) 12px;gap:11px;padding:9px}
 #view-editor .results .result img{width:50px;height:70px}
 #view-editor .results .result b{font-size:12px}
@@ -478,6 +485,8 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 #view-editor .editor-columns:has(#results:empty):has(#movieCard[style*="display: block"]){grid-template-columns:minmax(0,1fr)}
 #view-editor .editor-columns:has(#results:empty):has(#movieCard[style*="display: block"]) #searchResultsHolder{display:none}
 #view-editor .editor-columns:has(#results:empty):has(#movieCard[style*="display: block"]) #editorContentHolder{width:100%;max-width:1000px;margin-inline:auto}
+#view-editor .editor-columns:has(#results:empty):has(#movieCard[style*="display: block"]) + #editorBottomHolder #linksGrid,
+#view-editor .editor-columns:has(#results:empty):has(#seriesPanel:not([hidden])) + #editorBottomHolder #linksGrid{max-width:1000px;margin-inline:auto}
 /* Ficha visual con poster moderado y metadatos legibles, no un backdrop dominante. */
 #view-editor .movie-panel.has-backdrop:before{
   background-image:linear-gradient(95deg,rgba(10,17,30,.96) 0%,rgba(11,20,35,.92) 54%,rgba(10,17,30,.78) 100%),var(--hero-backdrop);
@@ -496,7 +505,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 #view-editor .info[style] div:first-child{grid-column:span 2}
 #view-editor .artwork-list:has(>.tmdb){min-height:0;padding:4px 0 7px}
 #view-editor .artwork-heading{margin:7px 0}
-#view-editor #linksGrid{grid-template-columns:minmax(0,1.6fr) minmax(185px,.74fr);align-items:start}
+#view-editor #linksGrid{width:100%;grid-template-columns:minmax(0,1.6fr) minmax(240px,.74fr);align-items:start}
 #view-editor #generateCard{align-self:start}
 #view-editor .steps{padding:7px;gap:4px}
 #view-editor .step{min-width:0;padding:7px 8px;font-size:10px;gap:7px}
@@ -513,7 +522,8 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 @media(max-width:780px){
   #view-editor .editor-search-top>.panel{grid-template-columns:minmax(0,1fr) 118px 100px}
   #view-editor .editor-columns{grid-template-columns:minmax(0,1fr);gap:12px}
-  #view-editor .results-panel{position:static}
+  #view-editor .results-panel{position:static;min-height:auto;max-height:none}
+  #view-editor #editorTopContent{min-height:auto;max-height:none;overflow:visible}
   #view-editor .results{max-height:255px}
   #view-editor .editor-columns .results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   #view-editor .preview{grid-template-columns:112px minmax(0,1fr)}
@@ -651,7 +661,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </div>
 <div class="results" id="results"></div>
 <div class="tmdb" id="resultsHint">Busca un título para mostrar los resultados disponibles.</div>
-</section></div><div id="editorContentHolder"><section class="content">
+</section></div><div id="editorContentHolder"><section class="content" id="editorTopContent">
 <div class="steps" id="stepsBar">
 <div class="step active" data-step="1"><span class="n">1</span><span class="txt">Buscar</span></div>
 <div class="step" data-step="2"><span class="n">2</span><span class="txt">Seleccionar</span></div>
@@ -709,7 +719,8 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div class="episode-admin-list" id="episodeAdminList"></div>
 <div class="series-status-label" id="episodeAdminSelected">Selecciona un episodio para configurar sus enlaces.</div>
 </section>
-<div class="grid" id="linksGrid" style="display:none">
+</section></div></div>
+<div id="editorBottomHolder"><div class="grid" id="linksGrid" style="display:none">
 <section class="panel" id="linksCard">
 <div class="panel-title"><span class="icon"><i class="fa-solid fa-link"></i></span> <span id="linksHeading">URL del vídeo</span></div>
 <label for="googleUrl">URL Google Photos</label>
@@ -737,8 +748,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div class="status" id="generatedStatus"></div>
 </section>
 </div>
-
-</section></div></div>
+</div>
 </section>
 <section aria-labelledby="pending-title" class="admin-view" data-page="pending" hidden="" id="view-pending">
 <div class="page-heading"><div><div class="eyebrow">CONTROL DE CALIDAD</div><h2 id="pending-title">Episodios y temporadas pendientes</h2><p>Revisa qué series tienen capítulos sin enlace o temporadas todavía sin cargar desde TMDB.</p></div><div class="page-actions"><button class="secondary" data-view="library" type="button"><i class="fa-solid fa-layer-group"></i> Mi biblioteca</button></div></div>
