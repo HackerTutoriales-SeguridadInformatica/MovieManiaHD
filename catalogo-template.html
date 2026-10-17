@@ -2214,7 +2214,7 @@ function buildProgressScript(movieId){
 `;
 }
 
-function getPlayerHtml(movie){
+function getPlayerHtml(movie, autoNext=false){
   if (!movie || !SHARED_PLAYER_B64) return "";
   // Decodificar la plantilla solo al abrir un título, no 358 veces al cargar.
   const cleanUrl = u => String(u ?? "").replace(/[\u0000-\u001F\u007F-\u009F\u00A0\u2000-\u200F\u2028\u2029\u202F\u205F\u3000\uFEFF\s]/g, "");
@@ -2243,6 +2243,14 @@ function getPlayerHtml(movie){
   };
   let html=b64ToUtf8(SHARED_PLAYER_B64);
   for(const [marker,value] of Object.entries(reps))html=html.split(marker).join(value);
+  // Solo para el paso automático entre capítulos: el reproductor FWDEV
+  // normalmente inicia en pausa; el siguiente episodio intenta iniciar al abrirse.
+  // Los navegadores pueden bloquear autoplay con sonido, incluso en este caso.
+  if(autoNext && movie.parentSeriesId!=null){
+    html=html.replace(/\bautoPlay\s*:\s*["']no["']/i,'autoPlay:"yes"');
+    html=html.replace(/FWDEVPlayer\.videoStartBehaviour\s*=\s*["']pause["']\s*;/i,
+      'FWDEVPlayer.videoStartBehaviour = "play";');
+  }
   const scriptTag=buildProgressScript(movie.id);
   return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"</body>") : html+scriptTag;
 }
@@ -3474,6 +3482,26 @@ function getSeriesResumeEpisode(series){
   const first=firstSeason?.episodes.slice().sort((a,b)=>a.number-b.number)[0];
   return first?{season:firstSeason.number,episode:first.number,data:first,resume:false}:null;
 }
+// Siguiente episodio cronológico de la MISMA serie; no salta capítulos sin
+// enlace, para no omitir involuntariamente parte de una temporada.
+function getNextSeriesEpisode(current){
+  if(current?.parentSeriesId==null)return {status:"not-series",movie:null};
+  const series=MOVIES.find(m=>m.id===current.parentSeriesId&&m.kind==="SERIES");
+  if(!series)return {status:"missing-series",movie:null};
+  const all=orderedSeriesSeasons(series).flatMap(season=>
+    season.episodes.slice().sort((a,b)=>Number(a.number)-Number(b.number))
+      .map(ep=>({season:Number(season.number),episode:ep}))
+  );
+  const index=all.findIndex(item=>item.season===Number(current.episodeSeason)
+    && Number(item.episode.number)===Number(current.episodeNumber));
+  if(index<0)return {status:"missing-episode",movie:null};
+  if(index===all.length-1)return {status:"end-of-series",movie:null};
+  const next=all[index+1];
+  if(!isPlayableEpisode(next.episode))return {status:"unavailable",movie:null,
+    season:next.season,episode:next.episode.number};
+  return {status:"ready",movie:playableForSeries(series,next.season,next.episode)};
+}
+
 function selectedPlayable(){
   const movie=state.currentMovie;
   if(!movie)return null;
@@ -3794,7 +3822,10 @@ async function showDownloadBox(movieOverride){
 /* ============================================================
    REPRODUCTOR
    ============================================================ */
-function openPlayer(movie){
+// Referencia al contenido que está en el iframe (puede ser distinto al
+// seleccionado arriba de la ficha cuando se usa un botón por episodio).
+let activePlayerMovie=null;
+function openPlayer(movie,autoNext=false){
   if (!movie) return;
 
   if (!movie.m37 && !movie.m22 && !movie.m18){
@@ -3802,7 +3833,7 @@ function openPlayer(movie){
     return;
   }
 
-  const playerHtml = getPlayerHtml(movie);
+  const playerHtml = getPlayerHtml(movie,autoNext);
   if (!playerHtml){
     alert("No se encontró la plantilla del reproductor para esta película.");
     return;
@@ -3814,6 +3845,7 @@ function openPlayer(movie){
   const blob = new Blob([playerHtml], {type:"text/html;charset=utf-8"});
   const url = URL.createObjectURL(blob);
 
+  activePlayerMovie=movie;
   $("playerTitle").textContent = movie.title + (movie.subtitle ? " — " + movie.subtitle : "");
   $("playerFrame").src = url;
   $("playerModal").classList.add("show");
@@ -3839,6 +3871,7 @@ function openPlayer(movie){
 }
 
 function closePlayer(){
+  activePlayerMovie=null; // Cerrar manualmente nunca lanza el siguiente capítulo.
   const frame = $("playerFrame");
   const url = frame.dataset.blobUrl;
   frame.src = "about:blank";
@@ -4182,8 +4215,10 @@ window.addEventListener("message", (e) => {
   if (!frame || e.source !== frame.contentWindow) return;
 
   const movieId = Number(data.id);
-  if (!movieId) return;
-  const parentId=state.currentMovie?.kind==="SERIES"&&state.currentMovie?.id<0&&selectedPlayable()?.id===movieId?state.currentMovie.id:null;
+  // Rechazar notificaciones tardías de un episodio que ya no está cargado.
+  if (!movieId || !activePlayerMovie || Number(activePlayerMovie.id)!==movieId
+      || !$('playerModal').classList.contains('show')) return;
+  const parentId=activePlayerMovie.parentSeriesId??null;
 
   if (data.type === "mmhd-request-restore") {
     frame.contentWindow.postMessage({
@@ -4224,12 +4259,27 @@ window.addEventListener("message", (e) => {
   }
 
   if (data.type === "mmhd-ended") {
+    // Conservar la referencia antes de cambiar el src del iframe.
+    const finished=activePlayerMovie;
     delete progressSeconds[movieId];
     saveObj(LS_PROGRESS_SECONDS, progressSeconds);
     delete progress[movieId];
     if(parentId!=null)delete progress[parentId];
     saveObj(LS_PROGRESS, progress);
     renderContinue();
+
+    // Únicamente las series avanzan. Para películas se conserva el final normal.
+    if(finished.parentSeriesId==null)return;
+    const next=getNextSeriesEpisode(finished);
+    if(next.status==="ready"){
+      // Sustituye el video en el modal actual por el capítulo siguiente.
+      // openPlayer() actualizará el título, el historial y la portada.
+      openPlayer(next.movie,true);
+    }else if(next.status==="unavailable"){
+      showToast(`El siguiente capítulo (T${next.season} C${next.episode}) aún no tiene video configurado`);
+    }else if(next.status==="end-of-series"){
+      showToast("Terminaste el último episodio de la serie");
+    }
   }
 });
 
