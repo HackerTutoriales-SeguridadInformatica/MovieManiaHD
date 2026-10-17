@@ -2683,6 +2683,37 @@ function setupHeroSwipe(){
 /* ============================================================
    CONTINUAR VIENDO
    ============================================================ */
+// Quitar una serie de "Continuar viendo" también debe reiniciar el capítulo
+// recordado; de lo contrario se sigue mostrando "Continuar T... C...".
+// Este borrado es exclusivo de esa serie: no altera Mi Lista, Marcar visto,
+// otras series ni el progreso de las películas.
+function resetSeriesContinueHistory(series){
+  if(!series || series.kind!=="SERIES")return;
+
+  delete recentSeriesEpisodes[series.id];
+  saveObj(LS_RECENT_SERIES_EPISODES,recentSeriesEpisodes);
+
+  const timestamps=loadObj(LS_PROGRESS_TS);
+  delete progress[series.id];
+  delete progressSeconds[series.id];
+  delete timestamps[series.id];
+
+  (series.seasons||[]).forEach(season=>{
+    (season.episodes||[]).forEach(episode=>{
+      const playable=playableForSeries(series,season.number,episode);
+      if(!playable)return;
+      delete progress[playable.id];
+      delete progressSeconds[playable.id];
+      delete timestamps[playable.id];
+    });
+  });
+
+  saveObj(LS_PROGRESS,progress);
+  saveObj(LS_PROGRESS_SECONDS,progressSeconds);
+  saveObj(LS_PROGRESS_TS,timestamps);
+
+  if(state.currentMovie?.id===series.id)renderSeriesSeasons(series);
+}
 function renderContinue(){
   if(CATALOG_CONFIG.showContinue === false){$("continueSection").style.display="none";return;}
   let tsMap = {};
@@ -2741,15 +2772,21 @@ function renderContinue(){
     btn.addEventListener("click", e => {
       e.stopPropagation();
       const id = Number(btn.dataset.remove);
-      delete progress[id];
-      delete progressSeconds[id];
-      saveObj(LS_PROGRESS_SECONDS, progressSeconds);
-      saveObj(LS_PROGRESS, progress);
-      try {
-        const ts = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}");
-        delete ts[id];
-        localStorage.setItem(LS_PROGRESS_TS, JSON.stringify(ts));
-      } catch(e){}
+      const series = MOVIES.find(movie=>movie.id===id && movie.kind==="SERIES");
+      if(series){
+        resetSeriesContinueHistory(series);
+      }else{
+        // Las películas mantienen exactamente el borrado de progreso anterior.
+        delete progress[id];
+        delete progressSeconds[id];
+        saveObj(LS_PROGRESS_SECONDS, progressSeconds);
+        saveObj(LS_PROGRESS, progress);
+        try {
+          const ts = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}");
+          delete ts[id];
+          localStorage.setItem(LS_PROGRESS_TS, JSON.stringify(ts));
+        } catch(e){}
+      }
       renderContinue();
     });
   });
