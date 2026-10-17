@@ -2314,6 +2314,108 @@ function buildNextEpisodeAutostartScript(){
 `;
 }
 
+// Para series exclusivamente: aviso interactivo durante el último minuto.
+// Se monta DENTRO del iframe para que también pueda mostrarse al poner
+// a pantalla completa el contenedor HTML del reproductor.
+function buildNextEpisodeBannerScript(movie,next){
+  const episodeId=JSON.stringify(String(movie.id));
+  const nextLabel=JSON.stringify(`Temporada ${Number(next.movie.episodeSeason)} · Episodio ${Number(next.movie.episodeNumber)}`);
+  return `
+<script>
+(function(){
+  var EPISODE_ID=${episodeId};
+  var NEXT_LABEL=${nextLabel};
+  var video=null;
+  var dismissed=false;
+  var requested=false;
+  var banner=null;
+  var monitor=null;
+
+  function createBanner(){
+    if(banner)return banner;
+    var css=document.createElement('style');
+    css.textContent=[
+      '#mmhd-next-episode-banner{position:fixed;right:clamp(12px,3vw,28px);bottom:clamp(84px,14vh,116px);z-index:2147483647;max-width:min(330px,calc(100vw - 24px));width:max-content;display:none;align-items:stretch;gap:5px;padding:6px;background:rgba(12,18,33,.94);border:1px solid rgba(136,166,229,.45);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.65);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);font-family:Inter,Arial,sans-serif;color:#fff;pointer-events:auto}',
+      '#mmhd-next-episode-banner.mmhd-visible{display:flex}',
+      '#mmhd-next-episode-go{display:flex;align-items:center;gap:12px;min-width:0;max-width:280px;min-height:54px;padding:8px 11px;background:#2563eb;color:white;border:0;border-radius:10px;text-align:left;cursor:pointer;font:inherit}',
+      '#mmhd-next-episode-go:hover{background:#397bf4}',
+      '#mmhd-next-episode-go:focus-visible,#mmhd-next-episode-close:focus-visible{outline:2px solid #fff;outline-offset:2px}',
+      '#mmhd-next-episode-label{display:flex;flex-direction:column;gap:3px;min-width:0;white-space:normal}',
+      '#mmhd-next-episode-label strong{font-weight:800;font-size:13px;line-height:1.2}',
+      '#mmhd-next-episode-label small{font-weight:500;font-size:10.5px;line-height:1.3;opacity:.85}',
+      '#mmhd-next-episode-arrow{font-size:18px;flex:none}',
+      '#mmhd-next-episode-close{align-self:flex-start;background:transparent;border:0;color:#bfc8d9;width:25px;height:28px;font-size:18px;cursor:pointer;border-radius:6px}',
+      '#mmhd-next-episode-close:hover{background:rgba(255,255,255,.15);color:white}',
+      '@media(max-width:600px){#mmhd-next-episode-banner{bottom:calc(74px + env(safe-area-inset-bottom, 0px));right:12px;max-width:calc(100vw - 24px)}#mmhd-next-episode-go{min-height:46px;padding:7px 9px}#mmhd-next-episode-label strong{font-size:12px}}',
+      '@media(prefers-reduced-motion:reduce){#mmhd-next-episode-banner *{transition:none!important}}'
+    ].join('');
+    (document.head||document.documentElement).appendChild(css);
+    var wrapper=document.createElement('div');
+    wrapper.id='mmhd-next-episode-banner';
+    wrapper.setAttribute('role','group');
+    wrapper.setAttribute('aria-label','Saltar al siguiente episodio');
+    var go=document.createElement('button');
+    go.type='button';go.id='mmhd-next-episode-go';
+    go.setAttribute('aria-label','Reproducir siguiente episodio: '+NEXT_LABEL);
+    var icon=document.createElement('span');icon.textContent='▶';icon.setAttribute('aria-hidden','true');
+    var text=document.createElement('span');text.id='mmhd-next-episode-label';
+    var strong=document.createElement('strong');strong.textContent='Siguiente episodio';
+    var detail=document.createElement('small');detail.textContent=NEXT_LABEL;
+    var arrow=document.createElement('span');arrow.id='mmhd-next-episode-arrow';arrow.textContent='›';arrow.setAttribute('aria-hidden','true');
+    text.appendChild(strong);text.appendChild(detail);
+    go.appendChild(icon);go.appendChild(text);go.appendChild(arrow);
+    var close=document.createElement('button');close.type='button';close.id='mmhd-next-episode-close';
+    close.textContent='×';close.setAttribute('aria-label','Cerrar aviso de siguiente episodio');
+    go.addEventListener('click',function(){
+      if(requested)return;
+      requested=true;
+      go.disabled=true;
+      strong.textContent='Abriendo episodio…';
+      try{window.parent.postMessage({type:'mmhd-skip-next',id:EPISODE_ID},'*');}catch(e){requested=false;go.disabled=false;}
+    });
+    close.addEventListener('click',function(){dismissed=true;hide();});
+    wrapper.appendChild(go);wrapper.appendChild(close);
+    banner=wrapper;
+    mountBanner();
+    return banner;
+  }
+  function mountBanner(){
+    if(!banner)return;
+    var root=document.fullscreenElement||document.webkitFullscreenElement||document.body;
+    if(root && root.tagName==='VIDEO')return; // El fullscreen nativo del vídeo no admite controles DOM superpuestos.
+    if(!root || !root.appendChild)root=document.body;
+    if(banner.parentNode!==root)root.appendChild(banner);
+  }
+  function hide(){if(banner)banner.classList.remove('mmhd-visible');}
+  function refresh(){
+    if(dismissed||requested)return;
+    var v=video;
+    if(!v)return;
+    var duration=Number(v.duration), current=Number(v.currentTime);
+    if(!Number.isFinite(duration)||duration<=60||!Number.isFinite(current)||current<0||v.ended){hide();return;}
+    var remaining=duration-current;
+    if(remaining>0&&remaining<=60){createBanner();mountBanner();banner.classList.add('mmhd-visible');}
+    else hide();
+  }
+  function findVideo(){
+    var v=document.querySelector('video');
+    if(!v || v===video)return;
+    video=v;
+    ['timeupdate','durationchange','loadedmetadata','seeked','playing','pause','ended'].forEach(function(event){
+      v.addEventListener(event,refresh,{passive:true});
+    });
+    refresh();
+  }
+  document.addEventListener('fullscreenchange',function(){if(banner){mountBanner();refresh();}});
+  document.addEventListener('webkitfullscreenchange',function(){if(banner){mountBanner();refresh();}});
+  findVideo();
+  monitor=setInterval(function(){findVideo();},1200);
+  window.addEventListener('pagehide',function(){if(monitor)clearInterval(monitor);});
+})();
+<\/script>
+`;
+}
+
 function getPlayerHtml(movie, autoNext=false){
   if (!movie || !SHARED_PLAYER_B64) return "";
   // Decodificar la plantilla solo al abrir un título, no 358 veces al cargar.
@@ -2351,8 +2453,10 @@ function getPlayerHtml(movie, autoNext=false){
     html=html.replace(/FWDEVPlayer\.videoStartBehaviour\s*=\s*["']pause["']\s*;/i,
       'FWDEVPlayer.videoStartBehaviour = "play";');
   }
+  const nextEpisode=movie.parentSeriesId!=null ? getNextSeriesEpisode(movie) : null;
   const scriptTag=buildProgressScript(movie.id)
-    + (autoNext && movie.parentSeriesId!=null ? buildNextEpisodeAutostartScript() : "");
+    + (autoNext && movie.parentSeriesId!=null ? buildNextEpisodeAutostartScript() : "")
+    + (nextEpisode?.status==="ready" ? buildNextEpisodeBannerScript(movie,nextEpisode) : "");
   return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"</body>") : html+scriptTag;
 }
 
@@ -4359,9 +4463,15 @@ window.addEventListener("message", (e) => {
     }
   }
 
-  if (data.type === "mmhd-ended") {
-    // Conservar la referencia antes de cambiar el src del iframe.
+  if (data.type === "mmhd-ended" || data.type === "mmhd-skip-next") {
     const finished=activePlayerMovie;
+    // Los saltos adelantados solo son válidos si realmente hay otro capítulo
+    // disponible; la película nunca genera esta acción.
+    if(data.type === "mmhd-skip-next" && finished.parentSeriesId==null)return;
+    const next=finished.parentSeriesId!=null ? getNextSeriesEpisode(finished) : null;
+    if(data.type === "mmhd-skip-next" && next?.status!=="ready")return;
+
+    // El capítulo terminado o saltado durante los créditos ya no se reanuda.
     delete progressSeconds[movieId];
     saveObj(LS_PROGRESS_SECONDS, progressSeconds);
     delete progress[movieId];
@@ -4369,12 +4479,9 @@ window.addEventListener("message", (e) => {
     saveObj(LS_PROGRESS, progress);
     renderContinue();
 
-    // Únicamente las series avanzan. Para películas se conserva el final normal.
-    if(finished.parentSeriesId==null)return;
-    const next=getNextSeriesEpisode(finished);
+    if(!next)return; // Películas: conservar el final habitual.
     if(next.status==="ready"){
-      // Sustituye el video en el modal actual por el capítulo siguiente.
-      // openPlayer() actualizará el título, el historial y la portada.
+      // Mismo flujo de autoplay de la Fase 6.3.1 para ambos tipos de avance.
       openPlayer(next.movie,true);
     }else if(next.status==="unavailable"){
       showToast(`El siguiente capítulo (T${next.season} C${next.episode}) aún no tiene video configurado`);
