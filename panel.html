@@ -368,262 +368,360 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
 .episode-admin-item .episode-flag{font-size:10px;color:#ffcc8b}
 @media(max-width:1050px){.admin-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:600px){.admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-audit-series>summary{align-items:flex-start;flex-wrap:wrap}.admin-audit-list{max-height:380px}}
+
+/* =========================================================
+   FASE 10.1 · ADMIN STUDIO — solo organización y estilo
+   ========================================================= */
+:root{--f101-bg:#070b13;--f101-nav:#0b101b;--f101-line:#232d41;--f101-card:#101827;--f101-accent:#ff315e}
+body{background:#080d17}
+.admin-shell{min-height:100vh;display:grid;grid-template-columns:244px minmax(0,1fr)}
+.app-rail{background:#090f1b;border-right:1px solid var(--f101-line);padding:26px 16px 20px;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;z-index:40}
+.rail-brand{display:flex;align-items:center;gap:12px;padding:1px 7px 5px}
+.rail-emblem{width:39px;height:39px;flex-shrink:0;border-radius:12px;display:grid;place-items:center;color:#fff;background:#fa2f58;box-shadow:0 9px 22px rgba(255,23,72,.17)}
+.rail-brand strong{font-size:18px;font-weight:800;letter-spacing:.5px;display:block}.rail-brand small{font-size:9px;letter-spacing:1.8px;font-weight:800;color:#657c99}
+.rail-label{font-size:9px;font-weight:800;color:#5b708b;letter-spacing:1.6px;padding:0 15px;margin:5px 0 -14px}
+.rail-nav{display:flex;flex-direction:column;gap:6px}
+.rail-link{display:flex;align-items:center;gap:13px;text-align:left;width:100%;padding:13px 14px;border-radius:11px;background:transparent;border:1px solid transparent;color:#9aacbf;font-size:12px;font-weight:700}
+.rail-link i{font-size:15px;width:19px;text-align:center;margin:0}.rail-link:hover{color:#fff;background:#161e2d}.rail-link.active{color:#fff;background:#202236;border-color:#373148;box-shadow:inset 3px 0 0 #ff315e}.rail-link.active i{color:#ff5378}
+.rail-bottom{margin-top:auto}.rail-help{display:flex;align-items:flex-start;gap:10px;padding:14px;background:#101a2a;border:1px solid #23334c;border-radius:12px;font-size:10px;color:#849ab1;line-height:1.55}.rail-help i{color:#eaa955;margin-top:2px}
+.admin-workspace{min-width:0;display:flex;flex-direction:column}
+.workspace-header{position:sticky;top:0;z-index:35;height:73px;padding:0 33px;background:rgba(9,14,23,.93);border-bottom:1px solid var(--f101-line);backdrop-filter:blur(16px)}
+.workspace-header .brand-mark{background:#171e2c;box-shadow:none;border:1px solid #2a3245;color:#ff4a70}.workspace-header .brand-text h1{font-size:14px;letter-spacing:0}.workspace-header .brand-text p{font-size:10px}
+.admin-pages{max-width:1470px;width:100%;margin:0 auto;padding:34px 38px 80px}
+.admin-view[hidden]{display:none!important}
+.admin-view{animation:f101enter .18s ease both}@keyframes f101enter{from{opacity:.6;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.page-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:26px}
+.page-heading .eyebrow{color:#ff617f;letter-spacing:1.7px;font-weight:800;font-size:10px;margin-bottom:9px}
+.page-heading h2{font-size:clamp(23px,2.25vw,32px);line-height:1.2;letter-spacing:-1px;margin:0 0 9px;font-weight:800;color:#f5f8ff}
+.page-heading p{font-size:12px;line-height:1.7;max-width:760px;margin:0;color:#8b9eb6}
+.page-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.page-actions button{white-space:nowrap}
+.admin-view>.panel,.admin-view #collectionCard,.admin-view #adminInsights,.admin-view .results-panel,.admin-view .content>.panel{border-color:var(--f101-line);background:#101725;box-shadow:none}
+.admin-view .panel{border-radius:15px}.admin-insights{margin:0;padding:20px 20px 22px;background:#101827!important}
+#view-overview .admin-insights h3{margin:0 0 11px;font-size:15px}
+#view-overview .admin-insights .admin-help{margin:0 0 18px;color:#8d9fb4}
+.admin-stats{gap:11px!important;grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.admin-stat{border-radius:12px!important;padding:20px 16px!important;background:#141f30!important;border:1px solid #27374c!important;min-height:108px}
+.admin-stat strong{font-size:27px!important;line-height:1.25}.admin-stat span{font-size:11px!important}
+.overview-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px;align-items:start}.overview-columns>.panel{min-height:250px}
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.quick-tile{display:flex;text-align:left;align-items:center;gap:11px;background:#121f31;color:#eff6ff;border:1px solid #26384f;border-radius:11px;padding:14px 12px;min-width:0;min-height:75px}
+.quick-tile>i:first-child{font-size:16px;color:#ff5479;min-width:22px}.quick-tile>i:last-child{font-size:11px;color:#65849e;margin:0}.quick-tile span{flex:1;min-width:0}.quick-tile strong,.quick-tile small{display:block}.quick-tile strong{font-size:11px}.quick-tile small{font-size:10px;font-weight:500;color:#8199b0;margin-top:5px}.quick-tile:hover{background:#1b2a40;border-color:#40617a}
+.text-button{padding:5px 2px;background:none;color:#93b3d2;font-size:11px}.text-button:hover{color:#fff}
+.recent-list{display:grid;gap:8px}.recent-item{display:flex;align-items:center;gap:11px;background:#111c2c;border:1px solid #21314a;padding:9px;border-radius:10px;text-align:left;width:100%}.recent-item img{width:36px;height:48px;object-fit:cover;background:#07111e;border-radius:6px}.recent-item span{flex:1;min-width:0}.recent-item strong{display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;font-size:11px}.recent-item small{display:block;color:#8c9eb2;margin-top:5px;font-size:10px}.recent-item i{color:#72849b;margin:0}.recent-item:hover{border-color:#446c8f;background:#162840}
+.library-categories{display:flex;gap:8px;margin:0 0 18px;flex-wrap:wrap}.library-pill{background:#151e2d;color:#9eafc2;border:1px solid #2b3648;border-radius:9px;padding:10px 16px}.library-pill.active{background:#332039;border-color:#a34260;color:#fff}.library-pill:hover{color:#fff}
+#collectionCard{margin:0;max-width:none}#collectionCard .section-head{margin-bottom:16px}#collectionCard>.section-head>.panel-title{font-size:14px}
+#collectionCard .collection-toolbar{margin:0 0 15px}.collection-item{background:#111d2d!important;border-color:#263549!important;border-radius:10px!important;margin-bottom:8px}
+#view-editor .editor-search-top>.panel{margin:0 0 16px;border-color:#293448;background:#111a2a;padding:18px}
+#view-editor .editor-search-top .media-switch{max-width:360px}
+#view-editor .editor-search-top #movieSearch{max-width:750px;display:block}
+#view-editor .editor-search-top button.full{width:auto;min-width:150px;display:inline-flex;justify-content:center;margin-right:8px}
+.editor-columns{display:grid;grid-template-columns:minmax(260px,325px) minmax(0,1fr);gap:16px;align-items:start}
+#searchResultsHolder{min-width:0}.editor-columns .results-panel{margin:0;position:sticky;top:90px}
+#view-editor .artwork-list:empty{min-height:0;padding:0}.editor-columns .results{max-height:65vh;overflow:auto}
+#editorContentHolder{min-width:0}.editor-columns .content{display:flex;flex-direction:column;gap:14px;grid-column:auto;min-width:0}
+#view-editor .movie-panel{background:#111b2b}#view-editor .steps{background:#131d2c}#view-editor .empty{margin:0}
+#view-editor .preview{grid-template-columns:138px minmax(0,1fr)}#view-editor .preview img{width:138px;height:205px}#view-editor .info{grid-template-columns:repeat(2,minmax(0,1fr))}
+#view-editor .grid{grid-template-columns:repeat(2,minmax(0,1fr))}#view-editor .series-panel{background:#111c2b;border-color:#2c405b}
+#view-editor .results .result{background:#141f2f}#view-editor .results .result:hover{background:#1a2940}
+.audit-standalone{padding:23px!important}.audit-intro{display:flex;gap:12px;align-items:flex-start;border:1px solid #314a61;background:#112436;color:#9fb9d1;padding:14px 16px;border-radius:11px;font-size:11px;line-height:1.7;margin-bottom:21px}.audit-intro i{color:#71baff;margin-top:3px}.audit-standalone .admin-audit-list{max-height:none}
+.appearance-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start}.appearance-columns>.panel{padding:22px}.appearance-columns .featured-panel,.appearance-columns .catalog-options{margin:0;padding:0;border:none;background:transparent}.appearance-columns .featured-panel h3,.appearance-columns .catalog-options h3{font-size:14px;margin-bottom:14px}
+.appearance-columns .catalog-options-grid{grid-template-columns:1fr}
+.publish-panel{padding:24px!important}.publish-panel .panel-title{font-size:14px;margin-bottom:10px}.support-text{font-size:11px;line-height:1.7;color:#90a6bb;margin:0 0 14px}
+.publish-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.publish-actions button{margin:0;width:auto;min-width:210px}.publish-actions button.primary{min-height:44px}.publish-panel #collectionStatus{margin-top:14px}
+.tools-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start}.tools-columns .panel{height:100%;background:#111a2a}.tools-group{min-width:0}.tools-group>.panel{padding:22px}
+#toolsActionsHolder .actions{display:flex;flex-wrap:wrap;gap:8px;margin:0!important}#toolsActionsHolder .actions button{margin:0!important}#toolsActionsHolder #backupCollectionFile{display:none}
+button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-offset:3px}
+@media(max-width:1290px){.admin-shell{grid-template-columns:205px minmax(0,1fr)}.app-rail{padding:24px 12px}.admin-pages{padding:26px 25px 70px}.admin-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}.quick-grid{grid-template-columns:1fr}.editor-columns{grid-template-columns:280px minmax(0,1fr)}}
+@media(max-width:1050px){.admin-shell{grid-template-columns:1fr}.app-rail{position:sticky;top:0;height:auto;padding:8px 12px;gap:0;flex-direction:row;align-items:center;overflow-x:auto;border-right:0;border-bottom:1px solid #283246}.rail-brand,.rail-label,.rail-bottom{display:none}.rail-nav{flex-direction:row;gap:5px;flex:1}.rail-link{justify-content:center;flex-shrink:0;width:auto;padding:10px 12px;font-size:11px;white-space:nowrap}.rail-link i{width:auto;font-size:12px}.workspace-header{top:48px;height:64px}.editor-columns{grid-template-columns:minmax(215px,270px) minmax(0,1fr)}.admin-pages{padding:25px 20px 65px}}
+@media(max-width:780px){.admin-pages{padding:21px 14px 65px}.workspace-header{padding:0 14px}.overview-columns,.tools-columns,.appearance-columns,.editor-columns{grid-template-columns:1fr}.editor-columns .results-panel{position:static}.editor-columns .results{max-height:260px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}.page-heading{gap:14px;margin-bottom:18px}.page-heading h2{font-size:24px}}
+@media(max-width:520px){.rail-link span{font-size:10px}.rail-link{gap:6px;padding:9px 10px}.rail-link i{font-size:13px}.rail-nav{min-width:max-content}.workspace-header{top:42px}.workspace-header .brand-mark{width:33px;height:33px}.workspace-header .brand-text h1{font-size:12px}.workspace-header .header-right .chip.ok{display:none}.admin-pages{padding:18px 12px 65px}.page-heading h2{font-size:22px}.page-heading p{font-size:11px}.page-actions{width:100%}.page-actions button{flex:1}.quick-grid{grid-template-columns:1fr}.admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}.admin-stat{padding:14px!important;min-height:90px}.admin-stat strong{font-size:23px!important}.editor-columns .results{grid-template-columns:1fr}#view-editor .preview{grid-template-columns:94px minmax(0,1fr)}#view-editor .preview img{width:94px;height:145px}#view-editor .grid{grid-template-columns:1fr}#view-editor .info{grid-template-columns:repeat(2,minmax(0,1fr))}.publish-actions button{width:100%;min-width:0}.appearance-columns>.panel{padding:16px}}
+@media(prefers-reduced-motion:reduce){.admin-view{animation:none}}
+
 </style>
 </head>
 <body>
-<header>
-  <div class="brand">
-    <div class="brand-mark"><i class="fa-solid fa-clapperboard"></i></div>
-    <div class="brand-text">
-      <h1>MOVIE MANIA <span>HD</span></h1>
-      <p>Panel de administración · Catálogo TMDB + reproductor HTML</p>
-    </div>
-  </div>
-  <div class="header-right">
-    <div class="chip catalog" title="Películas en el catálogo">
-      <i class="fa-solid fa-layer-group"></i>
-      <span id="collectionCount">0</span>
-      <span>títulos</span>
-    </div>
-    <div class="chip ok" title="Estado de la API de TMDB">
-      <span class="dot"></span>
-      <span>TMDB</span>
-    </div>
-    <button class="gear" title="Configuración"><i class="fa-solid fa-gear"></i></button>
-  </div>
-</header>
+<div class="admin-shell">
+<aside aria-label="Menú del panel" class="app-rail">
+<div class="rail-brand"><div class="rail-emblem"><i aria-hidden="true" class="fa-solid fa-clapperboard"></i></div><div><strong>MMHD</strong><small>ADMIN STUDIO</small></div></div>
+<div class="rail-label">ESPACIO DE TRABAJO</div>
+<nav aria-label="Navegación principal" class="rail-nav">
+<button aria-current="page" class="rail-link active" data-view="overview" type="button"><i class="fa-solid fa-chart-pie"></i><span>Resumen</span></button>
+<button class="rail-link" data-view="library" type="button"><i class="fa-solid fa-layer-group"></i><span>Mi biblioteca</span></button>
+<button class="rail-link" data-view="editor" type="button"><i class="fa-solid fa-square-plus"></i><span>Agregar / editar</span></button>
+<button class="rail-link" data-view="pending" type="button"><i class="fa-solid fa-list-check"></i><span>Pendientes</span></button>
+<button class="rail-link" data-view="appearance" type="button"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Personalización</span></button>
+<button class="rail-link" data-view="tools" type="button"><i class="fa-solid fa-screwdriver-wrench"></i><span>Herramientas</span></button>
+</nav>
+<div class="rail-bottom"><div class="rail-help"><i class="fa-solid fa-shield-halved"></i><span>Tu colección se guarda en este navegador.<br/>Haz respaldos periódicos.</span></div></div>
+</aside>
+<div class="admin-workspace"><div id="topHeaderHolder"><header class="workspace-header">
+<div class="brand">
+<div class="brand-mark"><i class="fa-solid fa-clapperboard"></i></div>
+<div class="brand-text">
+<h1>MOVIE MANIA <span>HD</span></h1>
+<p>Panel de administración · Colección, series y publicación</p>
+</div>
+</div>
+<div class="header-right">
+<div class="chip catalog" title="Películas en el catálogo">
+<i class="fa-solid fa-layer-group"></i>
+<span id="collectionCount">0</span>
+<span>títulos</span>
+</div>
+<div class="chip ok" title="Estado de la API de TMDB">
+<span class="dot"></span>
+<span>TMDB</span>
+</div>
+<button aria-label="Abrir herramientas" class="gear" id="openToolsView" title="Configuración"><i class="fa-solid fa-gear"></i></button>
+</div>
+</header></div>
+<main class="admin-pages" id="adminPages">
+<section aria-labelledby="overview-title" class="admin-view" data-page="overview" id="view-overview">
+<div class="page-heading"><div><div class="eyebrow">PANEL DE CONTROL</div><h2 id="overview-title">Tu catálogo, de un vistazo</h2><p>El estado de tu colección y las tareas que necesitan atención, todo en un solo lugar.</p></div><div class="page-actions"><button class="primary" data-create="movie" type="button"><i class="fa-solid fa-plus"></i> Añadir película</button><button class="secondary" data-create="tv" type="button"><i class="fa-solid fa-tv"></i> Añadir serie</button></div></div>
+<div id="insightsHolder"><section aria-label="Estado de la colección" class="admin-insights" id="adminInsights">
+<h3><i class="fa-solid fa-chart-column"></i> Panel de control</h3>
+<p class="admin-help">Cifras sobre tu colección guardada. “Sin revisar” corresponde a temporadas o capítulos de TMDB que aún no se han cargado en el panel, y no necesariamente a enlaces faltantes.</p>
+<div aria-live="polite" class="admin-stats" id="adminStats"></div>
 
-<main class="dashboard">
-  <aside class="sidebar">
-    <section class="panel">
-      <div class="panel-title"><span class="icon"><i class="fa-solid fa-key"></i></span> Credencial TMDB</div>
-      <label for="credentialType">Tipo de credencial</label>
-      <select id="credentialType">
-        <option value="apikey">API Key v3</option>
-        <option value="token">API Read Access Token (Bearer)</option>
-      </select>
-      <label for="apiKey">API Key de TMDB</label>
-      <input id="apiKey" type="password" placeholder="Ingresa tu credencial">
-      <button id="btnValidate" class="primary full"><i class="fa-solid fa-check"></i> Validar credencial</button>
-      <div id="keyStatus" class="status"></div>
-    </section>
 
-    <section class="panel">
-      <div class="panel-title"><span class="icon"><i class="fa-solid fa-magnifying-glass"></i></span> Buscar contenido</div>
-      <div class="media-switch" role="group" aria-label="Tipo de contenido">
-        <button type="button" id="kindMovie" class="active" aria-pressed="true"><i class="fa-solid fa-film"></i> Películas</button>
-        <button type="button" id="kindSeries" aria-pressed="false"><i class="fa-solid fa-tv"></i> Series</button>
-      </div>
-      <input id="movieSearch" type="text" placeholder="Ej. Avengers Endgame">
-      <button id="btnSearch" class="primary full"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button>
-      <button id="btnClear" class="secondary full">Limpiar</button>
-      <div id="status" class="status"></div>
-    </section>
+</section></div>
+<div class="overview-columns">
+<section class="panel overview-shortcuts"><div class="panel-title"><span class="icon"><i class="fa-solid fa-bolt"></i></span> Accesos rápidos</div><div class="quick-grid">
+<button class="quick-tile" data-view="library" type="button"><i class="fa-solid fa-film"></i><span><strong>Administrar títulos</strong><small>Buscar, editar y ordenar</small></span><i class="fa-solid fa-arrow-right"></i></button>
+<button class="quick-tile" data-view="pending" type="button"><i class="fa-solid fa-circle-exclamation"></i><span><strong>Resolver pendientes</strong><small>Enlaces y temporadas</small></span><i class="fa-solid fa-arrow-right"></i></button>
+<button class="quick-tile" data-view="appearance" type="button"><i class="fa-solid fa-palette"></i><span><strong>Preparar publicación</strong><small>Destacados y catálogo</small></span><i class="fa-solid fa-arrow-right"></i></button>
+<button class="quick-tile" data-view="tools" type="button"><i class="fa-solid fa-cloud-arrow-down"></i><span><strong>Respaldos y herramientas</strong><small>Protege tu colección</small></span><i class="fa-solid fa-arrow-right"></i></button>
+</div></section>
+<section class="panel"><div class="section-head"><div class="panel-title"><span class="icon"><i class="fa-solid fa-clock-rotate-left"></i></span> Últimos títulos</div><button class="text-button" data-view="library" type="button">Ver biblioteca <i class="fa-solid fa-arrow-right"></i></button></div><div class="recent-list" id="adminRecentList"></div></section>
+</div>
+</section>
+<section aria-labelledby="library-title" class="admin-view" data-page="library" hidden="" id="view-library">
+<div class="page-heading"><div><div class="eyebrow">BIBLIOTECA</div><h2 id="library-title">Gestiona tu colección</h2><p>Encuentra cualquier título y modifica su información o enlaces sin empezar de nuevo.</p></div><div class="page-actions"><button class="primary" data-create="movie" type="button"><i class="fa-solid fa-plus"></i> Añadir contenido</button></div></div>
+<div aria-label="Tipos de contenido" class="library-categories" role="group"><button class="library-pill active" data-filter="all" type="button">Todo</button><button class="library-pill" data-filter="movies" type="button">Películas</button><button class="library-pill" data-filter="series" type="button">Series</button></div>
+<div id="collectionHolder"><section class="panel" id="collectionCard" style="display:block">
+<div class="section-head">
+<div class="panel-title"><span class="icon"><i class="fa-solid fa-layer-group"></i></span> Catálogo</div>
+<span class="badge" id="collectionBadge">0</span>
+</div>
 
-    <!-- ===== NUEVO PANEL: IMPORTAR JSON ===== -->
-    <section class="panel">
-      <div class="panel-title"><span class="icon"><i class="fa-solid fa-file-import"></i></span> Importar JSON</div>
-      <label for="jsonFile">Archivo movieManiaLimpio_FINAL.json</label>
-      <input id="jsonFile" type="file" accept=".json,application/json">
-      <button id="btnImportJson" class="primary full">
-        <i class="fa-solid fa-file-import"></i> Importar catálogo
-      </button>
-      <div class="import-bar"><div id="importBarFill"></div></div>
-      <div id="importStatus" class="status"></div>
-    </section>
-  </aside>
 
-  <section class="panel results-panel">
-    <div class="section-head">
-      <div class="panel-title"><span class="icon"><i class="fa-solid fa-film"></i></span> Resultados</div>
-      <span class="badge">TMDB</span>
-    </div>
-    <div id="results" class="results"></div>
-    <div class="tmdb" id="resultsHint">Busca un título para mostrar los resultados disponibles.</div>
-  </section>
 
-  <section class="content">
-    <div class="steps" id="stepsBar">
-      <div class="step active" data-step="1"><span class="n">1</span><span class="txt">Buscar</span></div>
-      <div class="step" data-step="2"><span class="n">2</span><span class="txt">Seleccionar</span></div>
-      <div class="step" data-step="3"><span class="n">3</span><span class="txt">Enlaces</span></div>
-      <div class="step" data-step="4"><span class="n">4</span><span class="txt">Exportar</span></div>
-    </div>
+<div class="collection-toolbar">
+<input aria-label="Buscar en mi colección" id="collectionSearch" placeholder="Buscar en mi colección..." type="search"/>
+<select aria-label="Filtrar películas" id="collectionFilter">
+<option value="all">Películas y series</option>
+<option value="movies">Solo películas</option>
+<option value="series">Solo series</option>
+<option value="complete">Con enlaces de video</option>
+<option value="incomplete">Sin enlaces de video</option>
+</select>
+<select aria-label="Ordenar películas" id="collectionSort">
+<option value="recent">Añadidas recientemente</option>
+<option value="title">Título (A-Z)</option>
+<option value="year">Año (más nuevo)</option>
+<option value="rating">Calificación TMDB</option>
+</select>
+</div>
+<div class="collection-hint" id="collectionInfo" role="status"></div>
+<div id="collectionList"></div>
 
-    <div class="empty" id="emptyState">
-      <i class="fa-solid fa-magnifying-glass"></i>
+
+
+
+
+</section></div>
+</section>
+<section aria-labelledby="editor-title" class="admin-view" data-page="editor" hidden="" id="view-editor">
+<div class="page-heading"><div><div class="eyebrow">GESTIÓN DE CONTENIDO</div><h2 id="editor-title">Agregar o editar</h2><p>Busca en TMDB, elige el título y administra sus enlaces. Cada episodio conserva su propia configuración.</p></div><div class="page-actions"><button class="secondary" data-view="library" type="button"><i class="fa-solid fa-arrow-left"></i> Volver a biblioteca</button></div></div>
+<div class="editor-search-top" id="searchBoxHolder"><section class="panel">
+<div class="panel-title"><span class="icon"><i class="fa-solid fa-magnifying-glass"></i></span> Buscar contenido</div>
+<div aria-label="Tipo de contenido" class="media-switch" role="group">
+<button aria-pressed="true" class="active" id="kindMovie" type="button"><i class="fa-solid fa-film"></i> Películas</button>
+<button aria-pressed="false" id="kindSeries" type="button"><i class="fa-solid fa-tv"></i> Series</button>
+</div>
+<input id="movieSearch" placeholder="Ej. Avengers Endgame" type="text"/>
+<button class="primary full" id="btnSearch"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button>
+<button class="secondary full" id="btnClear">Limpiar</button>
+<div class="status" id="status"></div>
+</section></div>
+<div class="editor-columns"><div id="searchResultsHolder"><section class="panel results-panel">
+<div class="section-head">
+<div class="panel-title"><span class="icon"><i class="fa-solid fa-film"></i></span> Resultados de TMDB</div>
+<span class="badge">TMDB</span>
+</div>
+<div class="results" id="results"></div>
+<div class="tmdb" id="resultsHint">Busca un título para mostrar los resultados disponibles.</div>
+</section></div><div id="editorContentHolder"><section class="content">
+<div class="steps" id="stepsBar">
+<div class="step active" data-step="1"><span class="n">1</span><span class="txt">Buscar</span></div>
+<div class="step" data-step="2"><span class="n">2</span><span class="txt">Seleccionar</span></div>
+<div class="step" data-step="3"><span class="n">3</span><span class="txt">Enlaces</span></div>
+<div class="step" data-step="4"><span class="n">4</span><span class="txt">Exportar</span></div>
+</div>
+<div class="empty" id="emptyState">
+<i class="fa-solid fa-magnifying-glass"></i>
       Selecciona una película o serie de los resultados para comenzar.
     </div>
-
-    <section class="panel movie-panel" id="movieCard" style="display:none">
-      <div class="movie-inner">
-        <div class="preview">
-          <img id="posterPreview" alt="Portada">
-          <div>
-            <h2 id="movieTitle"></h2>
-            <span class="mode-tag" id="editingTag"><i class="fa-solid fa-pen"></i> Editando película guardada</span>
-            <p id="overview" class="overview"></p>
-            <div class="info">
-              <div><small><span class="meta-icon"><i class="fa-regular fa-clock"></i></span>Duración</small><strong id="movieRuntime">—</strong></div>
-              <div><small><span class="meta-icon"><i class="fa-solid fa-globe"></i></span>Idioma</small><strong id="movieLanguage">—</strong></div>
-              <div><small><span class="meta-icon"><i class="fa-regular fa-calendar-days"></i></span>Año</small><strong id="movieYear">—</strong></div>
-              <div><small><span class="meta-icon star"><i class="fa-solid fa-star"></i></span>Rating</small><strong id="movieRating">—</strong></div>
-            </div>
-            <div class="info" style="margin-top:9px">
-              <div><small><span class="meta-icon"><i class="fa-solid fa-clapperboard"></i></span>Géneros</small><strong id="movieGenres">—</strong></div>
-              <div><small><span class="meta-icon"><i class="fa-solid fa-shield-halved"></i></span>Clasificación</small><strong id="movieCert">—</strong></div>
-            </div>
-          </div>
-        </div>
-        <div class="artwork-panel" id="artworkPanel" hidden>
-          <div class="artwork-heading"><strong><i class="fa-solid fa-images"></i> Elegir póster</strong><span class="tmdb">Selecciona una imagen para esta película</span></div>
-          <div class="artwork-list" id="posterChoices"></div>
-          <div class="artwork-heading"><strong><i class="fa-solid fa-image"></i> Elegir portada de fondo</strong></div>
-          <div class="artwork-list" id="backdropChoices"></div>
-          <div class="artwork-actions">
-            <button id="btnLoadArtwork" type="button" class="secondary"><i class="fa-solid fa-rotate"></i> Ver más imágenes de TMDB</button>
-            <span id="artworkStatus" class="tmdb" role="status"></span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="series-panel" id="seriesPanel" hidden>
-      <h3><i class="fa-solid fa-list"></i> Temporadas y episodios</h3>
-      <div class="series-help">Elige la temporada y el capítulo. Cada episodio tiene sus propios enlaces de Google Photos. Puedes guardar la serie con capítulos pendientes y completarlos después.</div>
-      <label for="seriesSeason">Temporada</label>
-      <select id="seriesSeason"></select>
-      <div id="seriesSeasonStatus" class="series-status-label" role="status"></div>
-      <div id="adminSeriesSummary" class="admin-series-summary" role="status"></div>
-      <div class="admin-series-actions">
-        <button type="button" id="btnNextPending" class="secondary"><i class="fa-solid fa-forward"></i> Siguiente capítulo pendiente</button>
-        <button type="button" id="btnLoadAllSeasons" class="secondary"><i class="fa-solid fa-list-check"></i> Revisar todas las temporadas (TMDB)</button>
-        <span id="adminBulkStatus" class="tmdb" role="status" aria-live="polite"></span>
-      </div>
-      <div id="episodeAdminList" class="episode-admin-list"></div>
-      <div id="episodeAdminSelected" class="series-status-label">Selecciona un episodio para configurar sus enlaces.</div>
-    </section>
-    <div class="grid" id="linksGrid" style="display:none">
-      <section class="panel" id="linksCard">
-        <div class="panel-title"><span class="icon"><i class="fa-solid fa-link"></i></span> <span id="linksHeading">URL del vídeo</span></div>
-
-        <label for="googleUrl">URL Google Photos</label>
-        <input id="googleUrl" type="url" placeholder="https://photos.google.com/share/...">
-        <button id="btnExtract" class="primary full">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> Extraer URLs (1080p / 720p / 420p)
+<section class="panel movie-panel" id="movieCard" style="display:none">
+<div class="movie-inner">
+<div class="preview">
+<img alt="Portada" id="posterPreview"/>
+<div>
+<h2 id="movieTitle"></h2>
+<span class="mode-tag" id="editingTag"><i class="fa-solid fa-pen"></i> Editando película guardada</span>
+<p class="overview" id="overview"></p>
+<div class="info">
+<div><small><span class="meta-icon"><i class="fa-regular fa-clock"></i></span>Duración</small><strong id="movieRuntime">—</strong></div>
+<div><small><span class="meta-icon"><i class="fa-solid fa-globe"></i></span>Idioma</small><strong id="movieLanguage">—</strong></div>
+<div><small><span class="meta-icon"><i class="fa-regular fa-calendar-days"></i></span>Año</small><strong id="movieYear">—</strong></div>
+<div><small><span class="meta-icon star"><i class="fa-solid fa-star"></i></span>Rating</small><strong id="movieRating">—</strong></div>
+</div>
+<div class="info" style="margin-top:9px">
+<div><small><span class="meta-icon"><i class="fa-solid fa-clapperboard"></i></span>Géneros</small><strong id="movieGenres">—</strong></div>
+<div><small><span class="meta-icon"><i class="fa-solid fa-shield-halved"></i></span>Clasificación</small><strong id="movieCert">—</strong></div>
+</div>
+</div>
+</div>
+<div class="artwork-panel" hidden="" id="artworkPanel">
+<div class="artwork-heading"><strong><i class="fa-solid fa-images"></i> Elegir póster</strong><span class="tmdb">Selecciona una imagen para esta película</span></div>
+<div class="artwork-list" id="posterChoices"></div>
+<div class="artwork-heading"><strong><i class="fa-solid fa-image"></i> Elegir portada de fondo</strong></div>
+<div class="artwork-list" id="backdropChoices"></div>
+<div class="artwork-actions">
+<button class="secondary" id="btnLoadArtwork" type="button"><i class="fa-solid fa-rotate"></i> Ver más imágenes de TMDB</button>
+<span class="tmdb" id="artworkStatus" role="status"></span>
+</div>
+</div>
+</div>
+</section>
+<section class="series-panel" hidden="" id="seriesPanel">
+<h3><i class="fa-solid fa-list"></i> Temporadas y episodios</h3>
+<div class="series-help">Elige la temporada y el capítulo. Cada episodio tiene sus propios enlaces de Google Photos. Puedes guardar la serie con capítulos pendientes y completarlos después.</div>
+<label for="seriesSeason">Temporada</label>
+<select id="seriesSeason"></select>
+<div class="series-status-label" id="seriesSeasonStatus" role="status"></div>
+<div class="admin-series-summary" id="adminSeriesSummary" role="status"></div>
+<div class="admin-series-actions">
+<button class="secondary" id="btnNextPending" type="button"><i class="fa-solid fa-forward"></i> Siguiente capítulo pendiente</button>
+<button class="secondary" id="btnLoadAllSeasons" type="button"><i class="fa-solid fa-list-check"></i> Revisar todas las temporadas (TMDB)</button>
+<span aria-live="polite" class="tmdb" id="adminBulkStatus" role="status"></span>
+</div>
+<div class="episode-admin-list" id="episodeAdminList"></div>
+<div class="series-status-label" id="episodeAdminSelected">Selecciona un episodio para configurar sus enlaces.</div>
+</section>
+<div class="grid" id="linksGrid" style="display:none">
+<section class="panel" id="linksCard">
+<div class="panel-title"><span class="icon"><i class="fa-solid fa-link"></i></span> <span id="linksHeading">URL del vídeo</span></div>
+<label for="googleUrl">URL Google Photos</label>
+<input id="googleUrl" placeholder="https://photos.google.com/share/..." type="url"/>
+<button class="primary full" id="btnExtract">
+<i class="fa-solid fa-wand-magic-sparkles"></i> Extraer URLs (1080p / 720p / 420p)
         </button>
-        <div id="extractStatus" class="status"></div>
+<div class="status" id="extractStatus"></div>
+<label for="m37">URL 1080p (m37)</label>
+<input id="m37" placeholder="Se rellena automáticamente" type="url"/>
+<label for="m22">URL 720p (m22)</label>
+<input id="m22" placeholder="Se rellena automáticamente" type="url"/>
+<label for="m18">URL 420p (m18)</label>
+<input id="m18" placeholder="Se rellena automáticamente" type="url"/>
+<button class="secondary full" id="btnAddMovie"><i class="fa-solid fa-plus"></i> Agregar al catálogo</button>
+<button class="secondary full" id="btnCancelEdit" style="display:none" type="button"><i class="fa-solid fa-xmark"></i> Cancelar edición</button>
+</section>
+<section class="panel" id="generateCard">
+<div class="panel-title"><span class="icon"><i class="fa-solid fa-box-archive"></i></span> Exportar película</div>
+<label for="backdropUrl">Backdrop utilizado</label>
+<input id="backdropUrl" readonly="" type="text"/>
+<div class="actions">
+<button class="primary" id="btnGenerate"><i class="fa-solid fa-box-archive"></i> Generar Reproductor</button>
+</div>
+<div class="status" id="generatedStatus"></div>
+</section>
+</div>
 
-        <label for="m37">URL 1080p (m37)</label>
-        <input id="m37" type="url" placeholder="Se rellena automáticamente">
-
-        <label for="m22">URL 720p (m22)</label>
-        <input id="m22" type="url" placeholder="Se rellena automáticamente">
-
-        <label for="m18">URL 420p (m18)</label>
-        <input id="m18" type="url" placeholder="Se rellena automáticamente">
-
-        <button id="btnAddMovie" class="secondary full"><i class="fa-solid fa-plus"></i> Agregar al catálogo</button>
-        <button id="btnCancelEdit" type="button" class="secondary full" style="display:none"><i class="fa-solid fa-xmark"></i> Cancelar edición</button>
-      </section>
-
-      <section class="panel" id="generateCard">
-        <div class="panel-title"><span class="icon"><i class="fa-solid fa-box-archive"></i></span> Exportar película</div>
-        <label for="backdropUrl">Backdrop utilizado</label>
-        <input id="backdropUrl" type="text" readonly>
-        <div class="actions">
-          <button id="btnGenerate" class="primary"><i class="fa-solid fa-box-archive"></i> Generar Reproductor</button>
-        </div>
-        <div id="generatedStatus" class="status"></div>
-      </section>
-    </div>
-
-    <section class="panel" id="collectionCard" style="display:none">
-      <div class="section-head">
-        <div class="panel-title"><span class="icon"><i class="fa-solid fa-layer-group"></i></span> Catálogo</div>
-        <span class="badge" id="collectionBadge">0</span>
-      </div>
-      <section class="admin-insights" id="adminInsights" aria-label="Estado de la colección">
-        <h3><i class="fa-solid fa-chart-column"></i> Panel de control</h3>
-        <p class="admin-help">Cifras sobre tu colección guardada. “Sin revisar” corresponde a temporadas o capítulos de TMDB que aún no se han cargado en el panel, y no necesariamente a enlaces faltantes.</p>
-        <div id="adminStats" class="admin-stats" aria-live="polite"></div>
-        <div class="admin-audit-heading">
-          <h4><i class="fa-solid fa-clipboard-check"></i> Estado de temporadas</h4>
-          <select id="adminAuditFilter" aria-label="Filtrar estado de series">
-            <option value="all">Todas las series</option>
-            <option value="pending">Con capítulos pendientes</option>
-            <option value="unknown">Con temporadas sin revisar</option>
-            <option value="complete">Temporadas revisadas completas</option>
-          </select>
-        </div>
-        <div id="adminAuditList" class="admin-audit-list"></div>
-      </section>
-      <div class="featured-panel">
-        <h3><i class="fa-solid fa-star"></i> Títulos destacados <span class="badge" id="featuredCount">0/6</span></h3>
-        <div class="tmdb">Marca la estrella junto a una película o serie para mostrarla en el carrusel principal. Ordena con las flechas. Si no eliges ninguna, aparecerán las mejor valoradas como antes.</div>
-        <div id="featuredList" class="featured-list" aria-live="polite"></div>
-      </div>
-      <div class="catalog-options">
-        <h3><i class="fa-solid fa-sliders"></i> Personalización del catálogo público</h3>
-        <div class="catalog-options-grid">
-          <label class="catalog-check"><input id="settingShowHero" type="checkbox" checked> Mostrar carrusel de portada</label>
-          <label class="catalog-check"><input id="settingShowContinue" type="checkbox" checked> Mostrar Continuar viendo</label>
-          <label class="catalog-setting-label" for="settingTitle">Título de la sección del catálogo
-            <input id="settingTitle" type="text" maxlength="45" placeholder="Catálogo">
-          </label>
-          <label class="catalog-setting-label" for="settingSort">Orden predeterminado para visitantes
+</section></div></div>
+</section>
+<section aria-labelledby="pending-title" class="admin-view" data-page="pending" hidden="" id="view-pending">
+<div class="page-heading"><div><div class="eyebrow">CONTROL DE CALIDAD</div><h2 id="pending-title">Episodios y temporadas pendientes</h2><p>Revisa qué series tienen capítulos sin enlace o temporadas todavía sin cargar desde TMDB.</p></div><div class="page-actions"><button class="secondary" data-view="library" type="button"><i class="fa-solid fa-layer-group"></i> Mi biblioteca</button></div></div>
+<section class="panel audit-standalone"><div class="audit-intro"><i class="fa-solid fa-circle-info"></i><span><strong>Pendiente</strong> significa capítulo cargado sin video. <strong>Sin revisar</strong> significa que todavía faltan datos de TMDB; no necesariamente un enlace.</span></div><div id="auditHeadHolder"><div class="admin-audit-heading">
+<h4><i class="fa-solid fa-clipboard-check"></i> Estado de temporadas</h4>
+<select aria-label="Filtrar estado de series" id="adminAuditFilter">
+<option value="all">Todas las series</option>
+<option value="pending">Con capítulos pendientes</option>
+<option value="unknown">Con temporadas sin revisar</option>
+<option value="complete">Temporadas revisadas completas</option>
+</select>
+</div></div><div id="auditListHolder"><div class="admin-audit-list" id="adminAuditList"></div></div></section>
+</section>
+<section aria-labelledby="appearance-title" class="admin-view" data-page="appearance" hidden="" id="view-appearance">
+<div class="page-heading"><div><div class="eyebrow">PERSONALIZACIÓN Y PUBLICACIÓN</div><h2 id="appearance-title">Prepara el catálogo público</h2><p>Elige qué destacar y revisa el resultado antes de generar el nuevo index.html.</p></div></div>
+<div class="appearance-columns"><section class="panel" id="appearanceFeatureHolder"><div class="featured-panel f101-flush-panel">
+<h3><i class="fa-solid fa-star"></i> Títulos destacados <span class="badge" id="featuredCount">0/6</span></h3>
+<div class="tmdb">Marca la estrella junto a una película o serie para mostrarla en el carrusel principal. Ordena con las flechas. Si no eliges ninguna, aparecerán las mejor valoradas como antes.</div>
+<div aria-live="polite" class="featured-list" id="featuredList"></div>
+</div></section><section class="panel" id="appearanceOptionsHolder"><div class="catalog-options f101-flush-panel">
+<h3><i class="fa-solid fa-sliders"></i> Personalización del catálogo público</h3>
+<div class="catalog-options-grid">
+<label class="catalog-check"><input checked="" id="settingShowHero" type="checkbox"/> Mostrar carrusel de portada</label>
+<label class="catalog-check"><input checked="" id="settingShowContinue" type="checkbox"/> Mostrar Continuar viendo</label>
+<label class="catalog-setting-label" for="settingTitle">Título de la sección del catálogo
+            <input id="settingTitle" maxlength="45" placeholder="Catálogo" type="text"/>
+</label>
+<label class="catalog-setting-label" for="settingSort">Orden predeterminado para visitantes
             <select id="settingSort">
-              <option value="recent">Agregadas recientemente</option>
-              <option value="title">Título (A-Z)</option>
-              <option value="year">Año (más reciente)</option>
-              <option value="rating">Mejor calificación</option>
-            </select>
-          </label>
-        </div>
-        <div class="tmdb">Estos cambios se guardan en tu navegador y se aplican al generar nuevamente index.html.</div>
-      </div>
-      <div class="collection-toolbar">
-        <input id="collectionSearch" type="search" placeholder="Buscar en mi colección..." aria-label="Buscar en mi colección">
-        <select id="collectionFilter" aria-label="Filtrar películas">
-          <option value="all">Películas y series</option>
-          <option value="movies">Solo películas</option>
-          <option value="series">Solo series</option>
-          <option value="complete">Con enlaces de video</option>
-          <option value="incomplete">Sin enlaces de video</option>
-        </select>
-        <select id="collectionSort" aria-label="Ordenar películas">
-          <option value="recent">Añadidas recientemente</option>
-          <option value="title">Título (A-Z)</option>
-          <option value="year">Año (más nuevo)</option>
-          <option value="rating">Calificación TMDB</option>
-        </select>
-      </div>
-      <div id="collectionInfo" class="collection-hint" role="status"></div>
-      <div id="collectionList"></div>
-      <div class="actions" style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap">
-        <button type="button" id="btnBackupCollection" class="secondary"><i class="fa-solid fa-file-export"></i> Respaldar colección</button>
-        <button type="button" id="btnEnrichMedia" class="secondary"><i class="fa-solid fa-users"></i> Completar logos y reparto (TMDB)</button>
-        <button type="button" id="btnRestoreCollection" class="secondary"><i class="fa-solid fa-file-import"></i> Importar respaldo</button>
-        <button type="button" id="btnRecoverCollection" class="secondary"><i class="fa-solid fa-clock-rotate-left"></i> Deshacer último cambio</button>
-        <input type="file" id="backupCollectionFile" accept=".json,application/json" hidden>
-      </div>
-      <div id="mediaStatus" class="status" role="status" aria-live="polite"></div>
-      <button id="btnPreviewCollection" class="secondary full"><i class="fa-solid fa-eye"></i> Vista previa del catálogo</button>
-      <button id="btnGenerateCollection" class="primary full">
-        <i class="fa-solid fa-box-archive"></i> Generar catálogo completo
+<option value="recent">Agregadas recientemente</option>
+<option value="title">Título (A-Z)</option>
+<option value="year">Año (más reciente)</option>
+<option value="rating">Mejor calificación</option>
+</select>
+</label>
+</div>
+<div class="tmdb">Estos cambios se guardan en tu navegador y se aplican al generar nuevamente index.html.</div>
+</div></section></div>
+<section class="panel publish-panel"><div class="panel-title"><span class="icon"><i class="fa-solid fa-rocket"></i></span> Publicación</div><p class="support-text">La vista previa no publica cambios. Genera el catálogo cuando termines de configurarlo y sustituye index.html en tu alojamiento.</p><div class="publish-actions" id="publishActionsHolder"><button class="secondary full" id="btnPreviewCollection"><i class="fa-solid fa-eye"></i> Vista previa del catálogo</button><button class="primary full" id="btnGenerateCollection">
+<i class="fa-solid fa-box-archive"></i> Generar catálogo completo
+      </button></div><div id="collectionStatusHolder"><div class="status" id="collectionStatus"></div></div></section>
+</section>
+<section aria-labelledby="tools-title" class="admin-view" data-page="tools" hidden="" id="view-tools">
+<div class="page-heading"><div><div class="eyebrow">CONFIGURACIÓN Y RESPALDOS</div><h2 id="tools-title">Herramientas</h2><p>Credenciales, importaciones, recuperación y mantenimiento de datos.</p></div></div>
+<div class="tools-columns"><div class="tools-group" id="credentialsHolder"><section class="panel">
+<div class="panel-title"><span class="icon"><i class="fa-solid fa-key"></i></span> Credencial TMDB</div>
+<label for="credentialType">Tipo de credencial</label>
+<select id="credentialType">
+<option value="apikey">API Key v3</option>
+<option value="token">API Read Access Token (Bearer)</option>
+</select>
+<label for="apiKey">API Key de TMDB</label>
+<input id="apiKey" placeholder="Ingresa tu credencial" type="password"/>
+<button class="primary full" id="btnValidate"><i class="fa-solid fa-check"></i> Validar credencial</button>
+<div class="status" id="keyStatus"></div>
+</section></div><div class="tools-group" id="importHolder"><section class="panel">
+<div class="panel-title"><span class="icon"><i class="fa-solid fa-file-import"></i></span> Importar JSON</div>
+<label for="jsonFile">Archivo movieManiaLimpio_FINAL.json</label>
+<input accept=".json,application/json" id="jsonFile" type="file"/>
+<button class="primary full" id="btnImportJson">
+<i class="fa-solid fa-file-import"></i> Importar catálogo
       </button>
-      <div id="collectionStatus" class="status"></div>
-    </section>
-  </section>
+<div class="import-bar"><div id="importBarFill"></div></div>
+<div class="status" id="importStatus"></div>
+</section></div></div>
+<section class="panel"><div class="panel-title"><span class="icon"><i class="fa-solid fa-box-archive"></i></span> Respaldos y mantenimiento</div><p class="support-text">Antes de importar o hacer cambios masivos, descarga una copia de tu colección.</p><div id="toolsActionsHolder"><div class="actions" style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap">
+<button class="secondary" id="btnBackupCollection" type="button"><i class="fa-solid fa-file-export"></i> Respaldar colección</button>
+<button class="secondary" id="btnEnrichMedia" type="button"><i class="fa-solid fa-users"></i> Completar logos y reparto (TMDB)</button>
+<button class="secondary" id="btnRestoreCollection" type="button"><i class="fa-solid fa-file-import"></i> Importar respaldo</button>
+<button class="secondary" id="btnRecoverCollection" type="button"><i class="fa-solid fa-clock-rotate-left"></i> Deshacer último cambio</button>
+<input accept=".json,application/json" hidden="" id="backupCollectionFile" type="file"/>
+</div></div><div id="mediaStatusHolder"><div aria-live="polite" class="status" id="mediaStatus" role="status"></div></div></section>
+</section>
 </main>
-<dialog class="preview-dialog" id="catalogPreviewDialog" aria-label="Vista previa del catálogo">
-  <div class="preview-bar">
-    <strong>Vista previa de Movie Mania HD</strong>
-    <span class="preview-note">Vista aislada. Para probar Google Photos y Chromecast usa el sitio publicado.</span>
-    <button id="btnClosePreview" type="button" class="secondary"><i class="fa-solid fa-xmark"></i> Cerrar</button>
-  </div>
-  <iframe id="catalogPreviewFrame" title="Vista previa del index" sandbox="allow-scripts allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>
-</dialog>
+</div>
+<dialog aria-label="Vista previa del catálogo" class="preview-dialog" id="catalogPreviewDialog">
+<div class="preview-bar">
+<strong>Vista previa de Movie Mania HD</strong>
+<span class="preview-note">Vista aislada. Para probar Google Photos y Chromecast usa el sitio publicado.</span>
+<button class="secondary" id="btnClosePreview" type="button"><i class="fa-solid fa-xmark"></i> Cerrar</button>
+</div>
+<iframe id="catalogPreviewFrame" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-popups" title="Vista previa del index"></iframe>
+</dialog></div>
 <script>
 /* ============================================================
    CONFIGURACIÓN — ENDPOINT DEL EXTRACTOR (Vercel)
@@ -1587,7 +1685,7 @@ function renderCollection(){
   renderAdminDashboard();
   let canUndo=false;
   try {canUndo=Array.isArray(JSON.parse(localStorage.getItem(COLLECTION_RECOVERY_KEY)||"null"));}catch{}
-  card.style.display=count || canUndo ? "block" : "none";
+  card.style.display="block";
   if (!count){
     list.innerHTML='<div class="empty">La colección está vacía. Puedes importar un respaldo o deshacer el último cambio.</div>';
     $("collectionInfo").textContent="0 películas guardadas";
@@ -2141,6 +2239,84 @@ search.addEventListener("keydown", e => { if (e.key==="Enter") searchMovies(); }
 updateSteps(1);
 fillCatalogSettings();
 renderCollection();
+</script>
+
+<script>
+/* Fase 10.1 — Navegación visual sin cambiar el guardado ni los identificadores originales */
+(function(){
+  const navButtons=[...document.querySelectorAll('.rail-link[data-view]')];
+  const views=[...document.querySelectorAll('.admin-view[data-page]')];
+  const navTitles={overview:'Resumen',library:'Mi biblioteca',editor:'Agregar / editar',pending:'Pendientes',appearance:'Personalización',tools:'Herramientas'};
+  function setPanelView(name){
+    if(!navTitles[name])name='overview';
+    views.forEach(el=>{el.hidden=el.dataset.page!==name});
+    navButtons.forEach(el=>{
+      const active=el.dataset.view===name;
+      el.classList.toggle('active',active);
+      if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');
+    });
+    document.title='Movie Mania HD · '+navTitles[name];
+    window.scrollTo({top:0,behavior:'auto'});
+    if(name==='overview')updateRedesignDashboard();
+  }
+  window.MMHDAdminView=setPanelView;
+  function editFromLibrary(id){setPanelView('editor');editSavedMovie(id)}
+  document.addEventListener('click',e=>{
+    const navigation=e.target.closest('[data-view]');
+    if(navigation){setPanelView(navigation.dataset.view);return;}
+    const create=e.target.closest('[data-create]');
+    if(create){
+      setPanelView('editor');
+      const kind=create.dataset.create==='tv'?'tv':'movie';
+      changeSearchKind(kind);
+      document.getElementById('movieSearch').focus();
+      return;
+    }
+    const libraryFilter=e.target.closest('[data-filter].library-pill');
+    if(libraryFilter){
+      document.querySelectorAll('.library-pill').forEach(x=>x.classList.toggle('active',x===libraryFilter));
+      document.getElementById('collectionFilter').value=libraryFilter.dataset.filter;
+      renderCollection();
+      return;
+    }
+    const recent=e.target.closest('[data-recent-edit]');
+    if(recent){editFromLibrary(recent.dataset.recentEdit);}
+  });
+  // Cambiar de pantalla antes de que la lógica actual abra los editores.
+  document.getElementById('collectionList').addEventListener('click',e=>{
+    if(e.target.closest('[data-edit-id]'))setPanelView('editor');
+  },true);
+  document.getElementById('adminAuditList').addEventListener('click',e=>{
+    if(e.target.closest('[data-audit-series]'))setPanelView('editor');
+  },true);
+  document.getElementById('openToolsView').addEventListener('click',()=>setPanelView('tools'));
+  document.getElementById('collectionFilter').addEventListener('change',()=>{
+    const current=document.getElementById('collectionFilter').value;
+    document.querySelectorAll('.library-pill').forEach(b=>b.classList.toggle('active',b.dataset.filter===current));
+  });
+  function updateRedesignDashboard(){
+    const target=document.getElementById('adminRecentList');if(!target)return;
+    const recent=[...state.collection].sort((a,b)=>
+      (Date.parse(b.addedAt)||0)-(Date.parse(a.addedAt)||0)||state.collection.indexOf(b)-state.collection.indexOf(a)).slice(0,4);
+    if(!recent.length){target.innerHTML='<p class="support-text">Aún no hay títulos. Empieza agregando tu primera película o serie.</p>';return;}
+    target.replaceChildren();
+    recent.forEach(m=>{
+      const row=document.createElement('button');row.type='button';row.className='recent-item';
+      row.dataset.recentEdit=String(m.id);
+      const img=document.createElement('img');
+      img.src=m.poster||'';img.alt='';img.loading='lazy';img.onerror=()=>{img.style.visibility='hidden'};
+      const info=document.createElement('span');const title=document.createElement('strong');title.textContent=m.title;
+      const sub=document.createElement('small');sub.textContent=(m.kind==='SERIES'?'Serie':'Película')+' · '+(m.year||'Sin año');
+      info.append(title,sub);const icon=document.createElement('i');icon.className='fa-solid fa-pen';
+      row.append(img,info,icon);target.appendChild(row);
+    });
+  }
+  // La función sigue declarada aquí para que pueda invocarse desde cualquier guardado.
+  window.updateRedesignDashboard=updateRedesignDashboard;
+  const oldRenderCollection=renderCollection;
+  renderCollection=function(){oldRenderCollection();updateRedesignDashboard()};
+  updateRedesignDashboard();setPanelView('overview');
+})();
 </script>
 </body>
 </html>
