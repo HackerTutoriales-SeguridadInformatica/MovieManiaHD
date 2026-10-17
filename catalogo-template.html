@@ -2214,6 +2214,106 @@ function buildProgressScript(movieId){
 `;
 }
 
+// Inyectado SOLAMENTE cuando una serie pasa automáticamente a su siguiente episodio.
+// El ajuste autoPlay de FWDEV no garantiza que el <video> comience solo;
+// esta capa espera a que exista el elemento y solicita play() directamente.
+function buildNextEpisodeAutostartScript(){
+  return `
+<script>
+(function(){
+  var started=false;
+  var pending=false;
+  var lastTry=0;
+  var tries=0;
+  var fallbackMuted=false;
+  var noticedManual=false;
+  var el=null;
+  var startTime=Date.now();
+  var checkTimer=null;
+  var muteButton=null;
+
+  function soundButton(video){
+    if(muteButton) return;
+    var btn=document.createElement('button');
+    btn.type='button';
+    btn.textContent='🔊 Activar sonido';
+    btn.setAttribute('aria-label','Activar sonido del siguiente episodio');
+    btn.style.cssText='position:fixed;top:12px;right:12px;z-index:2147483647;'
+      +'padding:11px 15px;border-radius:9px;border:1px solid #4d659e;'
+      +'background:#1b315a;color:white;font:600 13px Arial,sans-serif;'
+      +'box-shadow:0 4px 16px #000a;cursor:pointer';
+    btn.addEventListener('click',function(){
+      try{video.muted=false;video.volume=Math.max(video.volume||0,0.7);}catch(e){}
+      if(!video.muted){btn.remove();muteButton=null;}
+    });
+    document.body.appendChild(btn);
+    muteButton=btn;
+  }
+
+  function playbackStarted(){
+    started=true;
+    pending=false;
+    if(checkTimer){clearInterval(checkTimer);checkTimer=null;}
+    if(el && el.muted)soundButton(el);
+  }
+  function attempt(video){
+    if(!video || started || pending || noticedManual) return;
+    if(!video.paused){el=video;playbackStarted();return;}
+    // No llamar play() mientras FWDEV aún no ha establecido la fuente.
+    if(!video.currentSrc && !video.getAttribute('src') && !video.querySelector('source[src]')) return;
+    if(Date.now()-lastTry<950)return;
+    if(tries>=30 || Date.now()-startTime>65000)return;
+    tries++;
+    lastTry=Date.now();
+    pending=true;
+    try{
+      video.autoplay=true;
+      video.playsInline=true;
+      video.setAttribute('playsinline','');
+      var result=video.play();
+      if(result && typeof result.then==='function'){
+        result.then(function(){pending=false;playbackStarted();}).catch(function(error){
+          pending=false;
+          // Autoplay con sonido se bloquea en algunos navegadores.
+          // Se intenta reproducir silenciado y se ofrece activar sonido con un toque.
+          if(error && error.name==='NotAllowedError' && !fallbackMuted){
+            fallbackMuted=true;
+            video.muted=true;
+            lastTry=0;
+            attempt(video);
+          }
+        });
+      }else{
+        pending=false;
+      }
+    }catch(e){pending=false;}
+  }
+  function bind(video){
+    if(el===video)return;
+    el=video;
+    video.addEventListener('playing',playbackStarted,{once:true});
+    video.addEventListener('canplay',function(){attempt(video)});
+    video.addEventListener('loadeddata',function(){attempt(video)});
+    video.addEventListener('loadedmetadata',function(){attempt(video)});
+    // Si el usuario pausa el video después de que comenzó, nunca lo reiniciamos.
+    video.addEventListener('pause',function(){if(started)noticedManual=true;});
+  }
+  checkTimer=setInterval(function(){
+    if(started || noticedManual || Date.now()-startTime>65000){
+      clearInterval(checkTimer);checkTimer=null;return;
+    }
+    var video=document.querySelector('video');
+    if(!video)return;
+    bind(video);
+    attempt(video);
+  },350);
+  var current=document.querySelector('video');
+  if(current){bind(current);attempt(current);}
+})();
+<\/script>
+`;
+}
+
 function getPlayerHtml(movie, autoNext=false){
   if (!movie || !SHARED_PLAYER_B64) return "";
   // Decodificar la plantilla solo al abrir un título, no 358 veces al cargar.
@@ -2251,7 +2351,8 @@ function getPlayerHtml(movie, autoNext=false){
     html=html.replace(/FWDEVPlayer\.videoStartBehaviour\s*=\s*["']pause["']\s*;/i,
       'FWDEVPlayer.videoStartBehaviour = "play";');
   }
-  const scriptTag=buildProgressScript(movie.id);
+  const scriptTag=buildProgressScript(movie.id)
+    + (autoNext && movie.parentSeriesId!=null ? buildNextEpisodeAutostartScript() : "");
   return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"</body>") : html+scriptTag;
 }
 
