@@ -1655,6 +1655,33 @@ a{color:inherit;text-decoration:none}
 @media(min-width:601px){
   .detail-cast-nav{display:flex}
 }
+/* Fase 6.2: acciones de series sin alterar las fichas de películas. */
+.detail.series-detail .detail-actions{grid-template-columns:2fr 1fr 1fr;max-width:720px}
+.detail.series-detail #btnCast,.detail.series-detail #btnDownload{display:none}
+.detail.series-detail #btnPlay{min-width:0;padding:0 12px;white-space:normal;text-align:center;line-height:1.2}
+.detail-episode-actions{display:flex;align-items:center;gap:7px;justify-content:flex-end;flex-wrap:wrap}
+.detail-episode-action{
+  min-height:35px;display:inline-flex;gap:6px;align-items:center;justify-content:center;
+  padding:8px 10px;border-radius:8px;border:1px solid #38405b;background:#22283b;
+  color:#e0e9fc;font-size:11px;font-weight:700;white-space:nowrap;transition:background .18s,border-color .18s;
+}
+.detail-episode-action:hover:not(:disabled){background:#2b3d60;border-color:#6385cf;color:#fff}
+.detail-episode-action.primary{background:#254c93;border-color:#3b6cba;color:#fff}
+.detail-episode-action.primary:hover:not(:disabled){background:#3261b3}
+.detail-episode-action:disabled{opacity:.42;cursor:not-allowed}
+.detail-episode-action:focus-visible{outline:2px solid #8ab4ff;outline-offset:2px}
+@media(max-width:850px){
+ .detail-episode{grid-template-columns:120px minmax(0,1fr)}
+ .detail-episode img{width:120px}
+ .detail-episode-actions{grid-column:1/-1;justify-content:stretch}
+ .detail-episode-action{flex:1}
+}
+@media(max-width:600px){
+ .detail.series-detail .detail-actions{grid-template-columns:1fr 1fr}
+ .detail.series-detail #btnPlay{grid-column:1/-1;min-height:48px}
+ .detail-episode-actions{gap:6px}
+ .detail-episode-action{font-size:10.5px;padding:8px 5px}
+}
 /* Fase 6: temporadadas y capítulos de series */
 .detail-episodes{margin:26px 0 12px;padding:16px;border:1px solid #2e3650;border-radius:13px;background:#121420}
 .detail-episodes[hidden]{display:none!important}
@@ -2011,6 +2038,7 @@ const LS_PROGRESS = "mmhd_progress";
 const LS_DOWNLOADS = "mmhd_downloads";
 const LS_PROGRESS_TS = "mmhd_progress_ts";
 const LS_PROGRESS_SECONDS = "mmhd_progress_seconds";
+const LS_RECENT_SERIES_EPISODES = "mmhd_recent_series_episodes";
 
 function loadSet(key){
   try { return new Set(JSON.parse(localStorage.getItem(key) || "[]")); }
@@ -2031,6 +2059,7 @@ const myList = loadSet(LS_MYLIST);
 const watched = loadSet(LS_WATCHED);
 const progress = loadObj(LS_PROGRESS);
 const progressSeconds = loadObj(LS_PROGRESS_SECONDS);
+const recentSeriesEpisodes = loadObj(LS_RECENT_SERIES_EPISODES);
 const downloads = loadObj(LS_DOWNLOADS);
 // Registro local del navegador. No equivale a detectar archivos físicos en el dispositivo.
 function recordDownload(movie, status){
@@ -3122,6 +3151,7 @@ async function handleCast(movie) {
     request.autoplay = true;
     castMessage('Enviando película a la TV…');
     await session.loadMedia(request);
+    if(movie.parentSeriesId!=null)rememberSeriesEpisode(movie);
     castObserve();
     clearTimeout(castTimeout);
     castTimeout = setTimeout(() => {
@@ -3353,86 +3383,159 @@ function playableForSeries(series,season,episode){
   if(!series || series.kind!=="SERIES" || !episode)return null;
   const tmdbId=Math.abs(Number(series.id));
   const episodeId=-(100000000000+tmdbId*100000+Number(season)*1000+Number(episode.number));
-  // La ficha utiliza el fotograma (still) de TMDB. Mostrar ese mismo fotograma
-  // en la portada inicial del reproductor, pero pedirlo en tamaño original.
-  // Este cambio solo se aplica a episodios; las películas conservan su fondo.
+  // El fotograma (still) de TMDB se muestra tanto en la ficha como en el reproductor.
+  // Las portadas de películas siguen funcionando como antes.
   const episodeStill=String(episode.still||"").trim();
   const episodeBackdrop=/^https:\/\/image\.tmdb\.org\/t\/p\/(?:w\d+|original)\//i.test(episodeStill)
     ? episodeStill.replace(/\/t\/p\/(?:w\d+|original)\//i,"/t/p/original/")
     : episodeStill;
-  return {...series, id:episodeId, parentSeriesId:series.id,
+  return {...series,id:episodeId,parentSeriesId:series.id,
+    episodeSeason:Number(season),episodeNumber:Number(episode.number),
     title:`${series.title} · T${season}E${episode.number} · ${episode.name||"Episodio"}`,
     overview:episode.overview||series.overview,runtime:episode.runtime?episode.runtime+" min":series.runtime,
     backdrop:episodeBackdrop||series.backdrop||series.poster||"",
     m37:episode.m37||"",m22:episode.m22||"",m18:episode.m18||""};
 }
+function isPlayableEpisode(ep){
+  return Boolean(ep&&(ep.m37||ep.m22||ep.m18));
+}
+function findSeriesEpisode(series,seasonNumber,episodeNumber){
+  const season=series?.seasons?.find(s=>Number(s.number)===Number(seasonNumber));
+  const episode=season?.episodes?.find(e=>Number(e.number)===Number(episodeNumber));
+  return season&&episode?{season:season.number,episode:episode.number,data:episode}:null;
+}
+function orderedSeriesSeasons(series){
+  return (series.seasons||[]).filter(s=>Array.isArray(s.episodes)&&s.episodes.length)
+    .slice().sort((a,b)=>Number(a.number)-Number(b.number));
+}
+function getSeriesResumeEpisode(series){
+  const seasons=orderedSeriesSeasons(series);
+  const saved=recentSeriesEpisodes[series.id];
+  if(saved){
+    const entry=findSeriesEpisode(series,saved.season,saved.episode);
+    if(entry&&isPlayableEpisode(entry.data))return {...entry,resume:true};
+  }
+  // Recuperar historial existente de Fase 6.1, sin reiniciar lo que ya se vio.
+  let timestamps={};
+  try{timestamps=JSON.parse(localStorage.getItem(LS_PROGRESS_TS)||"{}");}catch(e){}
+  let latest=null;
+  let latestTime=0;
+  seasons.forEach(season=>{
+    season.episodes.forEach(ep=>{
+      if(!isPlayableEpisode(ep))return;
+      const id=playableForSeries(series,season.number,ep).id;
+      const timestamp=Number(timestamps[id])||0;
+      if(timestamp>latestTime){latestTime=timestamp;latest={season:season.number,episode:ep.number,data:ep,resume:true};}
+    });
+  });
+  if(latest)return latest;
+  for(const season of seasons){
+    const ep=season.episodes.slice().sort((a,b)=>a.number-b.number).find(isPlayableEpisode);
+    if(ep)return {season:season.number,episode:ep.number,data:ep,resume:false};
+  }
+  const firstSeason=seasons[0];
+  const first=firstSeason?.episodes.slice().sort((a,b)=>a.number-b.number)[0];
+  return first?{season:firstSeason.number,episode:first.number,data:first,resume:false}:null;
+}
 function selectedPlayable(){
-  const m=state.currentMovie;
-  if(!m)return null;
-  if(m.kind!=="SERIES")return m;
-  if(!selectedSeriesEpisode)return null;
-  const season=m.seasons?.find(s=>s.number===selectedSeriesEpisode.season);
-  const episode=season?.episodes?.find(e=>e.number===selectedSeriesEpisode.episode);
-  return episode?playableForSeries(m,season.number,episode):null;
+  const movie=state.currentMovie;
+  if(!movie)return null;
+  if(movie.kind!=="SERIES")return movie;
+  const target=getSeriesResumeEpisode(movie);
+  return target?playableForSeries(movie,target.season,target.data):null;
+}
+function syncSeriesEpisodeActive(){
+  const series=state.currentMovie;
+  if(!series||series.kind!=="SERIES")return;
+  const target=getSeriesResumeEpisode(series);
+  selectedSeriesEpisode=target?{season:target.season,episode:target.episode}:null;
+  document.querySelectorAll("#detailEpisodeList .detail-episode").forEach(card=>{
+    card.classList.toggle("active",Boolean(target&&Number(card.dataset.season)===Number(target.season)&&Number(card.dataset.episode)===Number(target.episode)));
+  });
+  updateSeriesPlayButtons();
+}
+function rememberSeriesEpisode(movie){
+  if(movie?.parentSeriesId==null)return;
+  recentSeriesEpisodes[movie.parentSeriesId]={season:movie.episodeSeason,episode:movie.episodeNumber,at:Date.now()};
+  saveObj(LS_RECENT_SERIES_EPISODES,recentSeriesEpisodes);
+  try{
+    const timestamps=JSON.parse(localStorage.getItem(LS_PROGRESS_TS)||"{}");
+    timestamps[movie.parentSeriesId]=Date.now();
+    localStorage.setItem(LS_PROGRESS_TS,JSON.stringify(timestamps));
+  }catch(e){}
+  if(state.currentMovie?.id===movie.parentSeriesId)syncSeriesEpisodeActive();
 }
 function updateSeriesPlayButtons(){
   const series=state.currentMovie;
-  if(!series || series.kind!=="SERIES")return;
-  const playable=selectedPlayable();
-  const ready=Boolean(playable&&(playable.m37||playable.m22||playable.m18));
-  $("btnPlay").disabled=!ready;
-  $("btnDownload").disabled=!ready;
-  $("btnPlay").innerHTML=ready?'<i class="fa-solid fa-play"></i> Reproducir episodio':'<i class="fa-solid fa-play"></i> Episodio sin enlace';
-  if(!ready)$("btnCast").disabled=true;
-  else updateCastButton();
+  if(!series||series.kind!=="SERIES")return;
+  const target=getSeriesResumeEpisode(series);
+  const ready=isPlayableEpisode(target?.data);
+  const btn=$("btnPlay");
+  btn.disabled=!ready;
+  if(target){
+    const action=target.resume?"Continuar":"Ver";
+    btn.innerHTML=`<i class="fa-solid fa-play"></i> ${action} Temporada ${target.season} Capítulo ${target.episode}`;
+  }else{
+    btn.innerHTML='<i class="fa-solid fa-play"></i> Sin episodios disponibles';
+  }
+  btn.title=ready?`Reproducir T${target.season} C${target.episode}`:"Todavía no hay un enlace disponible";
 }
 function renderSeriesSeasons(series,chosenSeason){
   const section=$("detailEpisodes"),select=$("detailSeason"),list=$("detailEpisodeList");
   section.hidden=series.kind!=="SERIES";
   if(series.kind!=="SERIES"){
     selectedSeriesEpisode=null;
-    $("btnPlay").disabled=false;$("btnDownload").disabled=false;
+    $("btnPlay").disabled=false;
+    $("btnDownload").disabled=false;
     return;
   }
-  const seasons=(series.seasons||[]).filter(s=>Array.isArray(s.episodes)&&s.episodes.length).sort((a,b)=>a.number-b.number);
+  const seasons=orderedSeriesSeasons(series);
   select.replaceChildren();
   seasons.forEach(s=>{
     const option=document.createElement("option");option.value=String(s.number);
     option.textContent=s.name||`Temporada ${s.number}`;select.appendChild(option);
   });
-  const current=seasons.find(s=>s.number===chosenSeason)||seasons[0];
+  const preferred=getSeriesResumeEpisode(series);
+  const selectedSeason=chosenSeason==null?preferred?.season:chosenSeason;
+  const current=seasons.find(s=>Number(s.number)===Number(selectedSeason))||seasons[0];
   if(current)select.value=String(current.number);
-  selectedSeriesEpisode=null;
-  const episodes=current?.episodes||[];
-  const first=episodes.find(e=>e.m37||e.m22||e.m18);
-  if(first)selectedSeriesEpisode={season:current.number,episode:first.number};
   list.replaceChildren();
+  const episodes=(current?.episodes||[]).slice().sort((a,b)=>a.number-b.number);
   episodes.forEach(ep=>{
-    const ready=Boolean(ep.m37||ep.m22||ep.m18);
-    const btn=document.createElement("button");btn.type="button";
-    btn.className="detail-episode"+(selectedSeriesEpisode?.episode===ep.number?" active":"");
-    btn.setAttribute("aria-label",`${ready?"Seleccionar":"Sin enlace"} episodio ${ep.number}: ${ep.name}`);
+    const ready=isPlayableEpisode(ep);
+    const row=document.createElement("article");
+    row.className="detail-episode";
+    row.dataset.season=String(current.number);
+    row.dataset.episode=String(ep.number);
     const image=document.createElement("img");image.loading="lazy";image.alt="";
-    image.src=String(ep.still||series.backdrop||series.poster);
-    const info=document.createElement("span");info.className="detail-episode-info";
+    image.src=String(ep.still||series.backdrop||series.poster||"");
+    const info=document.createElement("div");info.className="detail-episode-info";
     const heading=document.createElement("b");heading.textContent=`${ep.number}. ${ep.name||"Episodio"}`;
     const desc=document.createElement("small");desc.textContent=(ep.runtime?`${ep.runtime} min · `:"")+(ep.overview||"Sin descripción");
     info.append(heading,desc);
-    const label=document.createElement("span");label.className="episode-ready"+(ready?"":" pending");
-    label.textContent=ready?"▶ Ver episodio":"Pendiente";
-    btn.append(image,info,label);
-    btn.addEventListener("click",()=>{
-      selectedSeriesEpisode={season:current.number,episode:ep.number};
-      list.querySelectorAll(".detail-episode").forEach(el=>el.classList.remove("active"));
-      btn.classList.add("active");updateSeriesPlayButtons();
-      if(ready)openPlayer(selectedPlayable());
+    const actions=document.createElement("div");actions.className="detail-episode-actions";
+    const buttons=[
+      {name:"Reproducir",icon:"play",primary:true,action:()=>openPlayer(playableForSeries(series,current.number,ep))},
+      {name:"Transmitir",icon:"tv",action:()=>handleCast(playableForSeries(series,current.number,ep))},
+      {name:"Descargar",icon:"download",action:()=>showDownloadBox(playableForSeries(series,current.number,ep))}
+    ];
+    buttons.forEach(item=>{
+      const btn=document.createElement("button");
+      btn.type="button";btn.className="detail-episode-action"+(item.primary?" primary":"");
+      btn.innerHTML=`<i class="fa-solid fa-${item.icon}" aria-hidden="true"></i> ${item.name}`;
+      btn.disabled=!ready;
+      btn.setAttribute("aria-label",`${item.name} temporada ${current.number}, capítulo ${ep.number}: ${ep.name||"Episodio"}`);
+      if(!ready)btn.title="Episodio pendiente de configurar";
+      btn.addEventListener("click",item.action);
+      actions.appendChild(btn);
     });
-    list.appendChild(btn);
+    row.append(image,info,actions);
+    list.appendChild(row);
   });
   $("detailEpisodesNote").textContent=seasons.length
-    ? "Selecciona un capítulo para reproducirlo. Los episodios pendientes se habilitan desde el panel."
+    ? "Cada capítulo tiene sus controles independientes. Los episodios pendientes se habilitan desde el panel."
     : "Todavía no hay temporadas configuradas para esta serie.";
-  updateSeriesPlayButtons();
+  syncSeriesEpisodeActive();
 }
 /* ============================================================
    DETALLE
@@ -3442,6 +3545,7 @@ function openDetail(id){
   if (!m) return;
   const wasDetailOpen=$("detailScreen").classList.contains("show");
   state.currentMovie = m;
+  $("detailScreen").classList.toggle("series-detail",m.kind==="SERIES");
 
   $("detailBackdrop").style.backgroundImage =
     `url(${JSON.stringify(mobileBackdrop(m.backdrop))})`;
@@ -3571,8 +3675,8 @@ function formatDownloadBytes(bytes){
   while (bytes >= 1024 && i < units.length - 1){ bytes /= 1024; i++; }
   return bytes.toFixed(i ? 1 : 0) + " " + units[i];
 }
-async function showDownloadBox(){
-  const m = selectedPlayable();
+async function showDownloadBox(movieOverride){
+  const m = movieOverride || selectedPlayable();
   if (!m || activeDownload) return;
   const sourceUrl = m.m37 || m.m22 || m.m18 || "";
   if (!sourceUrl){ alert("Esta película no tiene URLs configuradas."); return; }
@@ -3682,7 +3786,10 @@ function openPlayer(movie){
   if (!progress[movie.id]) {
     progress[movie.id] = 1;
   }
-  if(movie.parentSeriesId!=null && !progress[movie.parentSeriesId])progress[movie.parentSeriesId]=1;
+  if(movie.parentSeriesId!=null){
+    if(!progress[movie.parentSeriesId])progress[movie.parentSeriesId]=1;
+    rememberSeriesEpisode(movie);
+  }
   try {
     const ts = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}");
     ts[movie.id] = Date.now();
