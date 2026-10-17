@@ -1,6 +1,50 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<script disable-devtool-auto src='https://cdn.jsdelivr.net/npm/disable-devtool'></script>
+
+<script>
+(function(){
+  "use strict";
+  const REDIRECT_URL = "https://www.google.com/";
+  let redirecting = false;
+  document.addEventListener("keydown", function(e){
+    const k = (e.key || "").toLowerCase();
+    const ctrl = e.ctrlKey || e.metaKey;
+    const shift = e.shiftKey;
+    if(e.key === "F12" || e.keyCode === 123){ e.preventDefault(); e.stopPropagation(); return false; }
+    if(ctrl && shift && (k === "c" || k === "i" || k === "j" || k === "k")){ e.preventDefault(); e.stopPropagation(); return false; }
+    if(ctrl && !shift && (k === "u" || k === "s" || k === "p")){ e.preventDefault(); e.stopPropagation(); return false; }
+    if(ctrl && !shift && k === "a" && !e.target.matches("input, textarea")){ e.preventDefault(); e.stopPropagation(); return false; }
+  }, true);
+  document.addEventListener("contextmenu", function(e){ e.preventDefault(); return false; }, true);
+  document.addEventListener("dragstart", function(e){ e.preventDefault(); return false; }, true);
+  function isDevtoolsOpen(){
+    if(window.matchMedia("(pointer: coarse)").matches) return false;
+    if(window.innerWidth < 900) return false;
+    const widthDiff  = window.outerWidth  - window.innerWidth;
+    const heightDiff = window.outerHeight - window.innerHeight;
+    return (widthDiff > 400 || heightDiff > 400);
+  }
+  function redirectAway(){
+    if(redirecting) return;
+    redirecting = true;
+    const delay = 2000 + Math.random() * 1500;
+    setTimeout(function(){
+      try{ window.location.replace(REDIRECT_URL); }
+      catch(_){ window.location.href = REDIRECT_URL; }
+    }, delay);
+  }
+  function check(){
+    if(redirecting) return;
+    try{ if(isDevtoolsOpen()) redirectAway(); }catch(_){}
+  }
+  setInterval(check, 2000);
+  window.addEventListener("focus", function(){ setTimeout(check, 800); });
+  try{ if(window.top !== window.self){ window.top.location = window.self.location; } }catch(_){}
+})();
+</script>
+  
 <meta name="referrer" content="no-referrer" />
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
