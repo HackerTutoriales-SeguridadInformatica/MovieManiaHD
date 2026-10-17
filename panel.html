@@ -547,6 +547,138 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   #view-editor .info strong{font-size:10px}
 }
 
+
+/* ============================================================
+   FASE 10.1.3 · FICHA DE EDICIÓN MÁS COMPACTA
+   Ocultar únicamente la presentación de metadatos en el editor.
+   Sus elementos con ID y sus valores TMDB permanecen en el DOM
+   y se siguen guardando/exportando normalmente en el catálogo.
+   ============================================================ */
+#view-editor #movieCard .preview .info{
+  display:none !important;
+}
+#view-editor #movieCard .movie-inner{padding:16px}
+#view-editor #movieCard .preview{
+  grid-template-columns:104px minmax(0,1fr);
+  gap:15px;
+}
+#view-editor #movieCard #posterPreview{
+  width:104px;
+  height:156px;
+}
+#view-editor #movieCard .preview h2{margin:0 0 9px}
+#view-editor #movieCard .artwork-panel{margin-top:10px;padding-top:10px}
+@media(max-width:520px){
+  #view-editor #movieCard .preview{
+    grid-template-columns:84px minmax(0,1fr);
+    gap:11px;
+  }
+  #view-editor #movieCard #posterPreview{width:84px;height:126px}
+  #view-editor #movieCard .movie-inner{padding:13px}
+}
+
+
+/* ============================================================
+   FASE 10.1.4 · CONTENIDO INTERNO MÁS COMPACTO
+   Reduce únicamente el tamaño visual del contenido dentro de la
+   ficha del editor. El recuadro conserva su tamaño actual.
+   ============================================================ */
+#view-editor #movieCard .movie-inner{padding:12px}
+#view-editor #movieCard .preview{grid-template-columns:92px minmax(0,1fr);gap:12px}
+#view-editor #movieCard #posterPreview{width:92px;height:138px}
+#view-editor #movieCard .preview h2{font-size:clamp(16px,1.35vw,20px);line-height:1.15;margin:0 0 6px}
+#view-editor #movieCard .preview .overview{font-size:10.5px;line-height:1.48;-webkit-line-clamp:4}
+#view-editor #movieCard .artwork-panel{margin-top:8px;padding-top:8px}
+#view-editor #movieCard .artwork-heading{margin:5px 0;gap:6px}
+#view-editor #movieCard .artwork-heading strong{font-size:11px}
+#view-editor #movieCard .artwork-heading .tmdb,
+#view-editor #movieCard #artworkStatus{font-size:10px;line-height:1.4}
+#view-editor #movieCard .artwork-list{gap:7px;padding:4px 0 8px;min-height:74px}
+#view-editor #movieCard .artwork-choice{width:72px;padding:2px;border-radius:8px}
+#view-editor #movieCard .artwork-choice img{height:100px;border-radius:4px}
+#view-editor #movieCard .artwork-choice.backdrop-choice{width:132px}
+#view-editor #movieCard .artwork-choice.backdrop-choice img{height:78px}
+#view-editor #movieCard .artwork-choice.selected:after{top:3px;right:3px;font-size:11px;padding:2px 5px}
+@media(max-width:520px){
+  #view-editor #movieCard .movie-inner{padding:11px}
+  #view-editor #movieCard .preview{grid-template-columns:78px minmax(0,1fr);gap:10px}
+  #view-editor #movieCard #posterPreview{width:78px;height:117px}
+  #view-editor #movieCard .preview h2{font-size:16px}
+  #view-editor #movieCard .preview .overview{font-size:10px;line-height:1.42;-webkit-line-clamp:3}
+  #view-editor #movieCard .artwork-choice{width:64px}
+  #view-editor #movieCard .artwork-choice img{height:90px}
+  #view-editor #movieCard .artwork-choice.backdrop-choice{width:118px}
+  #view-editor #movieCard .artwork-choice.backdrop-choice img{height:70px}
+}
+
+
+
+/* =============================================================
+   FASE 10.1.5 · 20% MENOS CONTENIDO, METADATOS EN FILA
+   Mantener las dimensiones externas y la altura del panel.
+   ============================================================= */
+#view-editor #movieCard .movie-inner{padding:10px}
+#view-editor #movieCard .preview{grid-template-columns:74px minmax(0,1fr);gap:10px}
+#view-editor #movieCard #posterPreview{width:74px;height:110px;border-radius:7px}
+#view-editor #movieCard .preview h2{font-size:clamp(13px,1.1vw,16px);line-height:1.2;margin:0 0 5px}
+#view-editor #movieCard .preview .overview{font-size:9px;line-height:1.45;-webkit-line-clamp:4}
+#view-editor #movieCard .mode-tag{font-size:9px;padding:3px 7px;margin:5px 0 0}
+#view-editor #movieCard .artwork-panel{margin-top:7px;padding-top:7px}
+#view-editor #movieCard .artwork-heading{margin:4px 0;gap:5px}
+#view-editor #movieCard .artwork-heading strong{font-size:9px}
+#view-editor #movieCard .artwork-heading .tmdb,
+#view-editor #movieCard #artworkStatus{font-size:9px;line-height:1.35}
+#view-editor #movieCard .artwork-list{gap:6px;padding:3px 0 7px;min-height:60px}
+#view-editor #movieCard .artwork-choice{width:58px;padding:2px;border-radius:7px}
+#view-editor #movieCard .artwork-choice img{height:80px;border-radius:4px}
+#view-editor #movieCard .artwork-choice.backdrop-choice{width:106px}
+#view-editor #movieCard .artwork-choice.backdrop-choice img{height:62px}
+#view-editor #movieCard .artwork-choice.selected:after{top:2px;right:2px;font-size:9px;padding:2px 4px}
+#view-editor #movieCard .artwork-actions{margin-top:6px;gap:6px}
+#view-editor #movieCard .artwork-actions button{font-size:9px;padding:6px 8px}
+
+/* Metadatos de TMDB bajo la sinopsis: icono + valor, una sola fila.
+   El desplazamiento horizontal sin scrollbar mantiene una fila en pantallas chicas. */
+#view-editor #movieCard .compact-media-meta{
+  display:flex;align-items:center;flex-wrap:nowrap;gap:6px;
+  margin-top:9px;padding:3px 0 5px;width:100%;max-width:100%;min-width:0;
+  overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;
+  scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;
+}
+#view-editor #movieCard .compact-media-meta::-webkit-scrollbar{display:none}
+#view-editor #movieCard .meta-inline{
+  display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;
+  min-width:0;max-width:210px;padding:4px 5px;border:1px solid rgba(45,66,91,.7);
+  border-radius:5px;background:rgba(7,14,25,.84);color:#deecfd;
+  white-space:nowrap;
+}
+#view-editor #movieCard .meta-inline .meta-icon{
+  display:inline-flex;width:12px;height:12px;font-size:8px;flex:0 0 auto;
+  align-items:center;justify-content:center;
+}
+#view-editor #movieCard .meta-inline .meta-icon i{font-size:8px;margin:0}
+#view-editor #movieCard .meta-inline strong{
+  display:block;min-width:0;font-weight:600;font-size:9px;line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#view-editor #movieCard .meta-sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+@media(max-width:520px){
+  #view-editor #movieCard .movie-inner{padding:9px}
+  #view-editor #movieCard .preview{grid-template-columns:63px minmax(0,1fr);gap:8px}
+  #view-editor #movieCard #posterPreview{width:63px;height:94px}
+  #view-editor #movieCard .preview h2{font-size:13px;margin-bottom:5px}
+  #view-editor #movieCard .preview .overview{font-size:9px;line-height:1.4;-webkit-line-clamp:3}
+  #view-editor #movieCard .artwork-choice{width:52px}
+  #view-editor #movieCard .artwork-choice img{height:72px}
+  #view-editor #movieCard .artwork-choice.backdrop-choice{width:95px}
+  #view-editor #movieCard .artwork-choice.backdrop-choice img{height:56px}
+  #view-editor #movieCard .compact-media-meta{gap:5px;margin-top:7px}
+  #view-editor #movieCard .meta-inline{padding:4px}
+}
+
 </style>
 </head>
 <body>
@@ -680,15 +812,13 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <h2 id="movieTitle"></h2>
 <span class="mode-tag" id="editingTag"><i class="fa-solid fa-pen"></i> Editando película guardada</span>
 <p class="overview" id="overview"></p>
-<div class="info">
-<div><small><span class="meta-icon"><i class="fa-regular fa-clock"></i></span>Duración</small><strong id="movieRuntime">—</strong></div>
-<div><small><span class="meta-icon"><i class="fa-solid fa-globe"></i></span>Idioma</small><strong id="movieLanguage">—</strong></div>
-<div><small><span class="meta-icon"><i class="fa-regular fa-calendar-days"></i></span>Año</small><strong id="movieYear">—</strong></div>
-<div><small><span class="meta-icon star"><i class="fa-solid fa-star"></i></span>Rating</small><strong id="movieRating">—</strong></div>
-</div>
-<div class="info" style="margin-top:9px">
-<div><small><span class="meta-icon"><i class="fa-solid fa-clapperboard"></i></span>Géneros</small><strong id="movieGenres">—</strong></div>
-<div><small><span class="meta-icon"><i class="fa-solid fa-shield-halved"></i></span>Clasificación</small><strong id="movieCert">—</strong></div>
+<div class="compact-media-meta" aria-label="Datos de TMDB">
+  <span class="meta-inline" title="Duración"><span class="meta-icon" aria-hidden="true"><i class="fa-regular fa-clock"></i></span><span class="meta-sr-only">Duración: </span><strong id="movieRuntime">—</strong></span>
+  <span class="meta-inline" title="Idioma"><span class="meta-icon" aria-hidden="true"><i class="fa-solid fa-globe"></i></span><span class="meta-sr-only">Idioma: </span><strong id="movieLanguage">—</strong></span>
+  <span class="meta-inline" title="Año"><span class="meta-icon" aria-hidden="true"><i class="fa-regular fa-calendar-days"></i></span><span class="meta-sr-only">Año: </span><strong id="movieYear">—</strong></span>
+  <span class="meta-inline" title="Rating"><span class="meta-icon star" aria-hidden="true"><i class="fa-solid fa-star"></i></span><span class="meta-sr-only">Rating: </span><strong id="movieRating">—</strong></span>
+  <span class="meta-inline" title="Géneros"><span class="meta-icon" aria-hidden="true"><i class="fa-solid fa-clapperboard"></i></span><span class="meta-sr-only">Géneros: </span><strong id="movieGenres">—</strong></span>
+  <span class="meta-inline" title="Clasificación"><span class="meta-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span><span class="meta-sr-only">Clasificación: </span><strong id="movieCert">—</strong></span>
 </div>
 </div>
 </div>
