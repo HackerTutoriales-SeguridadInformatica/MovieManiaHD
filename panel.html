@@ -244,6 +244,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
 @keyframes quality-pulse{50%{opacity:.35}}
 .quality-check-controls{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-top:12px}
 .quality-check-controls button{font-size:11px;padding:8px 10px}
+.quality-check-controls button:disabled{opacity:.45;cursor:not-allowed;filter:none;transform:none}
 .quality-check-summary{flex:1;min-width:180px;color:var(--muted);font-size:10.5px;line-height:1.5}
 .quality-check-note{margin:8px 0 0;color:var(--muted);font-size:10px;line-height:1.45}
 @media(max-width:430px){.quality-check-badge{flex-basis:107px;font-size:9px;padding:7px 5px}}
@@ -1191,6 +1192,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <button class="primary full" id="btnExtract">
 <i class="fa-solid fa-wand-magic-sparkles"></i> Extraer URLs (1080p / 720p / 420p)
         </button>
+<div class="quality-check-controls"><button class="secondary" type="button" id="btnCheckQualities" disabled title="Primero extrae o introduce una URL de video válida"><i class="fa-solid fa-circle-play"></i> Verificar reproducción</button><button class="secondary" type="button" id="btnCancelQualities" disabled><i class="fa-solid fa-ban"></i> Cancelar verificación</button><span class="quality-check-summary" id="qualityCheckSummary" aria-live="polite">Extrae o introduce los enlaces de video para verificar.</span></div>
 <div class="status" id="extractStatus"></div>
 <label for="m37">URL 1080p (m37)</label>
 <div class="quality-check-line"><input id="m37" placeholder="Se rellena automáticamente" type="url"/><span class="quality-check-badge" id="qualityStatus-m37" data-state="idle" role="status" aria-label="1080p sin verificar">Sin verificar</span></div>
@@ -1198,7 +1200,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div class="quality-check-line"><input id="m22" placeholder="Se rellena automáticamente" type="url"/><span class="quality-check-badge" id="qualityStatus-m22" data-state="idle" role="status" aria-label="720p sin verificar">Sin verificar</span></div>
 <label for="m18">URL 420p (m18)</label>
 <div class="quality-check-line"><input id="m18" placeholder="Se rellena automáticamente" type="url"/><span class="quality-check-badge" id="qualityStatus-m18" data-state="idle" role="status" aria-label="420p sin verificar">Sin verificar</span></div>
-<div class="quality-check-controls"><button class="secondary" type="button" id="btnCheckQualities"><i class="fa-solid fa-circle-play"></i> Verificar reproducción</button><span class="quality-check-summary" id="qualityCheckSummary" aria-live="polite">Se comprobarán los enlaces después de extraerlos.</span></div>
+
 <button class="secondary full" id="btnAddMovie"><i class="fa-solid fa-plus"></i> Agregar al catálogo</button>
 <button class="secondary full" id="btnCancelEdit" style="display:none" type="button"><i class="fa-solid fa-xmark"></i> Cancelar edición</button>
 </section>
@@ -2228,9 +2230,10 @@ async function loadMovie(id){
    ============================================================ */
 const QUALITY_IDS = ["m37","m22","m18"];
 const QUALITY_NAMES = {m37:"1080p",m22:"720p",m18:"420p"};
-const QUALITY_TIMEOUT_MS = 30000;
+const QUALITY_TIMEOUT_MS = 35000;
 let qualityCheckGeneration = 0;
 let qualityCheckAbort = null;
+let qualityCheckRunning = false;
 function setQualityState(q,state,label,detail=""){
   const badge = $("qualityStatus-"+q);
   if(!badge)return;
@@ -2239,16 +2242,40 @@ function setQualityState(q,state,label,detail=""){
   badge.title=detail||label;
   badge.setAttribute("aria-label", QUALITY_NAMES[q]+": "+(detail||label));
 }
+function canVerifyVideoQualities(){
+  if(!state.movie || (state.movie.kind==="SERIES" && !state.selectedEpisode))return false;
+  return QUALITY_IDS.some(q=>validQualityProbeUrl($(q).value.trim(),q));
+}
+function refreshQualityCheckButtons(){
+  const btn=$("btnCheckQualities"), cancel=$("btnCancelQualities");
+  if(btn){
+    btn.disabled=qualityCheckRunning || !canVerifyVideoQualities();
+    btn.title=qualityCheckRunning?"Ya hay una verificación en curso":(btn.disabled?"Primero extrae o introduce una URL de video válida":"Comprobar los enlaces disponibles");
+  }
+  if(cancel)cancel.disabled=!qualityCheckRunning;
+}
 function stopQualityChecks(message=""){
   qualityCheckGeneration++;
+  qualityCheckRunning=false;
   if(qualityCheckAbort){const abort=qualityCheckAbort;qualityCheckAbort=null;abort();}
-  if($("btnCheckQualities"))$("btnCheckQualities").disabled=false;
+  refreshQualityCheckButtons();
   if(message && $("qualityCheckSummary"))$("qualityCheckSummary").textContent=message;
 }
-function resetQualityChecks(message="Sin verificar. Pulsa «Verificar reproducción» para comprobar los enlaces."){
+function cancelQualityChecks(){
+  if(!qualityCheckRunning)return;
+  stopQualityChecks();
+  for(const q of QUALITY_IDS){
+    const badge=$("qualityStatus-"+q);
+    if(badge?.dataset.state==="checking")setQualityState(q,"idle","Cancelada","Comprobación detenida por el usuario");
+    else if(badge?.textContent==="En espera")setQualityState(q,"idle","Sin verificar","Comprobación cancelada antes de comenzar");
+  }
+  $("qualityCheckSummary").textContent="Verificación cancelada. Se conservan los resultados ya obtenidos.";
+}
+function resetQualityChecks(message="Extrae o introduce los enlaces de video para verificar."){
   stopQualityChecks();
   for(const q of QUALITY_IDS){setQualityState(q,$(q).value.trim()?"idle":"empty",$(q).value.trim()?"Sin verificar":"Sin enlace");}
   $("qualityCheckSummary").textContent=message;
+  refreshQualityCheckButtons();
 }
 function validQualityProbeUrl(raw,q){
   try{
@@ -2301,7 +2328,7 @@ function checkQualityHtml5(q,url,generation){
     v.addEventListener("playing",onPlaying);
     v.addEventListener("timeupdate",onProgress);
     v.addEventListener("ended",onProgress);
-    timeoutId=setTimeout(()=>finish("unknown","Sin confirmar","No avanzó en 15 segundos; podría estar lento o bloqueado"),QUALITY_TIMEOUT_MS);
+    timeoutId=setTimeout(()=>finish("unknown","Sin confirmar","No avanzó en 35 segundos; podría estar lento o bloqueado"),QUALITY_TIMEOUT_MS);
     document.body.appendChild(v);
     try{
       v.src=url;
@@ -2317,30 +2344,43 @@ function checkQualityHtml5(q,url,generation){
   });
 }
 async function verifyVideoQualities(){
+  if(qualityCheckRunning)return;
+  // La comprobación solo se inicia con un título y al menos un enlace directo válido.
+  if(!canVerifyVideoQualities()){
+    refreshQualityCheckButtons();
+    $("qualityCheckSummary").textContent="Primero extrae o introduce al menos una URL de video válida (m37, m22 o m18).";
+    return;
+  }
   stopQualityChecks();
   const generation=qualityCheckGeneration;
   const urls=Object.fromEntries(QUALITY_IDS.map(q=>[q,$(q).value.trim()]));
   const available=QUALITY_IDS.filter(q=>!!urls[q]);
-  if(!available.length){resetQualityChecks("No hay URLs para verificar.");return;}
-  $("btnCheckQualities").disabled=true;
+  qualityCheckRunning=true;
+  refreshQualityCheckButtons();
   for(const q of QUALITY_IDS)setQualityState(q,urls[q]?"idle":"empty",urls[q]?"En espera":"Sin enlace");
   const counts={ok:0,error:0,unknown:0};
-  for(let i=0;i<available.length;i++){
+  try{
+    for(let i=0;i<available.length;i++){
+      if(generation!==qualityCheckGeneration)return;
+      const q=available[i],url=urls[q];
+      $("qualityCheckSummary").textContent=`Comprobando ${QUALITY_NAMES[q]} (${i+1} de ${available.length}) · máximo 35 s…`;
+      setQualityState(q,"checking","Probando…","Intentando reproducir en HTML5 (silenciado)");
+      let result;
+      if(!validQualityProbeUrl(url,q))result={state:"error",label:"URL inválida",detail:"Se esperaba una URL HTTPS de googleusercontent.com terminada en ="+q};
+      else result=await checkQualityHtml5(q,url,generation);
+      if(generation!==qualityCheckGeneration || url!==$(q).value.trim())return;
+      if(result.state==="cancelled")return;
+      setQualityState(q,result.state,result.label,result.detail);
+      counts[result.state]=(counts[result.state]||0)+1;
+    }
     if(generation!==qualityCheckGeneration)return;
-    const q=available[i],url=urls[q];
-    $("qualityCheckSummary").textContent=`Comprobando ${QUALITY_NAMES[q]} (${i+1} de ${available.length})…`;
-    setQualityState(q,"checking","Probando…","Intentando reproducir en HTML5 (silenciado)");
-    let result;
-    if(!validQualityProbeUrl(url,q))result={state:"error",label:"URL inválida",detail:"Se esperaba una URL HTTPS de googleusercontent.com terminada en ="+q};
-    else result=await checkQualityHtml5(q,url,generation);
-    if(generation!==qualityCheckGeneration || url!==$(q).value.trim())return;
-    if(result.state==="cancelled")return;
-    setQualityState(q,result.state,result.label,result.detail);
-    counts[result.state]=(counts[result.state]||0)+1;
+    $("qualityCheckSummary").textContent=`Verdes: ${counts.ok} · Rojas: ${counts.error} · Amarillas: ${counts.unknown}. ${counts.ok?"Al menos una calidad se reproduce en HTML5.":"No se confirmó ninguna reproducción."}`;
+  }finally{
+    if(generation===qualityCheckGeneration){
+      qualityCheckRunning=false;
+      refreshQualityCheckButtons();
+    }
   }
-  if(generation!==qualityCheckGeneration)return;
-  $("btnCheckQualities").disabled=false;
-  $("qualityCheckSummary").textContent=`Verdes: ${counts.ok} · Rojas: ${counts.error} · Amarillas: ${counts.unknown}. ${counts.ok?"Al menos una calidad se reproduce en HTML5.":"No se confirmó ninguna reproducción."}`;
 }
 
 /* ============================================================
@@ -2389,9 +2429,14 @@ async function extractFromGooglePhotos(){
     $("m18").value = data.m18 || "";
 
     box.className = "status show ok";
-    box.textContent = "✓ URLs generadas. Comprobación HTML5 iniciada automáticamente: consulta el indicador junto a cada calidad.";
     // El diagnóstico no modifica los enlaces ni los datos guardados.
-    void verifyVideoQualities();
+    if(canVerifyVideoQualities()){
+      box.textContent = "✓ URLs generadas. Comprobación HTML5 iniciada automáticamente: consulta el indicador junto a cada calidad.";
+      void verifyVideoQualities();
+    }else{
+      box.textContent = "✓ Extracción finalizada, pero no se obtuvo ninguna URL de video válida para verificar.";
+      resetQualityChecks("Sin enlaces directos válidos para comprobar.");
+    }
   }catch(e){
     if (requestId === extractRequestId){
       box.className = "status show err";
@@ -3064,6 +3109,7 @@ $("googleUrl").addEventListener("input", ()=>{
 });
 $("btnExtract").addEventListener("click", extractFromGooglePhotos);
 $("btnCheckQualities").addEventListener("click", verifyVideoQualities);
+$("btnCancelQualities").addEventListener("click", cancelQualityChecks);
 for(const q of QUALITY_IDS)$(q).addEventListener("input",()=>{
   resetQualityChecks("Se cambió un enlace. Pulsa «Verificar reproducción» para comprobar las URLs actuales.");
 });
