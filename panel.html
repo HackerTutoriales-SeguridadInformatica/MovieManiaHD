@@ -764,6 +764,98 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   #view-editor #editorTopContent{min-height:0}
   #view-editor #movieCard #artworkPanel .artwork-actions{margin-top:5px}
 }
+
+/* ============================================================
+   FASE 11.2 · RESULTADOS MÁS ESTRECHOS Y GALERÍAS DESLIZABLES
+   Solo presentación visual del editor. Todos los controles TMDB,
+   selección de imágenes, buscador ES/EN y URLs conservan su lógica.
+   ============================================================ */
+/* La ficha gana espacio sin ampliar el listado de resultados. */
+@media (min-width:1161px){
+  #view-editor .editor-columns{
+    grid-template-columns:minmax(250px,30fr) minmax(0,70fr);
+    gap:16px;
+  }
+}
+@media (min-width:781px) and (max-width:1160px){
+  #view-editor .editor-columns{
+    grid-template-columns:minmax(215px,32fr) minmax(0,68fr);
+    gap:13px;
+  }
+}
+/* Cuando se edita sin resultados, la ficha conserva todo el ancho. */
+#view-editor .editor-columns:has(#results:empty):has(#movieCard[style*="display: block"]){
+  grid-template-columns:minmax(0,1fr);
+}
+
+/* Tres pósters por vista, dos fondos por vista, y scroll independiente. */
+#view-editor #movieCard #artworkPanel{
+  --mmhd-gallery-gap:10px;
+}
+#view-editor #movieCard #artworkPanel #posterChoices,
+#view-editor #movieCard #artworkPanel #backdropChoices{
+  display:grid;
+  grid-auto-flow:column;
+  grid-template-rows:minmax(0,1fr);
+  gap:var(--mmhd-gallery-gap);
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scroll-snap-type:x proximity;
+  scroll-padding-inline:2px;
+  scroll-behavior:smooth;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  scrollbar-color:#536781 #192538;
+  padding:4px 2px 11px;
+  min-height:0;
+  align-content:start;
+}
+#view-editor #movieCard #posterChoices{
+  grid-auto-columns:calc((100% - 2 * var(--mmhd-gallery-gap) - 4px) / 3);
+}
+#view-editor #movieCard #backdropChoices{
+  grid-auto-columns:calc((100% - var(--mmhd-gallery-gap) - 4px) / 2);
+}
+#view-editor #movieCard #artworkPanel .artwork-list::-webkit-scrollbar{height:8px}
+#view-editor #movieCard #artworkPanel .artwork-list::-webkit-scrollbar-track{background:#192538;border-radius:9px}
+#view-editor #movieCard #artworkPanel .artwork-list::-webkit-scrollbar-thumb{background:#536781;border-radius:9px}
+#view-editor #movieCard #artworkPanel .artwork-list::-webkit-scrollbar-thumb:hover{background:#7694b3}
+#view-editor #movieCard #artworkPanel .artwork-choice,
+#view-editor #movieCard #artworkPanel .artwork-choice.backdrop-choice{
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  height:fit-content;
+  scroll-snap-align:start;
+  padding:3px;
+}
+#view-editor #movieCard #artworkPanel .artwork-choice img{
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:2 / 3;
+  object-fit:cover;
+  border-radius:5px;
+}
+#view-editor #movieCard #artworkPanel .artwork-choice.backdrop-choice img{
+  height:auto;
+  aspect-ratio:16 / 9;
+}
+/* Con 1-2 imágenes no estirar más allá del carrusel: se conserva
+   el mismo tamaño que cuando TMDB devuelve múltiples opciones. */
+#view-editor #movieCard #artworkPanel .artwork-heading{min-width:0}
+@media(max-width:780px){
+  #view-editor .editor-columns{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:650px){
+  #view-editor #movieCard #artworkPanel{--mmhd-gallery-gap:8px}
+}
+
 </style>
 </head>
 <body>
