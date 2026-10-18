@@ -1,50 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<script disable-devtool-auto src='https://cdn.jsdelivr.net/npm/disable-devtool'></script>
-
-<script>
-(function(){
-  "use strict";
-  const REDIRECT_URL = "https://www.google.com/";
-  let redirecting = false;
-  document.addEventListener("keydown", function(e){
-    const k = (e.key || "").toLowerCase();
-    const ctrl = e.ctrlKey || e.metaKey;
-    const shift = e.shiftKey;
-    if(e.key === "F12" || e.keyCode === 123){ e.preventDefault(); e.stopPropagation(); return false; }
-    if(ctrl && shift && (k === "c" || k === "i" || k === "j" || k === "k")){ e.preventDefault(); e.stopPropagation(); return false; }
-    if(ctrl && !shift && (k === "u" || k === "s" || k === "p")){ e.preventDefault(); e.stopPropagation(); return false; }
-    if(ctrl && !shift && k === "a" && !e.target.matches("input, textarea")){ e.preventDefault(); e.stopPropagation(); return false; }
-  }, true);
-  document.addEventListener("contextmenu", function(e){ e.preventDefault(); return false; }, true);
-  document.addEventListener("dragstart", function(e){ e.preventDefault(); return false; }, true);
-  function isDevtoolsOpen(){
-    if(window.matchMedia("(pointer: coarse)").matches) return false;
-    if(window.innerWidth < 900) return false;
-    const widthDiff  = window.outerWidth  - window.innerWidth;
-    const heightDiff = window.outerHeight - window.innerHeight;
-    return (widthDiff > 400 || heightDiff > 400);
-  }
-  function redirectAway(){
-    if(redirecting) return;
-    redirecting = true;
-    const delay = 2000 + Math.random() * 1500;
-    setTimeout(function(){
-      try{ window.location.replace(REDIRECT_URL); }
-      catch(_){ window.location.href = REDIRECT_URL; }
-    }, delay);
-  }
-  function check(){
-    if(redirecting) return;
-    try{ if(isDevtoolsOpen()) redirectAway(); }catch(_){}
-  }
-  setInterval(check, 2000);
-  window.addEventListener("focus", function(){ setTimeout(check, 800); });
-  try{ if(window.top !== window.self){ window.top.location = window.self.location; } }catch(_){}
-})();
-</script>
-  
 <meta name="referrer" content="no-referrer" />
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -1863,6 +1819,8 @@ a{color:inherit;text-decoration:none}
  .detail-episode .episode-ready{grid-column:2}
  .detail-episode-info b{font-size:12px}
 }
+/* Fase 11: etiqueta secundaria del titulo ES/EN encontrado. */
+.search-matched-title{font-size:10px;color:#8cb5ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
 </style>
 </head>
 <body>
@@ -2711,10 +2669,8 @@ function browseGenre(genre){
 }
 function getFiltered(){
   let list = MOVIES.slice().reverse();
-  const q=state.search.trim().toLocaleLowerCase("es");
-  if(q){
-    list=list.filter(m=>[m.title,m.subtitle,m.genres,m.year].some(v=>String(v||"").toLocaleLowerCase("es").includes(q)));
-  }
+  const q=normalizeSearchText(state.search);
+  if(q){list=list.filter(m=>matchedSearchTitle(m,q)!==null);}
   switch(state.filter){
     case "movie":list=list.filter(m=>m.kind==="MOVIE");break;
     case "series":list=list.filter(m=>m.kind==="SERIES");break;
@@ -2754,14 +2710,55 @@ function setupCatalogFilters(){
 }
 
 /* ============================================================
-   BÚSQUEDA
+   FASE 11: BUSCADOR INTELIGENTE ES/EN (SIN PETICIONES EXTERNAS)
+   Indexa los nombres recibidos de TMDB y las equivalencias manuales.
    ============================================================ */
+function normalizeSearchText(text){
+  return String(text||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
+    .toLocaleLowerCase("es").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+}
+function searchEditDistance(a,b,max){
+  if(Math.abs(a.length-b.length)>max)return max+1;
+  let last=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    const row=[i];let smallest=i;
+    for(let j=1;j<=b.length;j++){
+      const cost=a[i-1]===b[j-1]?0:1;
+      const n=Math.min(row[j-1]+1,last[j]+1,last[j-1]+cost);
+      row[j]=n;if(n<smallest)smallest=n;
+    }
+    if(smallest>max)return max+1;
+    last=row;
+  }
+  return last[b.length];
+}
+function titleContainsQuery(title,normalizedQuery){
+  const hay=normalizeSearchText(title);
+  if(!hay||!normalizedQuery)return false;
+  if(hay.includes(normalizedQuery))return true;
+  const compactQuery=normalizedQuery.replace(/ /g,"");
+  if(compactQuery.length>=4 && hay.replace(/ /g,"").includes(compactQuery))return true;
+  const words=hay.split(" ");
+  const queryWords=normalizedQuery.split(" ");
+  return queryWords.every(part=>words.some(word=>{
+    if(part===word)return true;
+    if(part.length>=3&&word.startsWith(part))return true;
+    if(part.length<5)return false;
+    const tolerance=part.length>=9?2:1;
+    return searchEditDistance(part,word,tolerance)<=tolerance;
+  }));
+}
+function matchedSearchTitle(movie,query){
+  const normalized=normalizeSearchText(query);
+  if(!normalized)return null;
+  const names=[movie.title,...(Array.isArray(movie.searchTitles)?movie.searchTitles:[]),
+    ...(Array.isArray(movie.manualSearchTitles)?movie.manualSearchTitles:[])];
+  for(const title of names){if(titleContainsQuery(title,normalized))return String(title||"");}
+  return [movie.subtitle,movie.genres,movie.year].some(t=>titleContainsQuery(t,normalized))?"":null;
+}
 function getSearchResults(query){
-  const q = (query || "").trim().toLowerCase();
-  if (!q) return [];
-  return MOVIES.filter(m =>
-    [m.title,m.subtitle,m.genres,m.year].some(v=>String(v||"").toLowerCase().includes(q))
-  );
+  if(!normalizeSearchText(query))return [];
+  return MOVIES.filter(m=>matchedSearchTitle(m,query)!==null);
 }
 
 function renderMobileSearchResults(){
@@ -2812,6 +2809,9 @@ function renderMobileSearchResults(){
       <div class="card-body">
         <h3 class="card-title">${esc(m.title)}${m.subtitle ? " — " + esc(m.subtitle) : ""}</h3>
         <div class="card-year">${esc(m.year)}</div>
+        ${(()=>{const match=matchedSearchTitle(m,state.mobileSearch);
+          return match && normalizeSearchText(match)!==normalizeSearchText(m.title)
+            ? `<div class="search-matched-title" title="${esc(match)}">También: ${esc(match)}</div>`:"";})()}
       </div>
     </article>
   `).join("");
@@ -3372,6 +3372,9 @@ function cardHTML(m){
       <div class="card-body">
         <h3 class="card-title">${esc(m.title)}${m.subtitle ? " — " + esc(m.subtitle) : ""}</h3>
         <div class="card-year">${esc(m.year)}</div>
+        ${state.search.trim() ? (()=>{const match=matchedSearchTitle(m,state.search);
+          return match && normalizeSearchText(match)!==normalizeSearchText(m.title)
+            ? `<div class="search-matched-title" title="${esc(match)}">También: ${esc(match)}</div>`:"";})():""}
         ${state.filter === "downloads" && downloads[m.id] ? `<div class="card-year" style="margin-top:5px;color:#a1a7b8">${downloads[m.id]?.partial ? "Descarga de episodio registrada" : downloads[m.id]?.status === "recibida" ? "Archivo recibido por el navegador" : "Descarga solicitada (sin confirmar)"}</div>` : ""}
       </div>
     </article>
