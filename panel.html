@@ -856,6 +856,42 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   #view-editor #movieCard #artworkPanel{--mmhd-gallery-gap:8px}
 }
 
+
+/* ===========================================================
+   FASE 11.3 · MISMA ALTURA, EDICIÓN DE EPISODIOS Y PUBLICACIÓN
+   =========================================================== */
+@media(min-width:781px){
+  #view-editor .editor-columns{align-items:stretch}
+  #view-editor #searchResultsHolder{align-self:stretch;display:flex;min-height:0}
+  #view-editor #searchResultsHolder .results-panel{
+    width:100%;height:100%;min-height:100%;max-height:none;
+    position:relative;top:auto;display:flex;flex-direction:column;
+  }
+  #view-editor .results-panel .results{overflow-y:auto;max-height:none;flex:1;min-height:0}
+}
+.library-filter-publish{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:15px}
+.library-filter-publish .library-categories{margin:0;flex:0 1 auto}
+.library-publish-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px;flex:1 1 auto}
+.library-publish-actions button{font-size:11px;font-weight:700;padding:10px 12px;min-height:39px;width:auto;white-space:nowrap;margin:0}
+.library-publish-status{margin:0 0 12px}
+@media(max-width:640px){
+  .library-filter-publish{align-items:stretch}
+  .library-publish-actions{flex-basis:100%;justify-content:stretch}
+  .library-publish-actions button{flex:1 1 155px;white-space:normal;line-height:1.3}
+}
+.episode-details-editor{margin-top:13px;padding:14px;border:1px solid #344b62;border-radius:11px;background:#0b1b2c}
+.episode-details-editor[hidden]{display:none!important}
+.episode-details-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;color:#e6f2ff}
+.episode-details-heading strong{font-size:12px}
+.episode-details-heading span{font-size:11px;color:#8db1d2}
+.episode-details-editor label{display:block;font-size:11px;color:#b9d1e9;font-weight:700;margin:11px 0 6px}
+.episode-details-editor input,.episode-details-editor textarea{display:block;width:100%;box-sizing:border-box;background:#071421;color:#eef7ff;border:1px solid #304b66;border-radius:8px;padding:10px 12px;font:inherit;font-size:12px}
+.episode-details-editor textarea{min-height:98px;resize:vertical;line-height:1.6}
+.episode-details-editor input:focus,.episode-details-editor textarea:focus{outline:2px solid #548bdb;outline-offset:1px}
+.episode-editor-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:12px}
+.episode-editor-bottom>span{font-size:10px;color:#9fb3c8;flex:1 1 220px;line-height:1.5}
+.episode-delete-btn{border:1px solid #7d384a!important;color:#ffc1cd!important;background:#351722!important;border-radius:8px!important;padding:9px 12px!important;font-size:11px!important;font-weight:700!important}
+.episode-delete-btn:hover{background:#532033!important}
 </style>
 </head>
 <body>
@@ -916,7 +952,14 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </section>
 <section aria-labelledby="library-title" class="admin-view" data-page="library" hidden="" id="view-library">
 <div class="page-heading"><div><div class="eyebrow">BIBLIOTECA</div><h2 id="library-title">Gestiona tu colección</h2><p>Encuentra cualquier título y modifica su información o enlaces sin empezar de nuevo.</p></div><div class="page-actions"><button class="primary" data-create="movie" type="button"><i class="fa-solid fa-plus"></i> Añadir contenido</button></div></div>
+<div class="library-filter-publish">
 <div aria-label="Tipos de contenido" class="library-categories" role="group"><button class="library-pill active" data-filter="all" type="button">Todo</button><button class="library-pill" data-filter="movies" type="button">Películas</button><button class="library-pill" data-filter="series" type="button">Series</button></div>
+<div class="library-publish-actions" aria-label="Publicar catálogo">
+<button class="secondary" id="btnPreviewCollection" type="button"><i class="fa-solid fa-eye"></i> Vista previa del catálogo</button>
+<button class="primary" id="btnGenerateCollection" type="button"><i class="fa-solid fa-box-archive"></i> Generar catálogo completo</button>
+</div>
+</div>
+<div class="status library-publish-status" id="collectionStatus" role="status"></div>
 <div id="collectionHolder"><section class="panel" id="collectionCard" style="display:block">
 <div class="section-head">
 <div class="panel-title"><span class="icon"><i class="fa-solid fa-layer-group"></i></span> Catálogo</div>
@@ -1030,6 +1073,15 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </div>
 <div class="episode-admin-list" id="episodeAdminList"></div>
 <div class="series-status-label" id="episodeAdminSelected">Selecciona un episodio para configurar sus enlaces.</div>
+<div class="episode-details-editor" id="episodeDetailsEditor" hidden>
+  <div class="episode-details-heading"><strong><i class="fa-solid fa-pen-to-square"></i> Editar datos del episodio</strong><span id="episodeEditPosition"></span></div>
+  <label for="episodeEditName">Nombre del episodio</label>
+  <input id="episodeEditName" type="text" maxlength="220" autocomplete="off" placeholder="Nombre del capítulo" />
+  <label for="episodeEditOverview">Descripción del episodio</label>
+  <textarea id="episodeEditOverview" rows="4" maxlength="5000" placeholder="Descripción del capítulo"></textarea>
+  <div class="episode-editor-bottom"><span>Los cambios se guardan al pulsar «Guardar cambios» o «Agregar serie al catálogo».</span>
+  <button class="episode-delete-btn" id="btnDeleteEpisode" type="button"><i class="fa-solid fa-trash-can"></i> Eliminar episodio</button></div>
+</div>
 </section>
 </section></div></div>
 <div id="editorBottomHolder"><div class="grid" id="linksGrid" style="display:none">
@@ -1077,7 +1129,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </div></div><div id="auditListHolder"><div class="admin-audit-list" id="adminAuditList"></div></div></section>
 </section>
 <section aria-labelledby="appearance-title" class="admin-view" data-page="appearance" hidden="" id="view-appearance">
-<div class="page-heading"><div><div class="eyebrow">PERSONALIZACIÓN Y PUBLICACIÓN</div><h2 id="appearance-title">Prepara el catálogo público</h2><p>Elige qué destacar y revisa el resultado antes de generar el nuevo index.html.</p></div></div>
+<div class="page-heading"><div><div class="eyebrow">PERSONALIZACIÓN</div><h2 id="appearance-title">Personaliza el catálogo público</h2><p>Elige qué destacar y configura su presentación. Para previsualizar o generar el catálogo, entra a Mi biblioteca.</p></div></div>
 <div class="appearance-columns"><section class="panel" id="appearanceFeatureHolder"><div class="featured-panel f101-flush-panel">
 <h3><i class="fa-solid fa-star"></i> Títulos destacados <span class="badge" id="featuredCount">0/6</span></h3>
 <div class="tmdb">Marca la estrella junto a una película o serie para mostrarla en el carrusel principal. Ordena con las flechas. Si no eliges ninguna, aparecerán las mejor valoradas como antes.</div>
@@ -1101,9 +1153,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </div>
 <div class="tmdb">Estos cambios se guardan en tu navegador y se aplican al generar nuevamente index.html.</div>
 </div></section></div>
-<section class="panel publish-panel"><div class="panel-title"><span class="icon"><i class="fa-solid fa-rocket"></i></span> Publicación</div><p class="support-text">La vista previa no publica cambios. Genera el catálogo cuando termines de configurarlo y sustituye index.html en tu alojamiento.</p><div class="publish-actions" id="publishActionsHolder"><button class="secondary full" id="btnPreviewCollection"><i class="fa-solid fa-eye"></i> Vista previa del catálogo</button><button class="primary full" id="btnGenerateCollection">
-<i class="fa-solid fa-box-archive"></i> Generar catálogo completo
-      </button></div><div id="collectionStatusHolder"><div class="status" id="collectionStatus"></div></div></section>
+
 </section>
 <section aria-labelledby="tools-title" class="admin-view" data-page="tools" hidden="" id="view-tools">
 <div class="page-heading"><div><div class="eyebrow">CONFIGURACIÓN Y RESPALDOS</div><h2 id="tools-title">Herramientas</h2><p>Credenciales, importaciones, recuperación y mantenimiento de datos.</p></div></div>
@@ -1507,7 +1557,8 @@ function adminSeriesReport(item){
     const unique=episodes.filter(e=>seen.has(Number(e.number)) && (seen.delete(Number(e.number)),true));
     const linked=unique.filter(hasAdminVideo).length;
     const pending=unique.filter(e=>!hasAdminVideo(e));
-    const expected=Math.max(unique.length,Number(summary?.episode_count)||0);
+    const exclusions=new Set((data?.excludedEpisodes||[]).map(Number));
+    const expected=Math.max(unique.length,Math.max(0,(Number(summary?.episode_count)||0)-exclusions.size));
     const unknown=Math.max(0,expected-unique.length);
     return {number,name:summary?.name||data?.name||`Temporada ${number}`,linked,pending,unknown,expected,loaded:unique.length};
   });
@@ -1569,12 +1620,44 @@ function activeAdminEpisode(){
 function storeAdminEpisodeFields(){
   const ep=activeAdminEpisode();if(!ep)return;
   for(const id of ["googleUrl","m37","m22","m18"])ep[id]=$(id).value.trim();
+  if(!$('episodeDetailsEditor').hidden){
+    ep.name=$('episodeEditName').value.trim() || `Episodio ${ep.number}`;
+    ep.overview=$('episodeEditOverview').value.trim();
+  }
+}
+function renderEpisodeDetails(){
+  const ep=activeAdminEpisode(),box=$('episodeDetailsEditor');
+  box.hidden=!ep;
+  if(!ep){$('episodeEditName').value='';$('episodeEditOverview').value='';$('episodeEditPosition').textContent='';return;}
+  $('episodeEditPosition').textContent=`T${state.selectedEpisode.season} · E${ep.number}`;
+  $('episodeEditName').value=ep.name||`Episodio ${ep.number}`;
+  $('episodeEditOverview').value=ep.overview||'';
+}
+function deleteAdminEpisode(){
+  const ep=activeAdminEpisode();if(!ep)return;
+  const seasonNum=state.selectedEpisode.season;
+  const season=state.movie.seasons.find(s=>Number(s.number)===Number(seasonNum));
+  if(!season)return;
+  if(!confirm(`¿Eliminar el episodio ${ep.number}: «${ep.name||'Sin título'}» de la temporada ${seasonNum}?\n\nSe quitarán su descripción y enlaces del catálogo al guardar la serie. TMDB no volverá a importarlo automáticamente. No afecta a Google Photos.`))return;
+  const excluded=new Set((season.excludedEpisodes||[]).map(Number));
+  excluded.add(Number(ep.number));season.excludedEpisodes=[...excluded].sort((a,b)=>a-b);
+  season.episodes=season.episodes.filter(e=>Number(e.number)!==Number(ep.number));
+  state.selectedEpisode=null;
+  clearVideoFields();
+  renderEpisodeDetails();
+  renderSeriesAdmin();
+  $('seriesSeasonStatus').textContent=`Episodio ${ep.number} eliminado de la temporada ${seasonNum}. Guarda la serie para conservar el cambio.`;
 }
 function renderSeriesAdmin(){
   if(state.movie?.kind!=="SERIES")return;
   const select=$("seriesSeason"),old=select.value;
   const summaries=state.movie.seasonSummaries||[];
-  select.innerHTML=summaries.map(s=>`<option value="${Number(s.number)}">${escHtml(s.name||`Temporada ${s.number}`)} (${Number(s.episode_count)||0} episodios)</option>`).join("");
+  select.innerHTML=summaries.map(s=>{
+    const loaded=state.movie.seasons?.find(season=>Number(season.number)===Number(s.number));
+    const excluded=(loaded?.excludedEpisodes||[]).length;
+    const total=Math.max((loaded?.episodes||[]).length,Math.max(0,(Number(s.episode_count)||0)-excluded));
+    return `<option value="${Number(s.number)}">${escHtml(s.name||`Temporada ${s.number}`)} (${total} episodios)</option>`;
+  }).join("");
   const chosen=state.selectedEpisode?.season ?? (Number(old)||summaries[0]?.number);
   if(chosen!=null && summaries.some(s=>s.number===chosen))select.value=String(chosen);
   const season=state.movie.seasons?.find(s=>s.number===Number(select.value));
@@ -1587,6 +1670,7 @@ function renderSeriesAdmin(){
   <img src="${escHtml(ep.still||"")}" alt="" loading="lazy"><span><b>${ep.number}. ${escHtml(ep.name)}</b><small>${ep.runtime||"?"} min · ${hasAdminVideo(ep)?"✓ Enlace configurado":"⚠ Pendiente"}</small></span><i class="fa-solid fa-chevron-right"></i></button>`).join("");
   if(!season)list.innerHTML='<div class="tmdb">Elige una temporada para descargar la lista de episodios.</div>';
   $("episodeAdminSelected").textContent=state.selectedEpisode?`Configurando T${state.selectedEpisode.season} · E${state.selectedEpisode.episode}`:"Selecciona un capítulo de la lista.";
+  renderEpisodeDetails();
 }
 function chooseAdminEpisode(number){
   if(state.movie?.kind!=="SERIES")return;
@@ -1604,7 +1688,7 @@ function chooseAdminEpisode(number){
 async function loadSeriesSeason(number){
   if(state.movie?.kind!=="SERIES")return;
   storeAdminEpisodeFields();state.selectedEpisode=null;
-  clearVideoFields();
+  clearVideoFields();renderEpisodeDetails();
   const movie=state.movie,requestId=++state.seasonRequestId;
   let season=movie.seasons.find(s=>s.number===number);
   if(!season){
@@ -1643,8 +1727,9 @@ async function reviewAllAdminSeasons(){
       let current=seasons.find(s=>Number(s.number)===data.number);
       if(!current){current={number:data.number,name:res.name||`Temporada ${data.number}`,episodes:[]};seasons.push(current);}
       const existing=new Map((current.episodes||[]).map(e=>[Number(e.number),e]));
+      const excluded=new Set((current.excludedEpisodes||[]).map(Number));
       for(const e of res.episodes||[]){
-        const n=Number(e.episode_number);if(n<1)continue;
+        const n=Number(e.episode_number);if(n<1||excluded.has(n))continue;
         const old=existing.get(n);
         if(old){old.name=old.name||e.name||`Episodio ${n}`;old.overview=old.overview||e.overview||"";old.runtime=old.runtime||Number(e.runtime)||0;old.still=old.still||(e.still_path?TMDB_IMG+"w300"+e.still_path:"");}
         else {current.episodes.push({number:n,name:e.name||`Episodio ${n}`,overview:e.overview||"",runtime:Number(e.runtime)||0,still:e.still_path?TMDB_IMG+"w300"+e.still_path:"",googleUrl:"",m37:"",m22:"",m18:""});}
@@ -1761,9 +1846,8 @@ function saveSeriesToCollection(){
   state.movie.manualSearchTitles=item.manualSearchTitles;
   state.movie.searchTitles=item.searchTitles;
   state.movie.searchTitlesSynced=item.searchTitlesSynced;
-  state.editingId=item.id;renderSelectedMovie();
-  showStatus(`✓ Serie guardada: ${seriesEpisodeCount(item,true)} de ${seriesEpisodeCount(item)} episodios con enlace. Puedes seguir editándola.`,"ok");
-  updateSteps(4);
+  resetSelection();
+  showStatus(`✓ Serie guardada: ${seriesEpisodeCount(item,true)} de ${seriesEpisodeCount(item)} episodios con enlace. El buscador está listo para otro título.`,"ok");
 }
 async function searchMovies(){
   const kind=state.searchKind;
@@ -2302,13 +2386,8 @@ function addMovieToCollection(){
     showStatus("No se pudieron guardar los cambios en este navegador. Descarga un respaldo.","err"); return;
   }
   const wasEdit=state.editingId !== null;
-  state.movie.manualSearchTitles=item.manualSearchTitles;
-  state.movie.searchTitles=item.searchTitles;
-  state.movie.searchTitlesSynced=item.searchTitlesSynced;
-  state.editingId = item.id;
-  renderSelectedMovie();
-  showStatus(wasEdit || idx>=0 ? "✓ Cambios guardados correctamente." : "✓ Película añadida y guardada en el catálogo.","ok");
-  updateSteps(4);
+  resetSelection();
+  showStatus(wasEdit || idx>=0 ? "✓ Cambios guardados correctamente. El buscador está limpio." : "✓ Película añadida al catálogo. Puedes buscar otro título.","ok");
 }
 
 function removeMovie(id){
@@ -2790,6 +2869,16 @@ $("episodeAdminList").addEventListener("click",event=>{
   const btn=event.target.closest("[data-episode]");
   if(btn)chooseAdminEpisode(Number(btn.dataset.episode));
 });
+for(const id of ["episodeEditName","episodeEditOverview"]){
+  $(id).addEventListener("input",()=>{
+    const ep=activeAdminEpisode();if(!ep)return;
+    ep.name=$("episodeEditName").value.trim()||`Episodio ${ep.number}`;
+    ep.overview=$("episodeEditOverview").value.trim();
+    const selected=$("episodeAdminList").querySelector(".episode-admin-item.active b");
+    if(selected)selected.textContent=`${ep.number}. ${ep.name}`;
+  });
+}
+$("btnDeleteEpisode").addEventListener("click",deleteAdminEpisode);
 function resetSelection(){
   search.value=""; $("results").innerHTML="";
   $("resultsHint").textContent="Busca un título para mostrar los resultados disponibles.";
@@ -2803,6 +2892,7 @@ function resetSelection(){
   state.editingId=null;state.posterOptions=[];state.backdropOptions=[];
   state.selectedEpisode=null;state.seasonRequestId++;state.bulkLoading=false;
   $("seriesPanel").hidden=true;
+  renderEpisodeDetails();
   clearVideoFields();
   $("btnExtract").disabled=false;
   state.genres="";state.cert="";state.tagline="";
