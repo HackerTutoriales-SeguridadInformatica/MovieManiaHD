@@ -711,6 +711,59 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .search-names-editor label{margin:0;font-size:11px;font-weight:700;color:var(--text-2)}
 .search-names-editor input{width:100%;font-size:12px;padding:9px 11px}
 .search-names-editor small{font-size:10px;color:var(--muted);line-height:1.45}
+
+/* ============================================================
+   FASE 11.1 · FICHA EDITOR ADAPTABLE, SIN ACCIONES RECORTADAS
+   La altura del editor crece con su contenido, y los selectores
+   de póster y portada se muestran en dos columnas cuando caben.
+   No altera el HTML, los IDs, los datos ni la lógica de TMDB.
+   ============================================================ */
+#view-editor #editorTopContent{
+  max-height:none;
+  overflow:visible;
+  min-height:min(66vh,680px);
+}
+#view-editor #movieCard #artworkPanel:not([hidden]){
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);
+  grid-template-areas:
+    "poster-label backdrop-label"
+    "posters backdrops"
+    "more more";
+  column-gap:14px;
+  row-gap:4px;
+  align-items:start;
+}
+#view-editor #movieCard #artworkPanel > :nth-child(1){grid-area:poster-label}
+#view-editor #movieCard #artworkPanel > :nth-child(2){grid-area:posters}
+#view-editor #movieCard #artworkPanel > :nth-child(3){grid-area:backdrop-label}
+#view-editor #movieCard #artworkPanel > :nth-child(4){grid-area:backdrops}
+#view-editor #movieCard #artworkPanel > :nth-child(5){grid-area:more}
+#view-editor #movieCard #artworkPanel .artwork-list{
+  min-width:0;
+  width:100%;
+  max-width:100%;
+  overscroll-behavior-x:contain;
+}
+#view-editor #movieCard #artworkPanel .artwork-actions{
+  margin-top:6px;
+  padding-top:6px;
+  border-top:1px solid rgba(74,91,116,.35);
+}
+#view-editor #movieCard #artworkPanel #btnLoadArtwork{
+  font-size:11px;
+  padding:8px 11px;
+  min-height:34px;
+}
+@media(max-width:650px){
+  #view-editor #movieCard #artworkPanel:not([hidden]){
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:"poster-label" "posters" "backdrop-label" "backdrops" "more";
+    gap:4px;
+  }
+  #view-editor #editorTopContent{min-height:0}
+  #view-editor #movieCard #artworkPanel .artwork-actions{margin-top:5px}
+}
 </style>
 </head>
 <body>
