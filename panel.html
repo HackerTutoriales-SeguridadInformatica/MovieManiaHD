@@ -947,6 +947,38 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   #view-editor #searchResultsHolder .results-panel{max-height:390px}
   #view-editor #searchResultsHolder .results-panel .results{max-height:285px}
 }
+
+/* ==============================================================
+   FASE 11.4.1 — La altura de TMDB termina exactamente al pie de
+   la ficha de póster/portada, nunca al pie de la sección de series.
+   Cada resultado adicional se recorre dentro del listado.
+   ============================================================== */
+@media (min-width:781px){
+  #view-editor .editor-columns{align-items:start}
+  #view-editor #searchResultsHolder{align-self:start;display:block;min-height:0}
+  #view-editor #searchResultsHolder .results-panel{
+    box-sizing:border-box;
+    height:var(--mmhd-tmdb-height,420px);
+    min-height:0;
+    max-height:var(--mmhd-tmdb-height,420px);
+    display:flex;flex-direction:column;overflow:hidden;
+    position:relative;top:auto;
+  }
+  #view-editor #searchResultsHolder .results-panel .results{
+    flex:1 1 auto;min-height:0;max-height:none;
+    overflow-y:auto;overscroll-behavior-y:contain;
+  }
+  #view-editor #searchResultsHolder #resultsHint{flex:0 0 auto}
+}
+@media (max-width:780px){
+  /* En móvil, resultados y ficha van en vertical: no igualar alturas. */
+  #view-editor #searchResultsHolder .results-panel{
+    height:auto;max-height:390px;min-height:0;
+  }
+  #view-editor #searchResultsHolder .results-panel .results{
+    flex:0 1 auto;max-height:285px;min-height:0;overflow-y:auto;
+  }
+}
 </style>
 </head>
 <body>
@@ -3143,6 +3175,57 @@ renderCollection();
   const oldRenderCollection=renderCollection;
   renderCollection=function(){oldRenderCollection();updateRedesignDashboard()};
   updateRedesignDashboard();setPanelView('overview');
+})();
+</script>
+
+<script>
+/* Fase 11.4.1: altura de Resultados TMDB sincronizada con la ficha.
+   Se mide el final de #movieCard, no los paneles de episodios/enlaces. */
+(function(){
+  'use strict';
+  const editor=document.getElementById('view-editor');
+  const panel=editor?.querySelector('#searchResultsHolder .results-panel');
+  const card=editor?.querySelector('#movieCard');
+  const results=editor?.querySelector('#results');
+  if(!editor || !panel || !card || !results)return;
+  let scheduled=false;
+  function measure(){
+    scheduled=false;
+    if(editor.hidden || getComputedStyle(editor).display==='none')return;
+    if(matchMedia('(max-width:780px)').matches){
+      panel.style.removeProperty('--mmhd-tmdb-height');
+      return;
+    }
+    const cardRect=card.getBoundingClientRect();
+    const panelRect=panel.getBoundingClientRect();
+    // Sin película/serie seleccionada: altura compacta para la búsqueda.
+    // Con selección: el pie del listado coincide con el del editor de imágenes.
+    const selected=cardRect.height>0 && getComputedStyle(card).display!=='none';
+    const wanted=selected ? Math.max(220,Math.ceil(cardRect.bottom-panelRect.top)) : 420;
+    const current=parseFloat(panel.style.getPropertyValue('--mmhd-tmdb-height'));
+    if(!Number.isFinite(current) || Math.abs(wanted-current)>1){
+      panel.style.setProperty('--mmhd-tmdb-height',wanted+'px');
+    }
+  }
+  function schedule(){
+    if(scheduled)return;
+    scheduled=true;
+    requestAnimationFrame(measure);
+  }
+  if(typeof ResizeObserver!=='undefined'){
+    const observer=new ResizeObserver(schedule);
+    observer.observe(card);
+    const steps=editor.querySelector('#stepsBar');
+    if(steps)observer.observe(steps);
+  }
+  // Los cambios de selección y de página pueden alterar la visibilidad.
+  if(typeof MutationObserver!=='undefined'){
+    const changes=new MutationObserver(schedule);
+    changes.observe(card,{attributes:true,attributeFilter:['style','class','hidden']});
+    changes.observe(editor,{attributes:true,attributeFilter:['hidden','style']});
+  }
+  window.addEventListener('resize',schedule,{passive:true});
+  schedule();
 })();
 </script>
 </body>
