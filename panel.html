@@ -934,6 +934,15 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 }
 #view-editor #seriesEditorRow .episode-details-editor textarea{min-height:110px}
 #view-editor.series-layout #editorBottomHolder{display:none}
+/* Fase 11.4.3: exportación individual dentro de los enlaces de cada episodio. */
+#view-editor.series-layout #linksCard #generateCard{
+  display:block;margin-top:18px;padding:16px 0 0;
+  border:0;border-top:1px solid var(--line);border-radius:0;
+  box-shadow:none;background:transparent;min-width:0;
+}
+#view-editor.series-layout #linksCard #generateCard .panel-title{margin-bottom:12px}
+#view-editor.series-layout #linksCard #generateCard .actions{margin-top:12px}
+#view-editor.series-layout #linksCard #generateCard #btnGenerate{width:100%}
 /* Mantener centrado el editor inferior al abrir una película de Mi biblioteca. */
 #view-editor .editor-columns:has(#results:empty):has(#movieCard[style*="display: block"]) ~ #editorBottomHolder #linksGrid{
   max-width:1000px;margin-inline:auto;
@@ -1194,7 +1203,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <button class="secondary full" id="btnCancelEdit" style="display:none" type="button"><i class="fa-solid fa-xmark"></i> Cancelar edición</button>
 </section>
 <section class="panel" id="generateCard">
-<div class="panel-title"><span class="icon"><i class="fa-solid fa-box-archive"></i></span> Exportar película</div>
+<div class="panel-title"><span class="icon"><i class="fa-solid fa-box-archive"></i></span> <span id="individualExportTitle">Exportar película</span></div>
 <label for="backdropUrl">Backdrop utilizado</label>
 <input id="backdropUrl" readonly="" type="text"/>
 <div class="actions">
@@ -2034,15 +2043,17 @@ function arrangeEpisodeWorkspace(forSeries){
   const seasons=$('seriesPanel');
   const details=$('episodeDetailsEditor');
   const links=$('linksCard');
+  const generate=$('generateCard');
   if(forSeries){
     $('seriesTopRow').append(seasons,links);
+    links.append(generate); // Debajo de los enlaces, sin duplicar controles ni perder listeners.
     $('seriesEditorRow').append(details);
     workspace.hidden=false;
     editorView.classList.add('series-layout');
   }else{
     $('editorTopContent').append(seasons);
     seasons.append(details);
-    $('linksGrid').insertBefore(links,$('generateCard'));
+    $('linksGrid').append(links,generate); // Recupera el diseño original de películas.
     workspace.hidden=true;
     editorView.classList.remove('series-layout');
   }
@@ -2067,7 +2078,10 @@ function renderSelectedMovie(){
   arrangeEpisodeWorkspace(isSeries);
   $("seriesPanel").hidden=!isSeries;
   $("linksHeading").textContent=isSeries?"Enlaces del episodio seleccionado":"URL del vídeo";
-  $("generateCard").style.display=isSeries?"none":"";
+  $("generateCard").style.display="";
+  $("individualExportTitle").textContent=isSeries?"Exportar episodio":"Exportar película";
+  $("generatedStatus").className="status";
+  $("generatedStatus").textContent="";
   $("btnExtract").disabled=isSeries&&!state.selectedEpisode;
   $("editingTag").textContent=state.editingId!==null?(isSeries?"Editando serie guardada":"Editando película guardada"):"";
   if(isSeries)renderSeriesAdmin();
@@ -2721,79 +2735,85 @@ async function importJsonCatalog(){
 /* ============================================================
    GENERAR REPRODUCTOR INDIVIDUAL
    ============================================================ */
+/* Los reproductores individuales usan la plantilla FWDEV actual; solo cambia
+   el título y los datos propios de la película o del episodio seleccionado. */
+function safePlayerFilename(value){
+  const name=String(value||"Reproductor").replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g," ")
+    .replace(/\s+/g," ").replace(/[. ]+$/g,"").trim().slice(0,155);
+  return (name||"Reproductor")+".html";
+}
 async function generateMoviePage(){
-  if (!state.movie){ showStatus("Selecciona una película primero.","err"); return; }
-  const m37 = $("m37").value.trim();
-  const m22 = $("m22").value.trim();
-  const m18 = $("m18").value.trim();
-  try { validateVideoLinks(); } catch(e) {
-    $("generatedStatus").className="status show err";
-    $("generatedStatus").textContent=e.message;
-    return;
+  const status=$("generatedStatus");
+  const setStatus=(message,kind="")=>{status.className="status show "+kind;status.textContent=message;};
+  const movie=state.movie;
+  if(!movie){setStatus("Primero selecciona una película o serie.","err");return;}
+  const isSeries=movie.kind==="SERIES";
+  let episode=null;
+  if(isSeries){
+    // Usa el capítulo seleccionado, no el primer episodio de la temporada.
+    storeAdminEpisodeFields();
+    episode=activeAdminEpisode();
+    if(!episode || !state.selectedEpisode){
+      setStatus("Selecciona primero un episodio de la lista para generar su reproductor.","err");
+      return;
+    }
   }
-  $("generatedStatus").className="status show";
-  $("generatedStatus").textContent="Cargando la plantilla del reproductor…";
-
+  const m37=$("m37").value.trim(),m22=$("m22").value.trim(),m18=$("m18").value.trim();
+  try{validateVideoLinks();}catch(err){setStatus(err.message,"err");return;}
+  setStatus("Preparando el reproductor individual…");
   try{
-    const bytes = Uint8Array.from(atob(PLAYER_TEMPLATE_B64), c=>c.charCodeAt(0));
-    let html = new TextDecoder("utf-8").decode(bytes);
+    const bytes=Uint8Array.from(atob(PLAYER_TEMPLATE_B64),c=>c.charCodeAt(0));
+    let html=new TextDecoder("utf-8").decode(bytes);
+    const requiredMarkers=["__MOVIE_TITLE__","__MOVIE_TITLE_JSON__","__MOVIE_YEAR__","__MOVIE_OVERVIEW_JSON__","__POSTER_URL__","__MOVIE_RATING__","__BACKDROP_URL__","__TMDB_ID__","__DV_URL__"];
+    const missing=requiredMarkers.filter(marker=>!html.includes(marker));
+    if(missing.length)throw Error("Faltan marcadores: "+missing.join(", "));
 
-    const requiredMarkers = ["__MOVIE_TITLE__","__MOVIE_TITLE_JSON__","__MOVIE_YEAR__","__MOVIE_OVERVIEW_JSON__","__POSTER_URL__","__MOVIE_RATING__","__BACKDROP_URL__","__TMDB_ID__","__DV_URL__"];
-    const missing = requiredMarkers.filter(m=> !html.includes(m));
-    if (missing.length) throw new Error("Faltan marcadores: "+missing.join(", "));
-
-    const movie = state.movie;
-    const title = String(movie.title || "");
-    const year = movie.release_date ? String(movie.release_date).slice(0,4) : "";
-    const overview = String(movie.overview || "");
-    const rating = Number.isFinite(movie.vote_average) ? movie.vote_average.toFixed(1) : "";
-    const tmdbId = movie.id != null ? String(movie.id) : "";
-    const poster = String(state.poster || "");
-    const backdrop = String(state.backdrop || "");
-
-    const jsonContent = v => String(v ?? "")
-      .replace(/\\/g, "\\\\")
-      .replace(/"/g,  '\\"')
-      .replace(/\n/g, "\\n")
-      .replace(/\r/g, "\\r")
-      .replace(/\t/g, "\\t")
-      .replace(/\u2028/g, "\\u2028")
-      .replace(/\u2029/g, "\\u2029");
-
-    const htmlContent = v => String(v ?? "")
+    const year=movie.release_date?String(movie.release_date).slice(0,4):"";
+    const seasonNumber=isSeries?Number(state.selectedEpisode.season):null;
+    const episodeNumber=isSeries?Number(episode.number):null;
+    const title=isSeries
+      ?`${movie.title||"Serie"} - Temporada ${seasonNumber} Capítulo ${episodeNumber}`
+      :`${movie.title||"Película"}${year?` (${year})`:""}`;
+    const overview=String(isSeries?(episode.overview||movie.overview||""):(movie.overview||""));
+    const rating=Number.isFinite(Number(movie.vote_average))?Number(movie.vote_average).toFixed(1):"";
+    const tmdbId=movie.tmdbId!=null?String(movie.tmdbId):movie.id!=null?String(movie.id):"";
+    const poster=String(state.poster||"");
+    const backdrop=String((isSeries&&episode.still)||state.backdrop||"");
+    const jsonContent=value=>String(value??"")
+      .replace(/\\/g,"\\\\").replace(/"/g,'\\"')
+      .replace(/\n/g,"\\n").replace(/\r/g,"\\r")
+      .replace(/\t/g,"\\t").replace(/\u2028/g,"\\u2028")
+      .replace(/\u2029/g,"\\u2029");
+    const htmlContent=value=>String(value??"")
       .replace(/&/g,"&amp;").replace(/</g,"&lt;")
       .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-
-    const reps = {
-      "__MOVIE_TITLE__": htmlContent(title),
-      "__MOVIE_TITLE_JSON__": jsonContent(title),
-      "__MOVIE_YEAR__": jsonContent(year),
-      "__MOVIE_OVERVIEW_JSON__": jsonContent(overview),
-      "__POSTER_URL__": jsonContent(poster),
-      "__MOVIE_RATING__": jsonContent(rating),
-      "__BACKDROP_URL__": jsonContent(backdrop),
-      "__TMDB_ID__": jsonContent(tmdbId),
-      "__M37_URL__": jsonContent(m37),
-      "__M22_URL__": jsonContent(m22),
-      "__M18_URL__": jsonContent(m18),
-      "__DV_URL__": jsonContent((m37 || m22 || m18).replace(/=m\d+$/, "=dv")),
-      "__DOWNLOAD_URL__": jsonContent((m37 || m22 || m18).replace(/=m\d+$/, "=dv"))
+    const downloadSource=(m37||m22||m18).replace(/=m\d+$/,"=dv");
+    const reps={
+      "__MOVIE_TITLE__":htmlContent(title),
+      "__MOVIE_TITLE_JSON__":jsonContent(title),
+      "__MOVIE_YEAR__":jsonContent(year),
+      "__MOVIE_OVERVIEW_JSON__":jsonContent(overview),
+      "__POSTER_URL__":jsonContent(poster),
+      "__MOVIE_RATING__":jsonContent(rating),
+      "__BACKDROP_URL__":jsonContent(backdrop),
+      "__TMDB_ID__":jsonContent(tmdbId),
+      "__M37_URL__":jsonContent(m37),
+      "__M22_URL__":jsonContent(m22),
+      "__M18_URL__":jsonContent(m18),
+      "__DV_URL__":jsonContent(downloadSource),
+      "__DOWNLOAD_URL__":jsonContent(downloadSource)
     };
-    Object.keys(reps).forEach(k => { html = html.split(k).join(reps[k]); });
-
-    const blob = new Blob([html], {type:"text/html;charset=utf-8"});
-    const u = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = u; a.download = "index.html";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=> URL.revokeObjectURL(u), 1000);
-
-    $("generatedStatus").className="status show ok";
-    $("generatedStatus").textContent="✓ Reproductor generado (index.html).";
+    Object.keys(reps).forEach(k=>{html=html.split(k).join(reps[k]);});
+    const filename=safePlayerFilename(title);
+    const url=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"}));
+    const a=document.createElement("a");
+    a.href=url;a.download=filename;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    setStatus(`✓ Reproductor generado: ${filename}`,"ok");
     updateSteps(4);
-  }catch(e){
-    $("generatedStatus").className="status show err";
-    $("generatedStatus").textContent="✕ "+(e?.message||"No se pudo generar el reproductor.");
+  }catch(err){
+    setStatus("✕ "+(err?.message||"No se pudo generar el reproductor."),"err");
   }
 }
 
