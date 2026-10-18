@@ -706,6 +706,11 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   #view-editor #movieCard .meta-inline{padding:4px}
 }
 
+/* Fase 11: campo discreto, adaptable y opcional para sinonimos de busqueda. */
+.search-names-editor{padding:0 18px 14px;display:flex;flex-direction:column;gap:6px}
+.search-names-editor label{margin:0;font-size:11px;font-weight:700;color:var(--text-2)}
+.search-names-editor input{width:100%;font-size:12px;padding:9px 11px}
+.search-names-editor small{font-size:10px;color:var(--muted);line-height:1.45}
 </style>
 </head>
 <body>
@@ -849,6 +854,11 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </div>
 </div>
 </div>
+<div class="search-names-editor">
+  <label for="manualSearchTitles"><i class="fa-solid fa-language"></i> Nombres alternativos para el buscador (opcional)</label>
+  <input id="manualSearchTitles" type="text" placeholder="Ej. El hombre araña, Spider-Man" autocomplete="off" spellcheck="false" maxlength="600"/>
+  <small>TMDB añade los títulos ES/EN automáticamente. Si falta alguno, escríbelo aquí separado por comas.</small>
+</div>
 <div class="artwork-panel" hidden="" id="artworkPanel">
 <div class="artwork-heading"><strong><i class="fa-solid fa-images"></i> Elegir póster</strong><span class="tmdb">Selecciona una imagen para esta película</span></div>
 <div class="artwork-list" id="posterChoices"></div>
@@ -976,10 +986,11 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <section class="panel"><div class="panel-title"><span class="icon"><i class="fa-solid fa-box-archive"></i></span> Respaldos y mantenimiento</div><p class="support-text">Antes de importar o hacer cambios masivos, descarga una copia de tu colección.</p><div id="toolsActionsHolder"><div class="actions" style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap">
 <button class="secondary" id="btnBackupCollection" type="button"><i class="fa-solid fa-file-export"></i> Respaldar colección</button>
 <button class="secondary" id="btnEnrichMedia" type="button"><i class="fa-solid fa-users"></i> Completar logos y reparto (TMDB)</button>
+<button class="secondary" id="btnSyncSearchTitles" type="button"><i class="fa-solid fa-language"></i> Completar títulos ES/EN (TMDB)</button>
 <button class="secondary" id="btnRestoreCollection" type="button"><i class="fa-solid fa-file-import"></i> Importar respaldo</button>
 <button class="secondary" id="btnRecoverCollection" type="button"><i class="fa-solid fa-clock-rotate-left"></i> Deshacer último cambio</button>
 <input accept=".json,application/json" hidden="" id="backupCollectionFile" type="file"/>
-</div></div><div id="mediaStatusHolder"><div aria-live="polite" class="status" id="mediaStatus" role="status"></div></div></section>
+</div></div><div id="mediaStatusHolder"><div aria-live="polite" class="status" id="mediaStatus" role="status"></div><div aria-live="polite" class="status" id="searchTitlesStatus" role="status"></div></div></section>
 </section>
 </main>
 </div>
@@ -1175,6 +1186,75 @@ async function validateCredential(){
     showKeyStatus("✕ No se pudo validar la credencial: "+m,"err");
     return false;
   }
+}
+
+/* ============================================================
+   FASE 11: NOMBRES DE BUSQUEDA TMDB (SIN CLAVE EN INDEX.HTML)
+   Nombres originales, traducciones ES/EN y titulos alternativos.
+   ============================================================ */
+function tmdbSearchTitles(data){
+  const names=[],seen=new Set();
+  const add=value=>{
+    const title=String(value||"").trim().replace(/\s+/g," ").slice(0,160);
+    const normalized=title.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+    if(!title||seen.has(normalized)||names.length>=42)return;
+    seen.add(normalized);names.push(title);
+  };
+  add(data?.title||data?.name);
+  add(data?.original_title||data?.original_name);
+  const translated=Array.isArray(data?.translations?.translations)?data.translations.translations:[];
+  for(const item of translated){
+    if(!["es","en"].includes(String(item?.iso_639_1||"").toLowerCase()))continue;
+    add(item?.data?.title||item?.data?.name);
+  }
+  const other=data?.alternative_titles;
+  const alt=Array.isArray(other?.titles)?other.titles:Array.isArray(other?.results)?other.results:[];
+  const regions=new Set(["MX","ES","US","GB","AR","CO","CL","PE","VE","EC","UY","CR","PA","DO","PR","GT","SV","HN","NI","BO","PY"]);
+  for(const item of alt){
+    if(regions.has(String(item?.iso_3166_1||"").toUpperCase()))add(item?.title);
+  }
+  return names;
+}
+function cleanManualSearchTitles(text){
+  const unique=new Set();
+  return String(text||"").split(/[,\n;]+/).map(s=>s.trim().slice(0,160)).filter(s=>{
+    const k=s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+    if(!s||unique.has(k)||unique.size>=16)return false;
+    unique.add(k);return true;
+  });
+}
+async function syncSearchTitles(){
+  const btn=$("btnSyncSearchTitles"),status=$("searchTitlesStatus"),key=credentialValue();
+  if(btn.disabled)return;
+  if(!key){status.className="status show err";status.textContent="Introduce tu credencial de TMDB para completar los nombres.";return;}
+  if(!state.validated && !await validateCredential())return;
+  const pending=state.collection.filter(item=>item.searchTitlesSynced!==true && (Number(item.tmdbId)||Math.abs(Number(item.id)))>0);
+  if(!pending.length){status.className="status show ok";status.textContent="Los titulos guardados ya tienen un indice de busqueda. Genera nuevamente index.html.";return;}
+  btn.disabled=true;status.className="status show";
+  snapshotCollection();
+  let completed=0,failures=0;
+  try{
+    for(const item of pending){
+      const id=Number(item.tmdbId)||Math.abs(Number(item.id));
+      const kind=item.kind==="SERIES"?"tv":"movie";
+      status.textContent=`Consultando titulos TMDB: ${completed+failures+1}/${pending.length} · ${item.title}`;
+      try{
+        const details=await tmdbGet(`https://api.themoviedb.org/3/${kind}/${encodeURIComponent(id)}?language=es-MX&append_to_response=translations,alternative_titles`,key);
+        const aliases=tmdbSearchTitles(details);
+        const saved=state.collection.find(m=>String(m.id)===String(item.id));
+        if(saved){saved.searchTitles=aliases;saved.searchTitlesSynced=true;}
+        completed++;
+      }catch(e){failures++;console.warn("TMDB titulos",id,e);}
+      if((completed+failures)%5===0 || completed+failures===pending.length){
+        if(!saveCollection())throw Error("No hay espacio para guardar los titulos. Descarga un respaldo.");
+      }
+      if(completed+failures<pending.length)await new Promise(r=>setTimeout(r,250));
+    }
+    renderCollection();
+    status.className="status show "+(failures?"":"ok");
+    status.textContent=`Titulos revisados: ${completed}. Sin respuesta: ${failures}. Genera y publica nuevamente index.html para activar la busqueda bilingue.`;
+  }catch(e){status.className="status show err";status.textContent="Revision interrumpida: "+(e.message||e);}
+  finally{btn.disabled=false;}
 }
 
 /* ============================================================
@@ -1459,7 +1539,7 @@ async function loadSeries(tmdbId){
   showStatus("Cargando ficha de serie desde TMDB…");
   try{
     const key=credentialValue(),base=`https://api.themoviedb.org/3/tv/${tmdbId}`;
-    const info=await tmdbGet(base+"?language=es-MX",key);
+    const info=await tmdbGet(base+"?language=es-MX&append_to_response=translations,alternative_titles",key);
     const [imagesResult,creditsResult,ratingsResult]=await Promise.allSettled([
       tmdbGet(base+"/images?include_image_language=es,es-MX,en,null",key),
       tmdbGet(base+"/credits?language=es-MX",key),
@@ -1472,6 +1552,7 @@ async function loadSeries(tmdbId){
     const poster=info.poster_path?TMDB_IMG+"w500"+info.poster_path:"";
     const backdrop=info.backdrop_path?TMDB_IMG+"w1280"+info.backdrop_path:"";
     state.movie={id:-Number(info.id),tmdbId:Number(info.id),kind:"SERIES",title:info.name||"",
+      searchTitles:tmdbSearchTitles(info),searchTitlesSynced:true,manualSearchTitles:[],
       release_date:info.first_air_date||"",runtime:Number(info.episode_run_time?.[0])||0,
       overview:info.overview||"",vote_average:Number(info.vote_average)||0,tagline:info.tagline||"",
       logo:chooseTmdbLogo(images),cast:creditsResult.status==="fulfilled"?castFromTmdb(creditsResult.value):[],
@@ -1493,6 +1574,8 @@ function editSavedSeries(item){
   state.editingId=item.id;
   state.movie={id:Number(item.id),tmdbId:Number(item.tmdbId)||Math.abs(Number(item.id)),kind:"SERIES",
     title:item.title||"",release_date:item.year||"",runtime:parseInt(item.runtime,10)||0,
+    searchTitles:Array.isArray(item.searchTitles)?item.searchTitles:[],searchTitlesSynced:item.searchTitlesSynced===true,
+    manualSearchTitles:Array.isArray(item.manualSearchTitles)?item.manualSearchTitles:[],
     overview:item.overview||"",vote_average:Number(item.rating)||0,tagline:item.subtitle||"",
     logo:item.logo||"",cast:item.cast||[],mediaSynced:item.mediaSynced===true,
     seasonSummaries:Array.isArray(item.seasonSummaries)?structuredClone(item.seasonSummaries):(item.seasons||[]).map(s=>({number:s.number,name:s.name,episode_count:(s.episodes||[]).length})),
@@ -1522,11 +1605,17 @@ function saveSeriesToCollection(){
     runtime:m.runtime?m.runtime+" min":"",overview:m.overview||"",rating:Number(m.vote_average)||0,
     genres:state.genres,cert:state.cert,poster:state.poster,backdrop:state.backdrop,
     logo:m.logo||old?.logo||"",cast:m.cast||old?.cast||[],mediaSynced:m.mediaSynced===true,
+    searchTitles:m.searchTitlesSynced===true&&Array.isArray(m.searchTitles)?m.searchTitles:(old?.searchTitles||m.searchTitles||[]),
+    searchTitlesSynced:m.searchTitlesSynced===true||old?.searchTitlesSynced===true,
+    manualSearchTitles:cleanManualSearchTitles($("manualSearchTitles").value),
     seasonSummaries:structuredClone(m.seasonSummaries||[]),seasons:structuredClone(m.seasons||[]),
     googleUrl:"",m37:"",m22:"",m18:"",addedAt:old?.addedAt||now,updatedAt:now};
   const next=state.collection.slice(),idx=next.findIndex(x=>String(x.id)===String(item.id));
   if(idx>=0)next[idx]=item;else next.push(item);
   if(!commitCollection(next)){showStatus("No se pudo guardar. Revisa el almacenamiento del navegador.","err");return;}
+  state.movie.manualSearchTitles=item.manualSearchTitles;
+  state.movie.searchTitles=item.searchTitles;
+  state.movie.searchTitlesSynced=item.searchTitlesSynced;
   state.editingId=item.id;renderSelectedMovie();
   showStatus(`✓ Serie guardada: ${seriesEpisodeCount(item,true)} de ${seriesEpisodeCount(item)} episodios con enlace. Puedes seguir editándola.`,"ok");
   updateSteps(4);
@@ -1643,6 +1732,7 @@ function renderSelectedMovie(){
   $("editingTag").classList.toggle("show",state.editingId !== null);
   $("btnAddMovie").innerHTML = state.editingId !== null ? '<i class="fa-solid fa-floppy-disk"></i> Guardar cambios' : `<i class="fa-solid fa-plus"></i> ${isSeries?"Agregar serie al catálogo":"Agregar al catálogo"}`;
   $("btnCancelEdit").style.display = state.editingId !== null ? "block" : "none";
+  $("manualSearchTitles").value=Array.isArray(movie.manualSearchTitles)?movie.manualSearchTitles.join(", "):"";
   updateMovieImages();
 }
 function editSavedMovie(id){
@@ -1656,7 +1746,9 @@ function editSavedMovie(id){
     id:item.id, title:item.title || "", tagline:item.subtitle || "",
     release_date:String(item.year || ""), runtime:Number.isFinite(runtime)?runtime:0,
     overview:item.overview || "", vote_average:Number(item.rating)||0,
-    logo:item.logo||"", cast:Array.isArray(item.cast)?item.cast:[], mediaSynced:item.mediaSynced===true
+    logo:item.logo||"", cast:Array.isArray(item.cast)?item.cast:[], mediaSynced:item.mediaSynced===true,
+    searchTitles:Array.isArray(item.searchTitles)?item.searchTitles:[],searchTitlesSynced:item.searchTitlesSynced===true,
+    manualSearchTitles:Array.isArray(item.manualSearchTitles)?item.manualSearchTitles:[]
   };
   state.movie=movie;state.editingId=item.id;
   state.poster=String(item.poster||""); state.backdrop=String(item.backdrop||"");
@@ -1707,7 +1799,7 @@ async function loadMovie(id){
     showStatus("Cargando información de la película…");
 
     const movie = await tmdbGet(
-      "https://api.themoviedb.org/3/movie/"+encodeURIComponent(id)+"?language=es-MX",
+      "https://api.themoviedb.org/3/movie/"+encodeURIComponent(id)+"?language=es-MX&append_to_response=translations,alternative_titles",
       key
     );
     if (requestId !== movieRequestId) return;
@@ -1753,7 +1845,8 @@ async function loadMovie(id){
       }
     }catch(_){}
     if (requestId !== movieRequestId) return;
-    state.movie = {...movie, logo:media.logo, cast:media.cast, mediaSynced:media.gotImages&&media.gotCredits};
+    state.movie = {...movie, searchTitles:tmdbSearchTitles(movie),searchTitlesSynced:true,manualSearchTitles:[],
+      logo:media.logo, cast:media.cast, mediaSynced:media.gotImages&&media.gotCredits};
     state.editingId = null;
     state.poster = selectedPoster;
     state.backdrop = selectedBackdrop;
@@ -2047,6 +2140,9 @@ function addMovieToCollection(){
     logo:(oldItem?.mediaSynced && !state.movie.mediaSynced ? oldItem.logo : state.movie.logo) || oldItem?.logo || "",
     cast:(oldItem?.mediaSynced && !state.movie.mediaSynced ? oldItem.cast : state.movie.cast) || oldItem?.cast || [],
     mediaSynced:state.movie.mediaSynced===true || oldItem?.mediaSynced===true,
+    searchTitles:state.movie.searchTitlesSynced===true&&Array.isArray(state.movie.searchTitles)?state.movie.searchTitles:(oldItem?.searchTitles||state.movie.searchTitles||[]),
+    searchTitlesSynced:state.movie.searchTitlesSynced===true||oldItem?.searchTitlesSynced===true,
+    manualSearchTitles:cleanManualSearchTitles($("manualSearchTitles").value),
     tmdbId: state.movie.id != null ? state.movie.id : "",
     kind: "MOVIE", googleUrl: $("googleUrl").value.trim(),
     addedAt: oldItem?.addedAt || new Date().toISOString(),
@@ -2061,6 +2157,9 @@ function addMovieToCollection(){
     showStatus("No se pudieron guardar los cambios en este navegador. Descarga un respaldo.","err"); return;
   }
   const wasEdit=state.editingId !== null;
+  state.movie.manualSearchTitles=item.manualSearchTitles;
+  state.movie.searchTitles=item.searchTitles;
+  state.movie.searchTitlesSynced=item.searchTitlesSynced;
   state.editingId = item.id;
   renderSelectedMovie();
   showStatus(wasEdit || idx>=0 ? "✓ Cambios guardados correctamente." : "✓ Película añadida y guardada en el catálogo.","ok");
@@ -2185,7 +2284,7 @@ async function importJsonCatalog(){
       try{
         // 1) Datos principales
         const movie = await tmdbGet(
-          "https://api.themoviedb.org/3/movie/"+encodeURIComponent(tmdbId)+"?language=es-MX",
+          "https://api.themoviedb.org/3/movie/"+encodeURIComponent(tmdbId)+"?language=es-MX&append_to_response=translations,alternative_titles",
           key
         );
 
@@ -2239,6 +2338,7 @@ async function importJsonCatalog(){
           backdrop: backdropPath ? "https://image.tmdb.org/t/p/w1280"+backdropPath : "",
           logo:"",cast:[],mediaSynced:false,
           tmdbId: movie.id,
+          searchTitles:tmdbSearchTitles(movie),searchTitlesSynced:true,manualSearchTitles:[],
           kind: "MOVIE",
           m37,
           m22,
@@ -2433,6 +2533,8 @@ async function buildCollectionHtml(){
     const movies = state.collection.map((item, i) => ({
       id: item.id ?? i,
       title: String(item.title || ""),
+      searchTitles:Array.isArray(item.searchTitles)?item.searchTitles.slice(0,42).map(s=>String(s||"").slice(0,160)):[],
+      manualSearchTitles:Array.isArray(item.manualSearchTitles)?item.manualSearchTitles.slice(0,16).map(s=>String(s||"").slice(0,160)):[],
       subtitle: String(item.subtitle || ""),
       year: String(item.year || ""),
       runtime: String(item.runtime || ""),
@@ -2598,6 +2700,7 @@ for(const q of QUALITY_IDS)$(q).addEventListener("input",()=>{
 $("btnAddMovie").addEventListener("click", addMovieToCollection);
 $("btnGenerate").addEventListener("click", generateMoviePage);
 $("btnEnrichMedia").addEventListener("click",enrichSavedMovies);
+$("btnSyncSearchTitles").addEventListener("click",syncSearchTitles);
 $("btnBackupCollection").addEventListener("click", () => {
   const backup = {format:"mmhd-collection", version:4, createdAt:new Date().toISOString(), count:state.collection.length, collection:state.collection, catalogSettings:state.catalogSettings};
   const url = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
