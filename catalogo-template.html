@@ -4343,11 +4343,17 @@ function formatDownloadBytes(bytes){
   return bytes.toFixed(i ? 1 : 0) + " " + units[i];
 }
 async function showDownloadBox(movieOverride){
-  const m = movieOverride || selectedPlayable();
+  // Los botones HTML entregan un MouseEvent al listener. Solo aceptar como
+  // override un título/episodio con sus campos de calidad, no el evento.
+  const isMedia = movieOverride && typeof movieOverride === "object" &&
+    ("m37" in movieOverride || "m22" in movieOverride || "m18" in movieOverride);
+  const m = isMedia ? movieOverride : selectedPlayable();
   if (!m || activeDownload) return;
-  const sourceUrl = m.m37 || m.m22 || m.m18 || "";
-  if (!sourceUrl){ alert("Esta película no tiene URLs configuradas."); return; }
-  const downloadUrl = sourceUrl.replace(/=m\d+$/, "=dv");
+  const sourceUrl = [m.m37,m.m22,m.m18].map(url=>String(url||"").trim()).find(Boolean) || "";
+  if (!sourceUrl){ alert("Esta película o episodio no tiene URLs configuradas."); return; }
+  // La descarga de Google Photos utiliza el mismo enlace, cambiando la
+  // calidad =m37 (o la disponible =m22/=m18) por =dv.
+  const downloadUrl = sourceUrl.replace(/=m(?:37|22|18)(?=$|[?#&])/, "=dv");
   const filename = (m.title || "video").replace(/[\\/:*?"<>|\x00-\x1f]/g, "_") + ".mp4";
   const box = $("downloadBox"), fill = $("downloadFill"), pctEl = $("downloadPct");
   const status = $("downloadStatus"), label = $("downloadLabel");
@@ -4666,7 +4672,7 @@ $("mmhdCastVolDown").addEventListener("click", () => castVolume(-0.1));
 $("mmhdCastVolUp").addEventListener("click", () => castVolume(0.1));
 $("mmhdCastStop").addEventListener("click", castStop);
 
-$("btnDownload").addEventListener("click", showDownloadBox);
+$("btnDownload").addEventListener("click", () => showDownloadBox());
 $("detailSeason").addEventListener("change",()=>{
   if(state.currentMovie?.kind==="SERIES")renderSeriesSeasons(state.currentMovie,Number($("detailSeason").value));
 });
