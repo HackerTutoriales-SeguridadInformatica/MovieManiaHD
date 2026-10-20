@@ -1028,6 +1028,33 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-backup-info,.mmhd-backup-preview{flex:0 0 100%;font-size:11px;color:#a8c1d8;line-height:1.55}
 .mmhd-backup-preview{padding:12px;background:#0f2636;border:1px solid #30506a;border-radius:8px}
 @media(max-width:720px){.mmhd-health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.mmhd-health-row{grid-template-columns:minmax(0,1fr) 66px 95px;gap:7px}.mmhd-health-row button{grid-column:1 / -1}}
+
+/* Fase 11.5.3: importar películas desde TXT, sin modificar el extractor existente. */
+.mmhd-txt-panel{margin:0 0 18px;padding:19px 20px;background:#101a2a;border:1px solid #293950}
+.mmhd-txt-panel[hidden]{display:none!important}
+.mmhd-txt-heading{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px}
+.mmhd-txt-heading h3{margin:0;font-size:15px;color:#f4f7fc}
+.mmhd-txt-help{font-size:12px;line-height:1.6;color:#91aac5;margin:6px 0 12px}
+.mmhd-txt-help code{color:#a9dcff;white-space:normal;overflow-wrap:anywhere}
+.mmhd-txt-file{display:block;width:100%;padding:10px 12px;border:1px dashed #45617b;border-radius:10px;background:#0a1523;color:#c8d6e6;font-size:12px;max-width:100%}
+.mmhd-txt-toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:12px 0}
+.mmhd-txt-toolbar button{padding:10px 13px;font-size:12px;min-height:39px}
+.mmhd-txt-panel button:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.mmhd-txt-status{color:#a8bcd0;font-size:12px;line-height:1.55;margin:9px 0;white-space:normal;overflow-wrap:anywhere}
+.mmhd-txt-track{height:7px;width:100%;border-radius:12px;overflow:hidden;background:#1d3045;margin:10px 0 12px}
+.mmhd-txt-progress{height:100%;width:0%;background:#22b9a3;transition:width .2s}
+.mmhd-txt-results{max-height:320px;overflow:auto;border:1px solid #283d55;border-radius:10px}
+.mmhd-txt-results table{width:100%;border-collapse:collapse;text-align:left;font-size:11px;min-width:500px}
+.mmhd-txt-results th{position:sticky;top:0;background:#15253a;color:#b5cbe3;z-index:1}
+.mmhd-txt-results th,.mmhd-txt-results td{padding:10px 11px;border-bottom:1px solid #24364a;vertical-align:top}
+.mmhd-txt-results td{overflow-wrap:anywhere;color:#c9d7e5}
+.mmhd-txt-state{font-weight:800;white-space:nowrap}
+.mmhd-txt-state[data-state="ok"]{color:#54e3b1}
+.mmhd-txt-state[data-state="error"],.mmhd-txt-state[data-state="invalid"]{color:#ff859b}
+.mmhd-txt-state[data-state="review"]{color:#ffd27b}
+.mmhd-txt-state[data-state="skipped"]{color:#9baec4}
+.mmhd-txt-state[data-state="processing"]{color:#9dbfff}
+@media(max-width:600px){.mmhd-txt-panel{padding:14px}.mmhd-txt-toolbar button{flex:1 1 130px}}
 </style>
 </head>
 <body>
@@ -1092,11 +1119,26 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div class="library-filter-publish">
 <div aria-label="Tipos de contenido" class="library-categories" role="group"><button class="library-pill active" data-filter="all" type="button">Todo</button><button class="library-pill" data-filter="movies" type="button">Películas</button><button class="library-pill" data-filter="series" type="button">Series</button></div>
 <div class="library-publish-actions" aria-label="Publicar catálogo">
+<button class="secondary" id="btnShowBulkTxt" type="button"><i class="fa-solid fa-file-lines"></i> Importar TXT</button>
 <button class="secondary" id="btnPreviewCollection" type="button"><i class="fa-solid fa-eye"></i> Vista previa del catálogo</button>
 <button class="primary" id="btnGenerateCollection" type="button"><i class="fa-solid fa-box-archive"></i> Generar catálogo completo</button>
 </div>
 </div>
 <div class="status library-publish-status" id="collectionStatus" role="status"></div>
+<section class="panel mmhd-txt-panel" id="bulkTxtPanel" hidden aria-label="Importar películas desde archivo TXT">
+<div class="mmhd-txt-heading"><h3><i class="fa-solid fa-file-import"></i> Importar películas desde TXT</h3><button type="button" class="secondary" id="btnHideBulkTxt"><i class="fa-solid fa-xmark"></i> Cerrar</button></div>
+<p class="mmhd-txt-help">Sube un archivo con una película por línea: <code>Nombre para TMDB,Enlace corto</code>. Ejemplo: <code>1917 (2019),https://photos.app.goo.gl/nTm6WVVrZTTkJ5g38</code>.<br>El panel buscará el título y año en TMDB, utilizará el extractor Google Photos del sitio y añadirá únicamente los registros con una coincidencia confiable y al menos una calidad obtenida. No reemplaza películas existentes. Haz un respaldo antes de importar.</p>
+<input class="mmhd-txt-file" id="bulkTxtFile" type="file" accept=".txt,.csv,text/plain,text/csv" aria-label="Seleccionar archivo TXT de películas" />
+<div class="mmhd-txt-toolbar">
+<button class="primary" type="button" id="btnBulkTxtStart" disabled><i class="fa-solid fa-play"></i> Iniciar importación</button>
+<button class="secondary" type="button" id="btnBulkTxtCancel" disabled><i class="fa-solid fa-stop"></i> Detener</button>
+<button class="secondary" type="button" id="btnBulkTxtReport" disabled><i class="fa-solid fa-file-arrow-down"></i> Descargar incidencias</button>
+</div>
+<div class="mmhd-txt-status" id="bulkTxtStatus" aria-live="polite">Selecciona un TXT para revisar sus registros antes de importar.</div>
+<div class="mmhd-txt-track" role="progressbar" aria-label="Progreso de importación" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="bulkTxtTrack"><div class="mmhd-txt-progress" id="bulkTxtProgress"></div></div>
+<div class="mmhd-txt-results" id="bulkTxtResults" hidden><table><thead><tr><th>Película</th><th>Resultado</th><th>Detalle</th></tr></thead><tbody id="bulkTxtRows"></tbody></table></div>
+</section>
+
 <div id="collectionHolder"><section class="panel" id="collectionCard" style="display:block">
 <div class="section-head">
 <div class="panel-title"><span class="icon"><i class="fa-solid fa-layer-group"></i></span> Catálogo</div>
@@ -3513,6 +3555,298 @@ $('backupCollectionFile').addEventListener('change',async event=>{
   finally{event.target.value='';}
 });
 mmhdRenderHealth();mmhdBackupInfo();mmhdBatchButtons();
+
+/* ============================================================
+   FASE 11.5.3 - IMPORTADOR TXT DE PELÍCULAS GOOGLE PHOTOS
+   Reutiliza la credencial TMDB y /api/extractor; no altera
+   series ni sobrescribe películas existentes.
+   ============================================================ */
+let mmhdBulkRows=[];
+let mmhdBulkBusy=false;
+let mmhdBulkStop=false;
+let mmhdBulkFinished=0;
+const MMHD_BULK_MAX=1200;
+
+function mmhdBulkTitleKey(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/&/g,' y ').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+}
+function mmhdBulkUrlKey(value){
+  try{const u=new URL(value);return u.origin+u.pathname.replace(/\/$/,'');}catch{return ''}
+}
+function mmhdBulkParse(text){
+  const results=[],seen=new Set();
+  const lines=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/);
+  if(lines.length>MMHD_BULK_MAX+50)throw Error('El archivo supera el límite de '+MMHD_BULK_MAX+' registros. Divídelo en varios TXT.');
+  for(let index=0;index<lines.length;index++){
+    let line=lines[index].trim();
+    if(!line||/^\s*(?:#|\/\/)/.test(line)||/^\s*nombre\s+(?:para\s+)?tmdb\s*[,;\t]/i.test(line))continue;
+    // También admite la barra invertida que algunos editores añaden antes de ":" o "/".
+    line=line.replace(/\\([:/])/g,'$1').replace(/\\\s*$/,'').trim();
+    const match=line.match(/^(.*?)[,;\t]\s*(https?:\/\/[^\s"']+)\s*$/i);
+    let title=match?.[1]?.trim()||'',url=match?.[2]||'';
+    if(title.startsWith('"')&&title.endsWith('"'))title=title.slice(1,-1).replace(/""/g,'"').trim();
+    const yr=title.match(/\s*\((19\d{2}|20\d{2}|21\d{2})\)\s*$/);
+    const year=yr?Number(yr[1]):null;
+    const name=(yr?title.slice(0,yr.index):title).trim();
+    let problem='';
+    if(!match||!name)problem='Formato esperado: Título (Año),https://photos.app.goo.gl/...';
+    if(!problem){
+      try{
+        const parsed=new URL(url);
+        if(parsed.protocol!=='https:'||parsed.hostname.toLowerCase()!=='photos.app.goo.gl'||
+           !/^\/[a-z0-9_-]{6,}\/?$/i.test(parsed.pathname)||parsed.username||parsed.password||parsed.port||parsed.search||parsed.hash)
+          throw Error('El enlace debe ser un enlace corto de photos.app.goo.gl');
+      }catch{problem='Enlace corto de Google Photos inválido.';}
+    }
+    const key=mmhdBulkTitleKey(name)+'|'+(year||'')+'|'+mmhdBulkUrlKey(url);
+    if(!problem&&seen.has(key))problem='Registro repetido dentro de este TXT.';
+    if(!problem)seen.add(key);
+    results.push({line:index+1,title:name||title||'(sin título)',year,url,
+      state:problem?'invalid':'pending',detail:problem||'Listo para importar.',tmdbId:null});
+    if(results.length>MMHD_BULK_MAX)throw Error('Máximo '+MMHD_BULK_MAX+' títulos por archivo.');
+  }
+  return results;
+}
+function mmhdBulkRender(){
+  const states={pending:'Pendiente',invalid:'Formato inválido',processing:'Procesando',ok:'Agregada',review:'Revisión necesaria',error:'Error',skipped:'Omitida'};
+  const totals={};for(const row of mmhdBulkRows)totals[row.state]=(totals[row.state]||0)+1;
+  const listed=mmhdBulkRows.slice(0,160);
+  $('bulkTxtRows').innerHTML=listed.map(row=>`<tr><td><b>${escHtml(row.title)}</b>${row.year?' ('+row.year+')':''}<br><span style="color:#7d9dbb">Línea ${row.line}</span></td><td><span class="mmhd-txt-state" data-state="${row.state}">${states[row.state]||row.state}</span></td><td>${escHtml(row.detail)}</td></tr>`).join('');
+  $('bulkTxtResults').hidden=!mmhdBulkRows.length;
+  const done=mmhdBulkRows.filter(row=>!['pending','processing'].includes(row.state)).length;
+  const pct=mmhdBulkRows.length?Math.round(done*100/mmhdBulkRows.length):0;
+  $('bulkTxtProgress').style.width=pct+'%';
+  $('bulkTxtTrack').setAttribute('aria-valuenow',String(pct));
+  $('btnBulkTxtReport').disabled=!mmhdBulkRows.some(row=>['invalid','error','review','skipped','pending'].includes(row.state));
+  if(mmhdBulkRows.length>listed.length){
+    $('bulkTxtRows').insertAdjacentHTML('beforeend',`<tr><td colspan="3">Mostrando los primeros 160 de ${mmhdBulkRows.length} registros. El informe incluye todos.</td></tr>`);
+  }
+  return totals;
+}
+function mmhdBulkMessage(text){$('bulkTxtStatus').textContent=text;}
+async function mmhdBulkLoadFile(file){
+  if(mmhdBulkBusy)return;
+  mmhdBulkRows=[];
+  $('btnBulkTxtStart').disabled=true;
+  if(!file){mmhdBulkMessage('Selecciona un archivo TXT.');mmhdBulkRender();return;}
+  try{
+    if(file.size>2*1024*1024)throw Error('El archivo supera los 2 MB. Divídelo en varios TXT.');
+    mmhdBulkRows=mmhdBulkParse(await file.text());
+    if(!mmhdBulkRows.length)throw Error('No se encontraron registros. Usa una película por línea.');
+    const valid=mmhdBulkRows.filter(r=>r.state==='pending').length;
+    $('btnBulkTxtStart').disabled=!valid;
+    mmhdBulkMessage(`${mmhdBulkRows.length} líneas detectadas · ${valid} listas para procesar · ${mmhdBulkRows.length-valid} requieren corrección. Revisa la tabla antes de iniciar.`);
+  }catch(e){
+    mmhdBulkRows=[];mmhdBulkMessage('No se pudo leer el archivo: '+(e.message||e));
+  }
+  mmhdBulkRender();
+}
+function mmhdBulkEditDistance(a,b){
+  if(a===b)return 0;
+  if(Math.abs(a.length-b.length)>4)return 99;
+  const prev=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    let old=prev[0];prev[0]=i;
+    for(let j=1;j<=b.length;j++){
+      const temp=prev[j];prev[j]=Math.min(prev[j]+1,prev[j-1]+1,old+(a[i-1]===b[j-1]?0:1));old=temp;
+    }
+  }
+  return prev[b.length];
+}
+function mmhdBulkChooseMatch(results,name,year){
+  const wanted=mmhdBulkTitleKey(name);
+  if(!wanted)return null;
+  const eligible=results.filter(m=>{
+    const actual=Number(String(m.release_date||'').slice(0,4));
+    return !year||(actual&&actual===year);
+  });
+  const ranked=eligible.map(m=>{
+    const aliases=[m.title,m.original_title].map(mmhdBulkTitleKey).filter(Boolean);
+    const score=Math.max(0,...aliases.map(v=>v===wanted?1:(1-mmhdBulkEditDistance(v,wanted)/Math.max(v.length,wanted.length))));
+    return {m,score};
+  }).sort((a,b)=>b.score-a.score);
+  // Evitar sustituir accidentalmente una película por otra con nombre parecido.
+  if(!ranked.length||ranked[0].score<0.92)return null;
+  if(ranked.length>1&&ranked[0].score-ranked[1].score<0.075)return null;
+  return ranked[0].m;
+}
+async function mmhdBulkJson(url,options={},timeoutMs=35000){
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),timeoutMs);
+  try{
+    const r=await fetch(url,{...options,signal:ctrl.signal});
+    let result=null;try{result=await r.json();}catch{}
+    if(!r.ok)throw Error('El servicio respondió HTTP '+r.status);
+    if(!result||typeof result!=='object')throw Error('Respuesta no válida del servidor.');
+    return result;
+  }catch(e){if(e?.name==='AbortError')throw Error('La petición superó el tiempo de espera.');throw e;}
+  finally{clearTimeout(timer);}
+}
+async function mmhdBulkTmdb(path,key){
+  return mmhdBulkJson(tmdbUrl('https://api.themoviedb.org/3/'+path,key),
+    {headers:tmdbHeaders(key),cache:'no-store'},30000);
+}
+async function mmhdBulkFindMovie(row,key){
+  const all=new Map();
+  for(const language of ['es-MX','es-ES','en-US']){
+    if(mmhdBulkStop)return null;
+    const q='search/movie?language='+language+'&query='+encodeURIComponent(row.title)+
+      '&include_adult=false'+(row.year?'&year='+row.year:'');
+    const data=await mmhdBulkTmdb(q,key);
+    for(const candidate of Array.isArray(data.results)?data.results:[]){
+      const old=all.get(candidate.id);
+      if(!old)all.set(candidate.id,candidate);
+      else if(mmhdBulkTitleKey(candidate.title)===mmhdBulkTitleKey(row.title))all.set(candidate.id,candidate);
+    }
+    const match=mmhdBulkChooseMatch([...all.values()],row.title,row.year);
+    if(match)return match;
+  }
+  return null;
+}
+function mmhdBulkItem(movie,shortUrl,qualities){
+  const now=new Date().toISOString();
+  const names=tmdbSearchTitles(movie);
+  return {
+    id:movie.id,tmdbId:movie.id,kind:'MOVIE',
+    title:movie.title||movie.original_title||'Sin título',
+    subtitle:movie.tagline||'',
+    year:String(movie.release_date||'').slice(0,4),
+    runtime:movie.runtime?movie.runtime+' min':'',
+    overview:movie.overview||'',
+    rating:Number.isFinite(movie.vote_average)?Number(movie.vote_average):0,
+    genres:Array.isArray(movie.genres)?movie.genres.map(g=>g.name).join(', '):'',
+    cert:'',
+    poster:movie.poster_path?'https://image.tmdb.org/t/p/w500'+movie.poster_path:'',
+    backdrop:movie.backdrop_path?'https://image.tmdb.org/t/p/w1280'+movie.backdrop_path:'',
+    logo:'',cast:[],mediaSynced:false,
+    searchTitles:names,searchTitlesSynced:true,manualSearchTitles:[],
+    googleUrl:shortUrl,m37:qualities.m37,m22:qualities.m22,m18:qualities.m18,
+    addedAt:now,updatedAt:now
+  };
+}
+function mmhdBulkDuplicate(movieId,shortUrl){
+  const key=mmhdBulkUrlKey(shortUrl);
+  if(state.collection.some(m=>String(m.id)===String(movieId)))return 'Este título ya está guardado en Mi biblioteca.';
+  if(key&&state.collection.some(m=>mmhdBulkUrlKey(m.googleUrl)===key))return 'El enlace corto ya está asignado a otro título de la biblioteca.';
+  return '';
+}
+function mmhdBulkPause(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+async function mmhdBulkStart(){
+  if(mmhdBulkBusy||!mmhdBulkRows.some(x=>x.state==='pending'))return;
+  const key=credentialValue();
+  if(!key){mmhdBulkMessage('Introduce primero tu credencial de TMDB en Herramientas.');return;}
+  if(!state.validated && !await validateCredential()){
+    mmhdBulkMessage('No se pudo validar la credencial TMDB. Corrígela en Herramientas antes de importar.');return;
+  }
+  if(!confirm(`Se procesarán ${mmhdBulkRows.filter(x=>x.state==='pending').length} películas de tu TXT, una a una. No se sobrescribirán títulos existentes. ¿Iniciar?`))return;
+  // Una sola instantánea previa, para que "Deshacer último cambio" vuelva
+  // al estado anterior a TODA la importación, no al último registro.
+  if(!snapshotCollection()){
+    mmhdBulkMessage('No se pudo crear una copia previa en este navegador. Descarga un respaldo completo antes de importar.');return;
+  }
+  mmhdBulkBusy=true;mmhdBulkStop=false;
+  $('btnBulkTxtStart').disabled=true;
+  $('btnBulkTxtCancel').disabled=false;
+  $('btnHideBulkTxt').disabled=true;
+  $('bulkTxtFile').disabled=true;
+  let saved=0,processed=0;
+  const keys=new Set();
+  try{
+    for(const row of mmhdBulkRows){
+      if(mmhdBulkStop)break;
+      if(row.state!=='pending')continue;
+      const rowKey=mmhdBulkTitleKey(row.title)+'|'+(row.year||'');
+      if(keys.has(rowKey)){
+        row.state='review';row.detail='Hay más de un enlace para el mismo título y año en este archivo.';
+        processed++;mmhdBulkRender();continue;
+      }
+      keys.add(rowKey);
+      row.state='processing';row.detail='Buscando coincidencia de título y año en TMDB…';
+      mmhdBulkRender();
+      mmhdBulkMessage(`Procesando ${processed+1} de ${mmhdBulkRows.filter(r=>r.state!=='invalid').length}: ${row.title}${row.year?' ('+row.year+')':''}. Guardadas: ${saved}.`);
+      try{
+        const result=await mmhdBulkFindMovie(row,key);
+        if(mmhdBulkStop){row.state='pending';row.detail='Detenida antes de finalizar.';break;}
+        if(!result){row.state='review';row.detail='TMDB no devolvió una coincidencia única y confiable de título/año.';continue;}
+        row.tmdbId=result.id;
+        const duplicate=mmhdBulkDuplicate(result.id,row.url);
+        if(duplicate){row.state='skipped';row.detail=duplicate;continue;}
+        row.detail='TMDB identificado. Consultando información…';mmhdBulkRender();
+        const detail=await mmhdBulkTmdb('movie/'+encodeURIComponent(result.id)+'?language=es-MX&append_to_response=translations,alternative_titles',key);
+        if(mmhdBulkStop){row.state='pending';row.detail='Detenida antes de finalizar.';break;}
+        if(row.year&&Number(String(detail.release_date||'').slice(0,4))!==row.year){
+          row.state='review';row.detail='El año de la ficha TMDB no coincide con el año del TXT.';continue;
+        }
+        const again=mmhdBulkDuplicate(detail.id,row.url);
+        if(again){row.state='skipped';row.detail=again;continue;}
+        row.detail='Extrayendo m37, m22 y m18 desde Google Photos…';mmhdBulkRender();
+        const data=await mmhdBulkJson(EXTRACTOR_ENDPOINT,{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({google_url:row.url})
+        },50000);
+        if(mmhdBulkStop){row.state='pending';row.detail='Detenida antes de finalizar.';break;}
+        if(!data.ok)throw Error(data.error||'El extractor no devolvió URLs.');
+        const qualities={};
+        for(const q of ['m37','m22','m18']){
+          const url=String(data[q]||'').trim();
+          qualities[q]=validQualityProbeUrl(url,q)?url:'';
+        }
+        const available=Object.keys(qualities).filter(q=>qualities[q]);
+        if(!available.length)throw Error('No se obtuvo ninguna URL directa válida (m37/m22/m18).');
+        state.collection.push(mmhdBulkItem(detail,row.url,qualities));
+        if(!saveCollection()){
+          state.collection.pop();throw Error('Sin espacio para guardar. Genera un respaldo y libera espacio.');
+        }
+        saved++;
+        row.state='ok';row.detail='TMDB #'+detail.id+' · '+available.join(', ')+' obtenida(s)'+(available.length<3?' · faltan algunas calidades.':' · tres calidades.');
+        if(saved%5===0)renderCollection();
+      }catch(e){
+        row.state='error';row.detail=String(e?.message||e||'Error desconocido').slice(0,190);
+        // Si falla el almacenamiento, no consumir el resto del TXT.
+        if(/espacio para guardar|espacio insuficiente/i.test(row.detail)){mmhdBulkStop=true;}
+      }finally{
+        processed++;
+        mmhdBulkRender();
+        if(!mmhdBulkStop)await mmhdBulkPause(350);
+      }
+    }
+  }finally{
+    mmhdBulkBusy=false;
+    $('btnBulkTxtCancel').disabled=true;
+    $('btnHideBulkTxt').disabled=false;
+    $('bulkTxtFile').disabled=false;
+    $('btnBulkTxtStart').disabled=!mmhdBulkRows.some(x=>x.state==='pending');
+    renderCollection();
+    if(typeof mmhdRenderHealth==='function')mmhdRenderHealth();
+    const totals=mmhdBulkRender();
+    mmhdBulkMessage((mmhdBulkStop?'Importación detenida. ':'Importación finalizada. ')+
+      `Agregadas: ${totals.ok||0}. Omitidas: ${totals.skipped||0}. Revisión: ${totals.review||0}. Errores: ${(totals.error||0)+(totals.invalid||0)}. `+
+      `Pendientes: ${totals.pending||0}. Consulta la tabla y descarga las incidencias si hace falta.`);
+  }
+}
+function mmhdBulkReport(){
+  const incidents=mmhdBulkRows.filter(r=>r.state!=='ok');if(!incidents.length)return;
+  const quote=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
+  const header='Nombre para TMDB,Enlace corto,Estado,Detalle,Línea';
+  const data=incidents.map(r=>[r.title+(r.year?' ('+r.year+')':''),r.url,r.state,r.detail,r.line].map(quote).join(','));
+  const blob=new Blob(['\uFEFF'+[header,...data].join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='MMHD_importacion_TXT_incidencias.csv';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+$('btnShowBulkTxt').addEventListener('click',()=>{
+  $('bulkTxtPanel').hidden=false;
+  $('bulkTxtPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+});
+$('btnHideBulkTxt').addEventListener('click',()=>{if(!mmhdBulkBusy)$('bulkTxtPanel').hidden=true;});
+$('bulkTxtFile').addEventListener('change',event=>{void mmhdBulkLoadFile(event.target.files?.[0]);});
+$('btnBulkTxtStart').addEventListener('click',()=>{void mmhdBulkStart();});
+$('btnBulkTxtCancel').addEventListener('click',()=>{
+  mmhdBulkStop=true;$('btnBulkTxtCancel').disabled=true;
+  mmhdBulkMessage('Deteniendo al finalizar la solicitud actual; los títulos ya guardados se conservarán…');
+});
+$('btnBulkTxtReport').addEventListener('click',mmhdBulkReport);
 
 updateSteps(1);
 fillCatalogSettings();
