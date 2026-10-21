@@ -1013,6 +1013,15 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-health-track{height:8px;border-radius:999px;background:#27394d;overflow:hidden}
 #healthProgressFill{height:100%;width:0%;background:linear-gradient(90deg,#2c9dca,#00d6a7);transition:width .25s}
 #healthProgressText{font-size:11px;color:#b9cadc;margin:8px 0 12px}
+.mmhd-health-errors{margin:16px 0 18px;border:1px solid #644054;background:#211823;border-radius:12px;padding:13px}
+.mmhd-health-errors-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.mmhd-health-errors h3{font-size:13px;color:#ffd9e1;margin:0 0 5px}
+.mmhd-health-errors-head p{font-size:10.5px;line-height:1.55;color:#cfafbb;margin:0;max-width:740px}
+.mmhd-health-errors-actions{display:flex;flex-wrap:wrap;gap:7px}
+.mmhd-health-errors-actions button{font-size:10.5px}
+.mmhd-health-errors-actions button:disabled{opacity:.45;cursor:not-allowed}
+.mmhd-health-errors-preview{display:grid;gap:7px;margin-top:11px;font-size:11px;color:#f2bdc6}
+.mmhd-health-errors-preview .mmhd-health-row{border-color:#673649;background:#251a2b}
 .mmhd-health-list{display:grid;gap:7px}
 .mmhd-health-row{display:grid;grid-template-columns:minmax(0,1fr) 76px 125px auto;align-items:center;gap:9px;padding:10px 12px;background:#101d2e;border:1px solid #253b50;border-radius:9px}
 .mmhd-health-row strong{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1055,6 +1064,44 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-txt-state[data-state="skipped"]{color:#9baec4}
 .mmhd-txt-state[data-state="processing"]{color:#9dbfff}
 @media(max-width:600px){.mmhd-txt-panel{padding:14px}.mmhd-txt-toolbar button{flex:1 1 130px}}
+
+/* Fase 11.5.7 · Centro de revisión TXT y reparación de enlaces */
+.mmhd-review-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:16px 0}
+.mmhd-review-toolbar label{font-size:12px;color:#b5cee4;display:flex;gap:6px;flex-direction:column}
+.mmhd-review-toolbar select{min-width:180px}
+.mmhd-review-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}
+.mmhd-review-metrics div{border:1px solid #30455e;background:#101e30;padding:12px;border-radius:10px;display:grid;gap:4px}
+.mmhd-review-metrics strong{font-size:20px;color:#f4f7fa}.mmhd-review-metrics small{color:#a9bed2}
+.mmhd-review-list{display:grid;gap:10px}
+.mmhd-review-item{background:#0d192b;border:1px solid #2b405a;border-radius:12px;padding:12px;display:grid;gap:9px}
+.mmhd-review-item header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.mmhd-review-item p{margin:0;color:#9bb2cc;overflow-wrap:anywhere;font-size:11px;line-height:1.5}
+.mmhd-review-item .mmhd-actions{display:flex;flex-wrap:wrap;gap:8px}
+.mmhd-review-item button{font-size:11px;padding:8px 12px}
+.mmhd-review-edit{padding:16px;border:1px solid #355879;border-radius:12px;background:#101c2d;margin-top:12px;display:grid;gap:12px}
+.mmhd-review-edit .mmhd-fields{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px}
+.mmhd-review-edit label,.mmhd-repair-dialog label{font-size:11px;font-weight:700;color:#c2d4e5;display:grid;gap:6px}
+.mmhd-review-edit input,.mmhd-repair-dialog input{width:100%;min-width:0}
+.mmhd-review-edit .mmhd-actions{display:flex;flex-wrap:wrap;gap:8px}
+.mmhd-review-candidates{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:9px}
+.mmhd-review-candidate{border:1px solid #30425a;border-radius:9px;background:#0c1827;padding:9px;display:flex;gap:9px;text-align:left;align-items:center;min-width:0}
+.mmhd-review-candidate img{height:63px;width:42px;object-fit:cover;border-radius:5px;background:#1c2e44;flex:none}
+.mmhd-review-candidate span{min-width:0;overflow-wrap:anywhere;color:#e6f1fa;font-size:11px}
+.mmhd-review-candidate small{display:block;color:#91adcb;margin-top:4px}
+.mmhd-review-candidate[data-selected=true]{border-color:#28dab3;background:#103a3c;box-shadow:0 0 0 1px #28dab3}
+.mmhd-review-note{padding:10px;border-radius:8px;background:#182942;color:#b8cce0;font-size:11px;overflow-wrap:anywhere;line-height:1.5}
+.mmhd-review-file{width:100%;max-width:370px}
+.mmhd-repair-dialog{background:#0b1525;color:#f0f5ff;border:1px solid #3b5571;border-radius:16px;width:min(680px,calc(100vw - 24px));max-height:90dvh;padding:22px;box-shadow:0 24px 70px #000;overflow:auto}
+.mmhd-repair-dialog::backdrop{background:rgba(0,0,0,.78)}
+.mmhd-repair-dialog h3{margin:0 0 7px;font-size:18px}.mmhd-repair-dialog p{color:#b1c6dd;font-size:12px;line-height:1.55}
+.mmhd-repair-dialog .mmhd-repair-fields{display:grid;gap:13px;margin:16px 0}
+.mmhd-repair-dialog .mmhd-repair-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+.mmhd-repair-dialog input[readonly]{color:#a8c9e4;background:#13243a;user-select:text}
+.mmhd-repair-dialog button:disabled,.mmhd-review-edit button:disabled{opacity:.45;cursor:not-allowed}
+.mmhd-repair-qualities{display:grid;gap:8px}
+.mmhd-repair-qualities>div{display:flex;justify-content:space-between;gap:12px;background:#13243a;border:1px solid #2d4059;padding:10px 12px;border-radius:8px;font-size:11px}
+.mmhd-repair-qualities strong{color:#b7e8d8}
+@media(max-width:650px){.mmhd-review-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.mmhd-review-edit .mmhd-fields{grid-template-columns:1fr}.mmhd-repair-dialog{padding:14px}.mmhd-review-toolbar>*{flex:1 1 155px}}
 </style>
 </head>
 <body>
@@ -1068,6 +1115,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <button class="rail-link" data-view="editor" type="button"><i class="fa-solid fa-square-plus"></i><span>Agregar / editar</span></button>
 <button class="rail-link" data-view="pending" type="button"><i class="fa-solid fa-list-check"></i><span>Pendientes</span></button>
 <button class="rail-link" data-view="diagnostic" type="button"><i class="fa-solid fa-heart-pulse"></i><span>Diagnóstico</span></button>
+<button class="rail-link" data-view="review" type="button"><i class="fa-solid fa-clipboard-check"></i><span>Revisiones TXT</span></button>
 <button class="rail-link" data-view="appearance" type="button"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Personalización</span></button>
 <button class="rail-link" data-view="tools" type="button"><i class="fa-solid fa-screwdriver-wrench"></i><span>Herramientas</span></button>
 </nav>
@@ -1120,6 +1168,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div aria-label="Tipos de contenido" class="library-categories" role="group"><button class="library-pill active" data-filter="all" type="button">Todo</button><button class="library-pill" data-filter="movies" type="button">Películas</button><button class="library-pill" data-filter="series" type="button">Series</button></div>
 <div class="library-publish-actions" aria-label="Publicar catálogo">
 <button class="secondary" id="btnShowBulkTxt" type="button"><i class="fa-solid fa-file-lines"></i> Importar TXT</button>
+<button class="secondary" data-view="review" type="button"><i class="fa-solid fa-clipboard-check"></i> Revisiones TXT <span id="mmhdReviewBadge">0</span></button>
 <button class="secondary" id="btnPreviewCollection" type="button"><i class="fa-solid fa-eye"></i> Vista previa del catálogo</button>
 <button class="primary" id="btnGenerateCollection" type="button"><i class="fa-solid fa-box-archive"></i> Generar catálogo completo</button>
 </div>
@@ -1301,11 +1350,11 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </div>
 </section>
 <section aria-labelledby="diagnostic-title" class="admin-view" data-page="diagnostic" hidden id="view-diagnostic">
-<div class="page-heading"><div><div class="eyebrow">SALUD DE LOS ENLACES</div><h2 id="diagnostic-title">Diagnóstico de la biblioteca</h2><p>Revisión HTML5 de las URLs guardadas. Una calidad a la vez, máximo 35 segundos; puedes pausar y continuar por lotes.</p></div></div>
+<div class="page-heading"><div><div class="eyebrow">SALUD DE LOS ENLACES</div><h2 id="diagnostic-title">Diagnóstico de la biblioteca</h2><p>Revisa solo una calidad por película o episodio: 1080p (m37), o 720p (m22) si no hay m37. Máximo 70 segundos por enlace. La calidad m18 se omite. Puedes pausar, continuar o cancelar.</p></div></div>
 <section class="panel mmhd-health-panel">
   <div class="mmhd-health-metrics" id="healthMetrics" aria-live="polite"></div>
   <div class="mmhd-health-toolbar">
-    <label for="healthFilter">Mostrar<select id="healthFilter"><option value="all">Todas las URLs</option><option value="error">Con error</option><option value="unknown">Sin confirmar</option><option value="pending">Sin verificar</option><option value="ok">Reproducción confirmada</option></select></label>
+    <label for="healthFilter">Mostrar<select id="healthFilter"><option value="all">Calidades prioritarias</option><option value="error">Con error</option><option value="unknown">Sin confirmar</option><option value="pending">Sin verificar</option><option value="ok">Reproducción confirmada</option></select></label>
     <label for="healthBatchSize">Enlaces por lote<select id="healthBatchSize"><option value="10">10 enlaces</option><option value="25" selected>25 enlaces</option><option value="50">50 enlaces</option></select></label>
     <label class="mmhd-health-check"><input type="checkbox" id="healthOnlyPending" checked> Solo revisar URLs pendientes o antiguas</label>
   </div>
@@ -1317,9 +1366,55 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   </div>
   <div class="mmhd-health-track"><div id="healthProgressFill"></div></div>
   <p id="healthProgressText" role="status">Listo para revisar tu biblioteca.</p>
+  <section class="mmhd-health-errors" aria-labelledby="healthErrorsTitle">
+    <div class="mmhd-health-errors-head">
+      <div><h3 id="healthErrorsTitle"><i class="fa-solid fa-triangle-exclamation"></i> Reporte de enlaces con error</h3>
+        <p>Solo errores confirmados de m37 o m22. Una espera de 70 segundos sin reproducción se marca «Sin confirmar», no como enlace roto.</p></div>
+      <div class="mmhd-health-errors-actions">
+        <button class="secondary" type="button" id="healthShowErrors"><i class="fa-solid fa-filter"></i> Ver reporte</button>
+        <button class="secondary" type="button" id="healthDownloadErrors" disabled><i class="fa-solid fa-file-csv"></i> Descargar reporte CSV</button>
+      </div>
+    </div>
+    <div id="healthErrorPreview" class="mmhd-health-errors-preview" aria-live="polite">Todavía no hay errores confirmados.</div>
+  </section>
   <div id="healthList" class="mmhd-health-list"></div>
   <button class="secondary" type="button" id="healthMore" hidden>Mostrar más resultados</button>
 </section>
+</section>
+
+<section aria-labelledby="review-title" class="admin-view" data-page="review" hidden id="view-review">
+  <div class="page-heading"><div><div class="eyebrow">IMPORTACIONES TXT</div><h2 id="review-title">Centro de revisión de películas</h2>
+    <p>Las importaciones que necesitan atención se conservan en este navegador. Corrige el título, elige manualmente el resultado de TMDB y extrae los enlaces antes de agregarlo.</p></div>
+    <div class="page-actions"><button class="secondary" data-view="library" type="button"><i class="fa-solid fa-arrow-left"></i> Mi biblioteca</button></div></div>
+  <section class="panel">
+    <div class="mmhd-review-metrics" id="mmhdReviewMetrics" aria-live="polite"></div>
+    <div class="mmhd-review-toolbar">
+      <label>Mostrar<select id="mmhdReviewFilter"><option value="open">Por revisar</option><option value="all">Todos</option><option value="resolved">Resueltos</option></select></label>
+      <button type="button" class="secondary" id="mmhdReviewExport"><i class="fa-solid fa-download"></i> Descargar pendientes CSV</button>
+      <label class="mmhd-review-file">Cargar incidencias CSV anteriores<input type="file" id="mmhdReviewImport" accept=".csv,text/csv" /></label>
+    </div>
+    <p class="mmhd-review-note" id="mmhdReviewInfo">Los errores nuevos del importador TXT se guardarán aquí automáticamente. También puedes importar el CSV de incidencias que descargaste en una fase anterior. Ningún registro pendiente modifica tu biblioteca hasta que lo confirmes.</p>
+    <div class="mmhd-review-list" id="mmhdReviewList"></div>
+    <div class="mmhd-review-edit" id="mmhdReviewEditor" hidden>
+      <h3 style="margin:0;font-size:14px"><i class="fa-solid fa-pen-to-square"></i> Resolver registro seleccionado</h3>
+      <div class="mmhd-fields">
+        <label>Nombre para buscar en TMDB<input id="mmhdReviewTitle" type="text" maxlength="250" autocomplete="off"></label>
+        <label>Año (si se conoce)<input id="mmhdReviewYear" type="number" min="1880" max="2100" placeholder="Año opcional"></label>
+      </div>
+      <label>Enlace corto de Google Photos<input id="mmhdReviewShort" type="url" autocomplete="off" spellcheck="false" placeholder="https://photos.app.goo.gl/..."></label>
+      <div class="mmhd-actions">
+        <button type="button" class="secondary" id="mmhdReviewSearch"><i class="fa-solid fa-magnifying-glass"></i> Buscar opciones en TMDB</button>
+        <button type="button" class="secondary" id="mmhdReviewUseId"><i class="fa-solid fa-hashtag"></i> Usar ID de TMDB</button>
+        <input id="mmhdReviewManualId" type="number" min="1" max="999999999" placeholder="ID TMDB" aria-label="ID TMDB manual" style="width:130px;min-width:110px">
+      </div>
+      <div id="mmhdReviewCandidates" class="mmhd-review-candidates" aria-live="polite"></div>
+      <div class="mmhd-review-note" id="mmhdReviewSelected">Elige la ficha correcta antes de agregarla.</div>
+      <div class="mmhd-actions">
+        <button type="button" class="primary" id="mmhdReviewResolve" disabled><i class="fa-solid fa-wand-magic-sparkles"></i> Extraer URLs y agregar película</button>
+        <button type="button" class="secondary" id="mmhdReviewClose">Cerrar editor</button>
+      </div>
+    </div>
+  </section>
 </section>
 <section aria-labelledby="pending-title" class="admin-view" data-page="pending" hidden="" id="view-pending">
 <div class="page-heading"><div><div class="eyebrow">CONTROL DE CALIDAD</div><h2 id="pending-title">Episodios y temporadas pendientes</h2><p>Revisa qué series tienen capítulos sin enlace o temporadas todavía sin cargar desde TMDB.</p></div><div class="page-actions"><button class="secondary" data-view="library" type="button"><i class="fa-solid fa-layer-group"></i> Mi biblioteca</button></div></div>
@@ -1401,6 +1496,30 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </section>
 </main>
 </div>
+
+<dialog id="mmhdRepairDialog" class="mmhd-repair-dialog" aria-labelledby="mmhdRepairHeading">
+  <h3 id="mmhdRepairHeading"><i class="fa-solid fa-screwdriver-wrench"></i> Reemplazar enlace Google Photos</h3>
+  <p id="mmhdRepairTitle"></p>
+  <div class="mmhd-repair-fields">
+    <label>Enlace corto configurado actualmente
+      <input type="text" id="mmhdRepairOld" readonly aria-label="Enlace corto actual de Google Photos">
+    </label>
+    <div id="mmhdRepairOldNote" class="mmhd-review-note" hidden></div>
+    <label>Enlace corto nuevo (se usará solo al confirmar)
+      <input type="url" id="mmhdRepairNew" autocomplete="off" spellcheck="false" placeholder="https://photos.app.goo.gl/..."></label>
+  </div>
+  <div class="mmhd-repair-actions">
+    <button class="secondary" type="button" id="mmhdRepairExtract"><i class="fa-solid fa-wand-magic-sparkles"></i> Extraer y previsualizar</button>
+    <button class="secondary" type="button" id="mmhdRepairClose">Cancelar</button>
+  </div>
+  <p id="mmhdRepairMessage" role="status" aria-live="polite"></p>
+  <div id="mmhdRepairPreview" hidden>
+    <h4 style="font-size:13px;margin-bottom:10px">Calidades extraídas del nuevo enlace</h4>
+    <div id="mmhdRepairQualities" class="mmhd-repair-qualities"></div>
+    <p>Al confirmar se sustituirán <strong>el enlace corto y las tres URLs</strong> de esta película o capítulo por lo obtenido. Las calidades no disponibles quedarán vacías. Puedes cancelar sin cambiar nada.</p>
+    <button class="primary" type="button" id="mmhdRepairConfirm"><i class="fa-solid fa-check"></i> Confirmar reemplazo</button>
+  </div>
+</dialog>
 <dialog aria-label="Vista previa del catálogo" class="preview-dialog" id="catalogPreviewDialog">
 <div class="preview-bar">
 <strong>Vista previa de Movie Mania HD</strong>
@@ -1418,7 +1537,7 @@ const EXTRACTOR_ENDPOINT = "/api/extractor";
 /* ============================================================
    PLANTILLA DEL REPRODUCTOR (FWDEV con m37/m22/m18)
    ============================================================ */
-const PLAYER_TEMPLATE_B64 = "PCFET0NUWVBFIGh0bWw+CjxodG1sIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hodG1sIj4KPGhlYWQ+CjxtZXRhIG5hbWU9InJlZmVycmVyIiBjb250ZW50PSJuby1yZWZlcnJlciIgLz4KPHRpdGxlPl9fTU9WSUVfVElUTEVfXzwvdGl0bGU+CjxsaW5rIHJlbD0iaWNvbiIgaHJlZj0iaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L2doL0hhY2tlclR1dG9yaWFsZXMtU2VndXJpZGFkSW5mb3JtYXRpY2EvUmVwcm9kdWN0b3JHb29nbGVQaG90b3NAbWFpbi9Hb29nbGVQaG90b3NQbGF5ZXIvc3RhcnQvaWNvbm8uaWNvIiAvPgo8bWV0YSBodHRwLWVxdWl2PSJDb250ZW50LVR5cGUiIGNvbnRlbnQ9InRleHQvaHRtbDsgY2hhcnNldD11dGYtOCIgLz4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9ImluaXRpYWwtc2NhbGU9MSwgbWF4aW11bS1zY2FsZT0xLCB1c2VyLXNjYWxhYmxlPW5vIiAvPgo8c2NyaXB0IHR5cGU9InRleHQvamF2YXNjcmlwdCIgc3JjPSJodHRwczovL2Nkbi5qc2RlbGl2ci5uZXQvZ2gvSGFja2VyVHV0b3JpYWxlcy1TZWd1cmlkYWRJbmZvcm1hdGljYS9SZXByb2R1Y3Rvckdvb2dsZVBob3Rvc0BtYWluL0dvb2dsZVBob3Rvc1BsYXllci9zdGFydC9qYXZhL1BsYXllci5qcyI+PC9zY3JpcHQ+CjxzdHlsZT4KICBodG1sLGJvZHl7bWFyZ2luOjA7cGFkZGluZzowO2JhY2tncm91bmQ6IzAwMDtoZWlnaHQ6MTAwJTtvdmVyZmxvdzpoaWRkZW59CiAgI215RGl2e3dpZHRoOjEwMCU7aGVpZ2h0OjEwMCV9CiAgI2RsQnRuewogICAgcG9zaXRpb246Zml4ZWQ7Ym90dG9tOjE0cHg7cmlnaHQ6MTRweDt6LWluZGV4Ojk5OTk5OwogICAgYmFja2dyb3VuZDpsaW5lYXItZ3JhZGllbnQoMTgwZGVnLCNmZjNkNjYsI2ZmMTc0OCk7CiAgICBjb2xvcjojZmZmO2JvcmRlcjowO2JvcmRlci1yYWRpdXM6OHB4OwogICAgcGFkZGluZzoxMHB4IDE2cHg7Zm9udDo3MDAgMTNweCBJbnRlcixBcmlhbCxzYW5zLXNlcmlmOwogICAgY3Vyc29yOnBvaW50ZXI7Ym94LXNoYWRvdzowIDZweCAxOHB4IHJnYmEoMjU1LDIzLDcyLC40KTsKICAgIGRpc3BsYXk6aW5saW5lLWZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2dhcDo4cHg7CiAgICB0cmFuc2l0aW9uOi4yczt0ZXh0LWRlY29yYXRpb246bm9uZQogIH0KICAjZGxCdG46aG92ZXJ7ZmlsdGVyOmJyaWdodG5lc3MoMS4xMik7dHJhbnNmb3JtOnRyYW5zbGF0ZVkoLTFweCl9CiAgI2RsQnRuIHN2Z3t3aWR0aDoxNHB4O2hlaWdodDoxNHB4O2ZpbGw6Y3VycmVudENvbG9yfQo8L3N0eWxlPgo8c2NyaXB0PgovKiBNTUhEOiBjYWxpZGFkZXMgY29uZmlndXJhZGFzLCBvcmRlbmFkYXMgZGUgbWF5b3IgYSBtZW5vci4gKi8Kd2luZG93Lk1NSERfUVVBTElUWV9PUFRJT05TID0gWwogIHtzb3VyY2U6Il9fTTM3X1VSTF9fIixsYWJlbDoiMTA4MHAifSwKICB7c291cmNlOiJfX00yMl9VUkxfXyIsbGFiZWw6IjcyMHAifSwKICB7c291cmNlOiJfX00xOF9VUkxfXyIsbGFiZWw6IjQyMHAifQogXS5maWx0ZXIoZnVuY3Rpb24oaXRlbSl7cmV0dXJuICEhU3RyaW5nKGl0ZW0uc291cmNlfHwiIikudHJpbSgpO30pOwovKiBQcmVmZXJlbmNpYSBkZXJpdmFkYSBkZSBkaWFnbsOzc3RpY29zIHZlcmRlcyByZWNpZW50ZXM7IG1hbnRlbmVyIGxhcyBvdHJhcyBvcGNpb25lcy4gKi8KKGZ1bmN0aW9uKCl7CiAgdmFyIHByZWZlcnJlZD0iX19NTUhEX1BSRUZFUlJFRF9RVUFMSVRZX18iOwogIHZhciBpeD17bTM3OiIxMDgwcCIsbTIyOiI3MjBwIixtMTg6IjQyMHAifVtwcmVmZXJyZWRdOwogIGlmKCFpeClyZXR1cm47CiAgd2luZG93Lk1NSERfUVVBTElUWV9PUFRJT05TLnNvcnQoZnVuY3Rpb24oYSxiKXsKICAgIHJldHVybiAoYS5sYWJlbD09PWl4Py0xOjApLShiLmxhYmVsPT09aXg/LTE6MCk7CiAgfSk7Cn0pKCk7Cjwvc2NyaXB0Pgo8c2NyaXB0IHR5cGU9InRleHQvamF2YXNjcmlwdCI+CkZXREVWUFV0aWxzLm9uUmVhZHkoZnVuY3Rpb24oKXsKICBGV0RFVlBsYXllci52aWRlb1N0YXJ0QmVoYXZpb3VyID0gInBhdXNlIjsKICB2YXIgcGxheWVyMSA9IG5ldyBGV0RFVlBsYXllcih7CiAgICBpbnN0YW5jZU5hbWU6InBsYXllcjEiLAogICAgcGFyZW50SWQ6Im15RGl2IiwKICAgIG1haW5Gb2xkZXJQYXRoOiJodHRwczovL2Nkbi5qc2RlbGl2ci5uZXQvZ2gvSGFja2VyVHV0b3JpYWxlcy1TZWd1cmlkYWRJbmZvcm1hdGljYS9SZXByb2R1Y3Rvckdvb2dsZVBob3Rvc0BtYWluL0dvb2dsZVBob3Rvc1BsYXllci9zdGFydC9jb250ZW50IiwKICAgIHNraW5QYXRoOiJtaW5pbWFsX3NraW5fZGFyayIsCiAgICBpbml0aWFsaXplT25seVdoZW5WaXNpYmxlOiJubyIsCiAgICBkaXNwbGF5VHlwZToiRnVsbFNjcmVlbiIsCiAgICBhdXRvU2NhbGU6InllcyIsCiAgICBmaWxsRW50aXJlVmlkZW9TY3JlZW46Im5vIiwKICAgIG9wZW5Eb3dubG9hZExpbmtPbk1vYmlsZToibm8iLAogICAgdXNlSEVYQ29sb3JzRm9yU2tpbjoibm8iLAogICAgbm9ybWFsSEVYQnV0dG9uc0NvbG9yOiIjRkYwMDAwIiwKICAgIHNlbGVjdGVkSEVYQnV0dG9uc0NvbG9yOiIjMDAwMDAwIiwKICAgIHByaXZhdGVWaWRlb1Bhc3N3b3JkOiIiLAogICAgc3RhcnRBdFRpbWU6IiIsCiAgICBzdG9wQXRUaW1lOiIiLAogICAgc3RhcnRBdFZpZGVvU291cmNlOjAsCiAgICAvLyBNTUhEOiBvbWl0aXIgbGFzIGNhbGlkYWRlcyBzaW4gZW5sYWNlLiBMYSBwcmltZXJhIGRpc3BvbmlibGUgc2Vyw6EgbGEgaW5pY2lhbC4KICAgIC8vIE5vIGFzb2NpYXIgNzIwcCBjb24gbGEgZXRpcXVldGEgMTA4MHAgbmkgZ2VuZXJhciBvcGNpb25lcyB2YWPDrWFzLgogICAgdmlkZW9Tb3VyY2U6d2luZG93Lk1NSERfUVVBTElUWV9PUFRJT05TLAogICAgcG9zdGVyUGF0aDoiX19CQUNLRFJPUF9VUkxfXyIsCiAgICBzaG93RXJyb3JJbmZvOiJubyIsCiAgICBmaWxsRW50aXJlU2NyZWVuV2l0aFBvc3RlcjoieWVzIiwKICAgIHJpZ2h0Q2xpY2tDb250ZXh0TWVudToiZGV2ZWxvcGVyIiwKICAgIGRpc2FibGVEb3VibGVDbGlja0Z1bGxzY3JlZW46Im5vIiwKICAgIHVzZUNocm9tZWxlc3M6Im5vIiwKICAgIHNob3dQcmVsb2FkZXI6InllcyIsCiAgICBhZGRLZXlib2FyZFN1cHBvcnQ6InllcyIsCiAgICBhdXRvUGxheToibm8iLAogICAgbG9vcDoibm8iLAogICAgc2NydWJBdFRpbWVBdEZpcnN0UGxheToiMDA6MDA6MDAiLAogICAgbWF4V2lkdGg6NjAwLAogICAgbWF4SGVpZ2h0OjM4MCwKICAgIHZvbHVtZTouOSwKICAgIGdyZWVuU2NyZWVuVG9sZXJhbmNlOjIwMCwKICAgIGJhY2tncm91bmRDb2xvcjoiIzAwMDAwMCIsCiAgICBwb3N0ZXJCYWNrZ3JvdW5kQ29sb3I6IiMwMDAwMDAiLAogICAgc2hvd0xvZ286InllcyIsCiAgICBoaWRlTG9nb1dpdGhDb250cm9sbGVyOiJ5ZXMiLAogICAgbG9nb1Bvc2l0aW9uOiJ0b3BMZWZ0IiwKICAgIGxvZ29MaW5rOiJodHRwczovL21vdmllbWFuaWFoZC52ZXJjZWwuYXBwLyIsCiAgICBsb2dvUGF0aDoiIiwKICAgIGxvZ29NYXJnaW5zOjUsCiAgICBzaG93Q29udHJvbGxlcjoieWVzIiwKICAgIHNob3dDb250cm9sbGVyV2hlblZpZGVvSXNTdG9wcGVkOiJ5ZXMiLAogICAgc2hvd1Jld2luZEJ1dHRvbjoieWVzIiwKICAgIHNob3dWb2x1bWVTY3J1YmJlcjoieWVzIiwKICAgIHNob3dWb2x1bWVCdXR0b246InllcyIsCiAgICBzaG93VGltZToieWVzIiwKICAgIHNob3dRdWFsaXR5QnV0dG9uOiJ5ZXMiLAogICAgc2hvd1N1YnRpdGxlQnV0dG9uOiJubyIsCiAgICBzaG93U2hhcmVCdXR0b246Im5vIiwKICAgIHNob3dFbWJlZEJ1dHRvbjoibm8iLAogICAgc2hvd0Z1bGxTY3JlZW5CdXR0b246InllcyIsCiAgICByZXBlYXRCYWNrZ3JvdW5kOiJ5ZXMiLAogICAgY29udHJvbGxlckhlaWdodDo0MSwKICAgIGNvbnRyb2xsZXJIaWRlRGVsYXk6MywKICAgIHN0YXJ0U3BhY2VCZXR3ZWVuQnV0dG9uczo3LAogICAgc3BhY2VCZXR3ZWVuQnV0dG9uczo5LAogICAgbWFpblNjcnViYmVyT2ZmZXN0VG9wOjE0LAogICAgc2NydWJiZXJzT2Zmc2V0V2lkdGg6NCwKICAgIHRpbWVPZmZzZXRMZWZ0V2lkdGg6NSwKICAgIHRpbWVPZmZzZXRSaWdodFdpZHRoOjMsCiAgICB2b2x1bWVTY3J1YmJlcldpZHRoOjgwLAogICAgdm9sdW1lU2NydWJiZXJPZmZzZXRSaWdodFdpZHRoOjAsCiAgICB0aW1lQ29sb3I6IiM4ODg4ODgiLAogICAgeW91dHViZVF1YWxpdHlCdXR0b25Ob3JtYWxDb2xvcjoiIzg4ODg4OCIsCiAgICB5b3V0dWJlUXVhbGl0eUJ1dHRvblNlbGVjdGVkQ29sb3I6IiNGRkZGRkYiLAogICAgc2hvd1BsYXliYWNrUmF0ZUJ1dHRvbjoieWVzIiwKICAgIGRlZmF1bHRQbGF5YmFja1JhdGU6IjEiCiAgfSk7Cn0pOwo8L3NjcmlwdD4KPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBpZD0ibW92aWVEYXRhIj4KewogICJ0aXRsZSI6ICJfX01PVklFX1RJVExFX0pTT05fXyIsCiAgInllYXIiOiAiX19NT1ZJRV9ZRUFSX18iLAogICJvdmVydmlldyI6ICJfX01PVklFX09WRVJWSUVXX0pTT05fXyIsCiAgInBvc3RlciI6ICJfX1BPU1RFUl9VUkxfXyIsCiAgInJhdGluZyI6ICJfX01PVklFX1JBVElOR19fIiwKICAiYmFja2Ryb3AiOiAiX19CQUNLRFJPUF9VUkxfXyIsCiAgInRtZGJJZCI6ICJfX1RNREJfSURfXyIKfQo8L3NjcmlwdD4KPC9oZWFkPgo8Ym9keT4KPGRpdiBpZD0ibXlEaXYiIGFyaWEtaGlkZGVuPSJ0cnVlIj48L2Rpdj4KCjxzY3JpcHQ+CihmdW5jdGlvbigpewogIGZ1bmN0aW9uIGF0dGFjaENhc3RMaXN0ZW5lcigpewogICAgdmFyIHZpZGVvID0gZG9jdW1lbnQucXVlcnlTZWxlY3RvcigndmlkZW8nKTsKICAgIGlmICghdmlkZW8pIHsKICAgICAgc2V0VGltZW91dChhdHRhY2hDYXN0TGlzdGVuZXIsIDMwMCk7CiAgICAgIHJldHVybjsKICAgIH0KICAgIGlmICh2aWRlby5kYXRhc2V0LmNhc3RCb3VuZCkgcmV0dXJuOwogICAgdmlkZW8uZGF0YXNldC5jYXN0Qm91bmQgPSAiMSI7CgogICAgdmFyIERWX1VSTCA9ICJfX0RWX1VSTF9fIjsKCiAgICBmdW5jdGlvbiBnb1RvQ2FzdFNvdXJjZSgpIHsKICAgICAgdHJ5IHsKICAgICAgICB2YXIgc2F2ZWRUaW1lID0gdmlkZW8uY3VycmVudFRpbWU7CiAgICAgICAgdmFyIHdhc1BsYXlpbmcgPSAhdmlkZW8ucGF1c2VkOwogICAgICAgIHZpZGVvLnNyYyA9IERWX1VSTDsKICAgICAgICB2aWRlby5hZGRFdmVudExpc3RlbmVyKCdsb2FkZWRtZXRhZGF0YScsIGZ1bmN0aW9uIG9uTCgpewogICAgICAgICAgdmlkZW8ucmVtb3ZlRXZlbnRMaXN0ZW5lcignbG9hZGVkbWV0YWRhdGEnLCBvbkwpOwogICAgICAgICAgdmlkZW8uY3VycmVudFRpbWUgPSBzYXZlZFRpbWU7CiAgICAgICAgICBpZiAod2FzUGxheWluZykgdmlkZW8ucGxheSgpOwogICAgICAgIH0pOwogICAgICB9IGNhdGNoKGUpe30KICAgIH0KCiAgICAvLyBDaHJvbWUgLyBFZGdlIChSZW1vdGVQbGF5YmFjayBBUEkpCiAgICBpZiAodmlkZW8ucmVtb3RlKSB7CiAgICAgIHZpZGVvLnJlbW90ZS5hZGRFdmVudExpc3RlbmVyKCdjb25uZWN0JywgZ29Ub0Nhc3RTb3VyY2UpOwogICAgfQoKICAgIC8vIFNhZmFyaSAod2Via2l0UHJlc2VudGF0aW9uTW9kZSkKICAgIHZpZGVvLmFkZEV2ZW50TGlzdGVuZXIoJ3dlYmtpdHByZXNlbnRhdGlvbm1vZGVjaGFuZ2VkJywgZnVuY3Rpb24oKXsKICAgICAgaWYgKHZpZGVvLndlYmtpdFByZXNlbnRhdGlvbk1vZGUgPT09ICdwcmVzZW50YXRpb24nKSB7CiAgICAgICAgZ29Ub0Nhc3RTb3VyY2UoKTsKICAgICAgfQogICAgfSk7CiAgfQogIGF0dGFjaENhc3RMaXN0ZW5lcigpOwp9KSgpOwo8L3NjcmlwdD4KCgo8c2NyaXB0PgovKiBNTUhEOiBvcmllbnRhY2nDs24gaG9yaXpvbnRhbCBhbCBhY3RpdmFyIHBhbnRhbGxhIGNvbXBsZXRhIGVuIG3Ds3ZpbGVzLiAqLwooZnVuY3Rpb24gKCkgewogIHZhciBsb2NrZWRCeU1NSEQgPSBmYWxzZTsKICBmdW5jdGlvbiBpc0Z1bGxzY3JlZW4oKSB7CiAgICByZXR1cm4gISEoZG9jdW1lbnQuZnVsbHNjcmVlbkVsZW1lbnQgfHwgZG9jdW1lbnQud2Via2l0RnVsbHNjcmVlbkVsZW1lbnQpOwogIH0KICBmdW5jdGlvbiBvbkZ1bGxzY3JlZW5DaGFuZ2UoKSB7CiAgICBpZiAoaXNGdWxsc2NyZWVuKCkpIHsKICAgICAgaWYgKHNjcmVlbi5vcmllbnRhdGlvbiAmJiB0eXBlb2Ygc2NyZWVuLm9yaWVudGF0aW9uLmxvY2sgPT09ICdmdW5jdGlvbicpIHsKICAgICAgICB0cnkgewogICAgICAgICAgUHJvbWlzZS5yZXNvbHZlKHNjcmVlbi5vcmllbnRhdGlvbi5sb2NrKCdsYW5kc2NhcGUnKSkudGhlbihmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGxvY2tlZEJ5TU1IRCA9IHRydWU7CiAgICAgICAgICB9KS5jYXRjaChmdW5jdGlvbiAoKSB7fSk7CiAgICAgICAgfSBjYXRjaCAoZSkge30KICAgICAgfQogICAgfSBlbHNlIGlmIChsb2NrZWRCeU1NSEQpIHsKICAgICAgbG9ja2VkQnlNTUhEID0gZmFsc2U7CiAgICAgIHRyeSB7CiAgICAgICAgaWYgKHNjcmVlbi5vcmllbnRhdGlvbiAmJiB0eXBlb2Ygc2NyZWVuLm9yaWVudGF0aW9uLnVubG9jayA9PT0gJ2Z1bmN0aW9uJykgewogICAgICAgICAgc2NyZWVuLm9yaWVudGF0aW9uLnVubG9jaygpOwogICAgICAgIH0KICAgICAgfSBjYXRjaCAoZSkge30KICAgIH0KICB9CiAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcignZnVsbHNjcmVlbmNoYW5nZScsIG9uRnVsbHNjcmVlbkNoYW5nZSk7CiAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcignd2Via2l0ZnVsbHNjcmVlbmNoYW5nZScsIG9uRnVsbHNjcmVlbkNoYW5nZSk7Cn0pKCk7Cjwvc2NyaXB0PgoKPHN0eWxlPgojbW1oZC1yZWNvdmVyeS10b2FzdHtwb3NpdGlvbjpmaXhlZDt6LWluZGV4OjIxNDc0ODMwMDA7bGVmdDo1MCU7Ym90dG9tOjcwcHg7dHJhbnNmb3JtOnRyYW5zbGF0ZVgoLTUwJSk7CiAgbWF4LXdpZHRoOm1pbig5NHZ3LDU0MHB4KTtiYWNrZ3JvdW5kOnJnYmEoMTEsMTgsMzMsLjk2KTtjb2xvcjojZmZmO2JvcmRlcjoxcHggc29saWQgIzNiNTQ3NzsKICBib3JkZXItcmFkaXVzOjEwcHg7cGFkZGluZzoxMHB4IDE0cHg7Ym94LXNoYWRvdzowIDhweCAyOHB4ICMwMDA5O2ZvbnQ6NjAwIDEycHgvMS41IEFyaWFsLHNhbnMtc2VyaWY7CiAgdGV4dC1hbGlnbjpjZW50ZXI7cG9pbnRlci1ldmVudHM6bm9uZTtkaXNwbGF5Om5vbmV9CiNtbWhkLXJlY292ZXJ5LXRvYXN0Lm1taGQtZXJyb3J7cG9pbnRlci1ldmVudHM6YXV0bztib3JkZXItY29sb3I6I2ZmNmI4MDtiYWNrZ3JvdW5kOiMyNDE1MjJ9CiNtbWhkLXJlY292ZXJ5LXRvYXN0IGJ1dHRvbnttYXJnaW4tbGVmdDoxMHB4O2JhY2tncm91bmQ6IzI0MzY0ZTtib3JkZXI6MDtjb2xvcjojZmZmO2JvcmRlci1yYWRpdXM6NnB4OwogIHBhZGRpbmc6NXB4IDhweDtjdXJzb3I6cG9pbnRlcn0KPC9zdHlsZT4KPHNjcmlwdD4KLyogRmFzZSAxMC4xLjcgLSByZWN1cGVyYWNpw7NuIGRlbCBlbGVtZW50byBIVE1MVmlkZW9FbGVtZW50IHNpbiBtb2RpZmljYXIgbG9zIGNvbnRyb2xlcyBGV0RFVi4gKi8KKGZ1bmN0aW9uKCl7CiAgJ3VzZSBzdHJpY3QnOwogIHZhciBzb3VyY2VzPXdpbmRvdy5NTUhEX1FVQUxJVFlfT1BUSU9OU3x8W107CiAgaWYoIXNvdXJjZXMubGVuZ3RoKXJldHVybjsKICB2YXIgdmlkZW89bnVsbCxhY3RpdmU9MCxmYWlsZWQ9e30sbGFzdFRpbWU9MCxsYXN0QWR2YW5jZT0wLHJlcXVlc3RlZD1mYWxzZTsKICB2YXIgbGFzdFRpY2s9MCxzd2l0Y2hpbmc9ZmFsc2UscGVuZGluZ1Jlc3VtZT0wLHRvYXN0VGltZXI9MCxvYnNlcnZlclRpbWVyPTA7CiAgdmFyIHRpbWVvdXRNcz0xNTAwMDsKICB2YXIgbm90aWNlPWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2RpdicpOwogIG5vdGljZS5pZD0nbW1oZC1yZWNvdmVyeS10b2FzdCc7bm90aWNlLnNldEF0dHJpYnV0ZSgncm9sZScsJ3N0YXR1cycpO25vdGljZS5zZXRBdHRyaWJ1dGUoJ2FyaWEtbGl2ZScsJ3BvbGl0ZScpOwogIGRvY3VtZW50LmJvZHkuYXBwZW5kQ2hpbGQobm90aWNlKTsKCiAgZnVuY3Rpb24gc2hvdyh0ZXh0LHBlcnNpc3RlbnQpewogICAgY2xlYXJUaW1lb3V0KHRvYXN0VGltZXIpOwogICAgbm90aWNlLnRleHRDb250ZW50PXRleHQ7CiAgICBub3RpY2UuY2xhc3NOYW1lPXBlcnNpc3RlbnQ/J21taGQtZXJyb3InOicnOwogICAgaWYocGVyc2lzdGVudCl7CiAgICAgIHZhciBjbG9zZT1kb2N1bWVudC5jcmVhdGVFbGVtZW50KCdidXR0b24nKTtjbG9zZS50eXBlPSdidXR0b24nO2Nsb3NlLnRleHRDb250ZW50PSdDZXJyYXInOwogICAgICBjbG9zZS5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsZnVuY3Rpb24oKXtub3RpY2Uuc3R5bGUuZGlzcGxheT0nbm9uZSc7fSk7CiAgICAgIG5vdGljZS5hcHBlbmRDaGlsZChjbG9zZSk7CiAgICB9CiAgICBub3RpY2Uuc3R5bGUuZGlzcGxheT0nYmxvY2snOwogICAgaWYoIXBlcnNpc3RlbnQpdG9hc3RUaW1lcj1zZXRUaW1lb3V0KGZ1bmN0aW9uKCl7bm90aWNlLnN0eWxlLmRpc3BsYXk9J25vbmUnO30sNDcwMCk7CiAgfQogIGZ1bmN0aW9uIG1hdGNoU291cmNlKHYpewogICAgaWYoIXYpcmV0dXJuIC0xOwogICAgdmFyIGN1cj12LmN1cnJlbnRTcmN8fCcnLHNyYz12LmdldEF0dHJpYnV0ZSgnc3JjJyl8fHYuc3JjfHwnJzsKICAgIC8vIFByZWZlciB0aGUgbmV3bHkgYXNzaWduZWQgc3JjOyBjdXJyZW50U3JjIG1heSBzdGlsbCBwb2ludCB0byB0aGUgZmFpbGVkIFVSTC4KICAgIGZvcih2YXIgaT0wO2k8c291cmNlcy5sZW5ndGg7aSsrKWlmKHNyYz09PXNvdXJjZXNbaV0uc291cmNlKXJldHVybiBpOwogICAgZm9yKHZhciBqPTA7ajxzb3VyY2VzLmxlbmd0aDtqKyspaWYoY3VyPT09c291cmNlc1tqXS5zb3VyY2UpcmV0dXJuIGo7CiAgICAvLyBBbiBleHBsaWNpdGx5IGRpZmZlcmVudCBVUkwgKGUuZy4gdGhlIENhc3QgPWR2IFVSTCkgaXMgbm90IG91ciBwbGF5YmFjayBzb3VyY2UuCiAgICBpZihzcmMgJiYgIXNvdXJjZXMuc29tZShmdW5jdGlvbihzKXtyZXR1cm4gcy5zb3VyY2U9PT1zcmM7fSkpcmV0dXJuIC0yOwogICAgcmV0dXJuIC0xOwogIH0KICBmdW5jdGlvbiByZW1vdGVBY3RpdmUodil7CiAgICB0cnl7cmV0dXJuICh2LnJlbW90ZSAmJiAodi5yZW1vdGUuc3RhdGU9PT0nY29ubmVjdGluZyd8fHYucmVtb3RlLnN0YXRlPT09J2Nvbm5lY3RlZCcpKSB8fAogICAgICAgKHYud2Via2l0UHJlc2VudGF0aW9uTW9kZSAmJiB2LndlYmtpdFByZXNlbnRhdGlvbk1vZGUhPT0naW5saW5lJyk7fQogICAgY2F0Y2goZSl7cmV0dXJuIGZhbHNlO30KICB9CiAgZnVuY3Rpb24gcmVhZFByb2dyZXNzKCl7CiAgICBpZighdmlkZW8pcmV0dXJuOwogICAgdmFyIHQ9TnVtYmVyKHZpZGVvLmN1cnJlbnRUaW1lKTsKICAgIGlmKE51bWJlci5pc0Zpbml0ZSh0KSAmJiB0Pj0wKXtsYXN0VGltZT10O30KICB9CiAgZnVuY3Rpb24gYWN0aXZlU291cmNlKCl7CiAgICB2YXIgaW5kZXg9bWF0Y2hTb3VyY2UodmlkZW8pOwogICAgaWYoaW5kZXg+PTApYWN0aXZlPWluZGV4OwogICAgcmV0dXJuIGluZGV4OwogIH0KICBmdW5jdGlvbiBmYWlsZWRBbGwoKXsKICAgIHJlcXVlc3RlZD1mYWxzZTsKICAgIHNob3coJ05vIHNlIHB1ZG8gcmVwcm9kdWNpciBlbiBuaW5ndW5hIGNhbGlkYWQuIFJldmlzYSBsb3MgZW5sYWNlcyBkZSBHb29nbGUgUGhvdG9zIGVuIGVsIHBhbmVsLicsdHJ1ZSk7CiAgfQogIGZ1bmN0aW9uIGZhbGxiYWNrKHJlYXNvbil7CiAgICBpZighdmlkZW8gfHwgc3dpdGNoaW5nIHx8IHJlbW90ZUFjdGl2ZSh2aWRlbykgfHwgZG9jdW1lbnQuaGlkZGVuIHx8IHZpZGVvLmVuZGVkKXJldHVybjsKICAgIHZhciBtYXRjaGVkPWFjdGl2ZVNvdXJjZSgpOwogICAgaWYobWF0Y2hlZD09PS0yKXJldHVybjsKICAgIC8vIFNhdmUgcG9zaXRpb24gYmVmb3JlIHVubG9hZGluZyB0aGUgYnJva2VuIHN0cmVhbS4KICAgIHZhciByZXN1bWVBdD1sYXN0VGltZTsKICAgIHRyeXtpZihOdW1iZXIuaXNGaW5pdGUodmlkZW8uY3VycmVudFRpbWUpICYmIHZpZGVvLmN1cnJlbnRUaW1lPnJlc3VtZUF0KXJlc3VtZUF0PXZpZGVvLmN1cnJlbnRUaW1lO31jYXRjaChlKXt9CiAgICB2YXIgcmVzdW1lPXJlcXVlc3RlZCB8fCAhdmlkZW8ucGF1c2VkOwogICAgZmFpbGVkW2FjdGl2ZV09dHJ1ZTsKICAgIHZhciBuZXh0PS0xOwogICAgZm9yKHZhciBpPWFjdGl2ZSsxO2k8c291cmNlcy5sZW5ndGg7aSsrKWlmKCFmYWlsZWRbaV0pe25leHQ9aTticmVhazt9CiAgICBpZihuZXh0PDApe2ZhaWxlZEFsbCgpO3JldHVybjt9CiAgICBzd2l0Y2hpbmc9dHJ1ZTsKICAgIHZhciBmYWlsZWRMYWJlbD1zb3VyY2VzW2FjdGl2ZV0ubGFiZWw7CiAgICBhY3RpdmU9bmV4dDsKICAgIHBlbmRpbmdSZXN1bWU9cmVzdW1lQXQ7CiAgICBsYXN0VGljaz1EYXRlLm5vdygpOwogICAgc2hvdygnTm8gc2UgcHVkbyBjYXJnYXIgJytmYWlsZWRMYWJlbCsnLiBQcm9iYW5kbyAnK3NvdXJjZXNbbmV4dF0ubGFiZWwrJ+KApicsZmFsc2UpOwogICAgLy8gTm8gcmVtb3RlL0Nhc3Qgc291cmNlIGlzIHRvdWNoZWQuIE5vIHVua25vd24gRldERVYgbWV0aG9kcyBhcmUgaW52b2tlZC4KICAgIHRyeXsKICAgICAgdmFyIGN1cnJlbnRWaWRlbz12aWRlbzsKICAgICAgdmFyIHNob3VsZFJlc3VtZT1yZXN1bWU7CiAgICAgIHZhciBzZWVrUGVuZGluZz1yZXN1bWVBdD4wOwogICAgICBmdW5jdGlvbiByZXN0b3JlKCl7CiAgICAgICAgaWYoIXNlZWtQZW5kaW5nIHx8IHZpZGVvIT09Y3VycmVudFZpZGVvKXJldHVybjsKICAgICAgICBzZWVrUGVuZGluZz1mYWxzZTsKICAgICAgICB0cnl7aWYoTnVtYmVyLmlzRmluaXRlKGN1cnJlbnRWaWRlby5kdXJhdGlvbikpY3VycmVudFZpZGVvLmN1cnJlbnRUaW1lPU1hdGgubWluKHJlc3VtZUF0LE1hdGgubWF4KDAsY3VycmVudFZpZGVvLmR1cmF0aW9uLS4yKSk7CiAgICAgICAgICAgIGVsc2UgY3VycmVudFZpZGVvLmN1cnJlbnRUaW1lPXJlc3VtZUF0O31jYXRjaChlKXt9CiAgICAgICAgcGVuZGluZ1Jlc3VtZT0wOwogICAgICB9CiAgICAgIGN1cnJlbnRWaWRlby5hZGRFdmVudExpc3RlbmVyKCdsb2FkZWRtZXRhZGF0YScscmVzdG9yZSx7b25jZTp0cnVlfSk7CiAgICAgIGN1cnJlbnRWaWRlby5zcmM9c291cmNlc1tuZXh0XS5zb3VyY2U7CiAgICAgIGN1cnJlbnRWaWRlby5sb2FkKCk7CiAgICAgIGlmKCFzaG91bGRSZXN1bWUpe3N3aXRjaGluZz1mYWxzZTtyZXR1cm47fQogICAgICByZXF1ZXN0ZWQ9dHJ1ZTsKICAgICAgdmFyIHJlc3VsdD1jdXJyZW50VmlkZW8ucGxheSgpOwogICAgICBpZihyZXN1bHQgJiYgdHlwZW9mIHJlc3VsdC50aGVuPT09J2Z1bmN0aW9uJyl7CiAgICAgICAgcmVzdWx0LnRoZW4oZnVuY3Rpb24oKXtzd2l0Y2hpbmc9ZmFsc2U7fSkKICAgICAgICAgIC5jYXRjaChmdW5jdGlvbihlcnIpewogICAgICAgICAgICBzd2l0Y2hpbmc9ZmFsc2U7CiAgICAgICAgICAgIGlmKGVyciAmJiBlcnIubmFtZT09PSdOb3RBbGxvd2VkRXJyb3InKXsKICAgICAgICAgICAgICByZXF1ZXN0ZWQ9ZmFsc2U7CiAgICAgICAgICAgICAgc2hvdygnQ2FsaWRhZCAnK3NvdXJjZXNbbmV4dF0ubGFiZWwrJyBsaXN0YS4gUHVsc2EgUGxheSBwYXJhIGNvbnRpbnVhci4nLHRydWUpOwogICAgICAgICAgICB9ZWxzZSBpZihlcnIgJiYgZXJyLm5hbWU9PT0nTm90U3VwcG9ydGVkRXJyb3InKXsKICAgICAgICAgICAgICBzZXRUaW1lb3V0KGZ1bmN0aW9uKCl7ZmFsbGJhY2soJ25vdC1zdXBwb3J0ZWQnKTt9LDApOwogICAgICAgICAgICB9CiAgICAgICAgICAgIC8vIEEgZ2VzdHVyZSBwb2xpY3kgaXMgbm90IGEgc291cmNlIGZhaWx1cmU7IGF2b2lkIGN5Y2xpbmcgdGhyb3VnaCB2YWxpZCBxdWFsaXRpZXMuCiAgICAgICAgICB9KTsKICAgICAgfWVsc2Ugc3dpdGNoaW5nPWZhbHNlOwogICAgICBzZXRUaW1lb3V0KGZ1bmN0aW9uKCl7aWYodmlkZW89PT1jdXJyZW50VmlkZW8pe3N3aXRjaGluZz1mYWxzZTtpZihzZWVrUGVuZGluZyAmJiBjdXJyZW50VmlkZW8ucmVhZHlTdGF0ZT49MSlyZXN0b3JlKCk7fX0sMTYwMCk7CiAgICB9Y2F0Y2goZSl7c3dpdGNoaW5nPWZhbHNlO3NldFRpbWVvdXQoZnVuY3Rpb24oKXtmYWxsYmFjaygnZXhjZXB0aW9uJyk7fSw1MCk7fQogIH0KICBmdW5jdGlvbiBvbkVycm9yKCl7CiAgICBpZihzd2l0Y2hpbmcpe3N3aXRjaGluZz1mYWxzZTt9CiAgICBpZih2aWRlbyAmJiAhcmVtb3RlQWN0aXZlKHZpZGVvKSlmYWxsYmFjaygnbWVkaWEtZXJyb3InKTsKICB9CiAgZnVuY3Rpb24gb25Mb2FkKCl7CiAgICBpZighdmlkZW8pcmV0dXJuOwogICAgdmFyIGN1cnJlbnQ9YWN0aXZlU291cmNlKCk7CiAgICBpZihjdXJyZW50PT09LTIpe3JlcXVlc3RlZD1mYWxzZTtyZXR1cm47fQogICAgbGFzdFRpY2s9RGF0ZS5ub3coKTsKICB9CiAgZnVuY3Rpb24gb25QbGF5KCl7cmVxdWVzdGVkPXRydWU7bGFzdFRpY2s9RGF0ZS5ub3coKTt9CiAgZnVuY3Rpb24gb25QbGF5aW5nKCl7cmVxdWVzdGVkPXRydWU7c3dpdGNoaW5nPWZhbHNlO2xhc3RUaWNrPURhdGUubm93KCk7bGFzdEFkdmFuY2U9RGF0ZS5ub3coKTtyZWFkUHJvZ3Jlc3MoKTt9CiAgZnVuY3Rpb24gb25QYXVzZSgpe3JlcXVlc3RlZD1mYWxzZTt9CiAgZnVuY3Rpb24gb25UaWNrKCl7CiAgICBpZighdmlkZW8pcmV0dXJuOwogICAgdmFyIHQ9TnVtYmVyKHZpZGVvLmN1cnJlbnRUaW1lKXx8MDsKICAgIGlmKHBlbmRpbmdSZXN1bWU+MSAmJiB0KzE8cGVuZGluZ1Jlc3VtZSlyZXR1cm47CiAgICBpZihNYXRoLmFicyh0LWxhc3RUaW1lKT4uMjUpe2xhc3RUaW1lPXQ7bGFzdEFkdmFuY2U9RGF0ZS5ub3coKTtsYXN0VGljaz1EYXRlLm5vdygpO30KICB9CiAgZnVuY3Rpb24gb25TZWVrZWQoKXtyZWFkUHJvZ3Jlc3MoKTtsYXN0VGljaz1EYXRlLm5vdygpO30KICBmdW5jdGlvbiBhdHRhY2godil7CiAgICBpZighdiB8fCB2PT09dmlkZW8pcmV0dXJuOwogICAgdmlkZW89djthY3RpdmU9MDtsYXN0VGltZT0wO3BlbmRpbmdSZXN1bWU9MDtmYWlsZWQ9e307bGFzdFRpY2s9MDtsYXN0QWR2YW5jZT0wO3JlcXVlc3RlZD1mYWxzZTtzd2l0Y2hpbmc9ZmFsc2U7CiAgICB2LmFkZEV2ZW50TGlzdGVuZXIoJ2Vycm9yJyxvbkVycm9yKTsKICAgIHYuYWRkRXZlbnRMaXN0ZW5lcignbG9hZHN0YXJ0JyxvbkxvYWQpOwogICAgdi5hZGRFdmVudExpc3RlbmVyKCdwbGF5JyxvblBsYXkpOwogICAgdi5hZGRFdmVudExpc3RlbmVyKCdwbGF5aW5nJyxvblBsYXlpbmcpOwogICAgdi5hZGRFdmVudExpc3RlbmVyKCdwYXVzZScsb25QYXVzZSk7CiAgICB2LmFkZEV2ZW50TGlzdGVuZXIoJ3RpbWV1cGRhdGUnLG9uVGljayk7CiAgICB2LmFkZEV2ZW50TGlzdGVuZXIoJ3NlZWtlZCcsb25TZWVrZWQpOwogICAgdi5hZGRFdmVudExpc3RlbmVyKCdlbmRlZCcsZnVuY3Rpb24oKXtyZXF1ZXN0ZWQ9ZmFsc2U7bGFzdFRpY2s9MDt9KTsKICAgIGFjdGl2ZVNvdXJjZSgpOwogICAgaWYodi5lcnJvcilzZXRUaW1lb3V0KGZ1bmN0aW9uKCl7aWYodmlkZW89PT12KW9uRXJyb3IoKTt9LDApOwogIH0KICAvLyBGV0RFViBtYXkgcmVjcmVhdGUgdGhlIG1lZGlhIGVsZW1lbnQgb24gcXVhbGl0eSBzZWxlY3Rpb247IGZvbGxvdyB0aGUgbmV3IHZpZGVvLgogIG9ic2VydmVyVGltZXI9c2V0SW50ZXJ2YWwoZnVuY3Rpb24oKXsKICAgIHZhciBjdXJyZW50PWRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoJyNteURpdiB2aWRlbycpfHxkb2N1bWVudC5xdWVyeVNlbGVjdG9yKCd2aWRlbycpOwogICAgaWYoY3VycmVudCAmJiBjdXJyZW50IT09dmlkZW8pYXR0YWNoKGN1cnJlbnQpOwogICAgaWYoIXZpZGVvIHx8ICF2aWRlby5pc0Nvbm5lY3RlZCB8fCBzd2l0Y2hpbmcgfHwgIXJlcXVlc3RlZCB8fCB2aWRlby5wYXVzZWQgfHwgdmlkZW8uZW5kZWQgfHwgdmlkZW8uc2Vla2luZyB8fAogICAgICAgZG9jdW1lbnQuaGlkZGVuIHx8IHJlbW90ZUFjdGl2ZSh2aWRlbykgfHwgYWN0aXZlU291cmNlKCk9PT0tMilyZXR1cm47CiAgICB2YXIgbm93PURhdGUubm93KCk7CiAgICBpZighbGFzdFRpY2spbGFzdFRpY2s9bm93OwogICAgLy8gT25seSBjb25zaWRlciBhIHJlYWwgdW5yZXNwb25zaXZlIHBsYXliYWNrLCBuZXZlciBhbiBpbnRlbnRpb25hbCBwYXVzZSBvciBzZWVrLgogICAgaWYobm93LWxhc3RUaWNrPj10aW1lb3V0TXMpe2xhc3RUaWNrPW5vdztmYWxsYmFjaygndGltZW91dCcpO30KICB9LDkwMCk7CiAgd2luZG93Lk1NSERfUVVBTElUWV9SRUNPVkVSWT17c3RhdHVzOmZ1bmN0aW9uKCl7cmV0dXJuIHthY3RpdmU6c291cmNlc1thY3RpdmVdJiZzb3VyY2VzW2FjdGl2ZV0ubGFiZWwsCiAgICBmYWlsZWQ6T2JqZWN0LmtleXMoZmFpbGVkKS5tYXAoZnVuY3Rpb24oaSl7cmV0dXJuIHNvdXJjZXNbaV0ubGFiZWw7fSkscG9zaXRpb246bGFzdFRpbWV9O319Owp9KSgpOwo8L3NjcmlwdD4KPC9ib2R5Pgo8L2h0bWw+";
+const PLAYER_TEMPLATE_B64 = "PCFET0NUWVBFIGh0bWw+CjxodG1sIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hodG1sIj4KPGhlYWQ+CjxtZXRhIG5hbWU9InJlZmVycmVyIiBjb250ZW50PSJuby1yZWZlcnJlciIgLz4KPHRpdGxlPl9fTU9WSUVfVElUTEVfXzwvdGl0bGU+CjxsaW5rIHJlbD0iaWNvbiIgaHJlZj0iaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L2doL0hhY2tlclR1dG9yaWFsZXMtU2VndXJpZGFkSW5mb3JtYXRpY2EvUmVwcm9kdWN0b3JHb29nbGVQaG90b3NAbWFpbi9Hb29nbGVQaG90b3NQbGF5ZXIvc3RhcnQvaWNvbm8uaWNvIiAvPgo8bWV0YSBodHRwLWVxdWl2PSJDb250ZW50LVR5cGUiIGNvbnRlbnQ9InRleHQvaHRtbDsgY2hhcnNldD11dGYtOCIgLz4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9ImluaXRpYWwtc2NhbGU9MSwgbWF4aW11bS1zY2FsZT0xLCB1c2VyLXNjYWxhYmxlPW5vIiAvPgo8c2NyaXB0IHR5cGU9InRleHQvamF2YXNjcmlwdCIgc3JjPSJodHRwczovL2Nkbi5qc2RlbGl2ci5uZXQvZ2gvSGFja2VyVHV0b3JpYWxlcy1TZWd1cmlkYWRJbmZvcm1hdGljYS9SZXByb2R1Y3Rvckdvb2dsZVBob3Rvc0BtYWluL0dvb2dsZVBob3Rvc1BsYXllci9zdGFydC9qYXZhL1BsYXllci5qcyI+PC9zY3JpcHQ+CjxzdHlsZT4KICBodG1sLGJvZHl7bWFyZ2luOjA7cGFkZGluZzowO2JhY2tncm91bmQ6IzAwMDtoZWlnaHQ6MTAwJTtvdmVyZmxvdzpoaWRkZW59CiAgI215RGl2e3dpZHRoOjEwMCU7aGVpZ2h0OjEwMCV9CiAgI2RsQnRuewogICAgcG9zaXRpb246Zml4ZWQ7Ym90dG9tOjE0cHg7cmlnaHQ6MTRweDt6LWluZGV4Ojk5OTk5OwogICAgYmFja2dyb3VuZDpsaW5lYXItZ3JhZGllbnQoMTgwZGVnLCNmZjNkNjYsI2ZmMTc0OCk7CiAgICBjb2xvcjojZmZmO2JvcmRlcjowO2JvcmRlci1yYWRpdXM6OHB4OwogICAgcGFkZGluZzoxMHB4IDE2cHg7Zm9udDo3MDAgMTNweCBJbnRlcixBcmlhbCxzYW5zLXNlcmlmOwogICAgY3Vyc29yOnBvaW50ZXI7Ym94LXNoYWRvdzowIDZweCAxOHB4IHJnYmEoMjU1LDIzLDcyLC40KTsKICAgIGRpc3BsYXk6aW5saW5lLWZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2dhcDo4cHg7CiAgICB0cmFuc2l0aW9uOi4yczt0ZXh0LWRlY29yYXRpb246bm9uZQogIH0KICAjZGxCdG46aG92ZXJ7ZmlsdGVyOmJyaWdodG5lc3MoMS4xMik7dHJhbnNmb3JtOnRyYW5zbGF0ZVkoLTFweCl9CiAgI2RsQnRuIHN2Z3t3aWR0aDoxNHB4O2hlaWdodDoxNHB4O2ZpbGw6Y3VycmVudENvbG9yfQo8L3N0eWxlPgo8c2NyaXB0PgovKiBNTUhEIDExLjUuNDogY2FkYSBjYWxpZGFkIHNlIGlkZW50aWZpY2EgcG9yIGVsIHN1ZmlqbyBSRUFMIGRlIHN1IFVSTC4KICAgT21pdGlyIHZhY2lhcywgY29ycmVnaXIgZXRpcXVldGFzIG1hbCBhc2lnbmFkYXMgeSBubyBkdXBsaWNhciBmdWVudGVzLiAqLwp3aW5kb3cuTU1IRF9RVUFMSVRZX09QVElPTlMgPSAoZnVuY3Rpb24oKXsKICB2YXIgY2FuZGlkYXRlcyA9IFsKICAgICJfX00zN19VUkxfXyIsICJfX00yMl9VUkxfXyIsICJfX00xOF9VUkxfXyIKICBdOwogIHZhciBsYWJlbHM9e20zNzoiMTA4MHAiLG0yMjoiNzIwcCIsbTE4OiI0MjBwIn07CiAgdmFyIGJ5UXVhbGl0eT17fTsKICBjYW5kaWRhdGVzLmZvckVhY2goZnVuY3Rpb24ocmF3KXsKICAgIHZhciBzb3VyY2U9U3RyaW5nKHJhd3x8IiIpLnRyaW0oKTsKICAgIHZhciBmb3VuZD1zb3VyY2UubWF0Y2goLz0obTM3fG0yMnxtMTgpJC9pKTsKICAgIGlmKCFmb3VuZClyZXR1cm47IC8vIE5vIG1vc3RyYXIgY2FsaWRhZGVzIHNpbiBVUkwgZGlyZWN0YSByZWNvbm9jaWRhLgogICAgdmFyIHF1YWxpdHk9Zm91bmRbMV0udG9Mb3dlckNhc2UoKTsKICAgIGlmKCFieVF1YWxpdHlbcXVhbGl0eV0pewogICAgICBieVF1YWxpdHlbcXVhbGl0eV09e3NvdXJjZTpzb3VyY2UsbGFiZWw6bGFiZWxzW3F1YWxpdHldfTsKICAgIH0KICB9KTsKICB2YXIgb3B0aW9ucz1bIm0zNyIsIm0yMiIsIm0xOCJdLmZpbHRlcihmdW5jdGlvbihxKXtyZXR1cm4gISFieVF1YWxpdHlbcV07fSkKICAgIC5tYXAoZnVuY3Rpb24ocSl7cmV0dXJuIGJ5UXVhbGl0eVtxXTt9KTsKICAvLyBNTUhEIDExLjUuNTogbGEgY2FsaWRhZCBpbmljaWFsIFNJRU1QUkUgZXMgbGEgbcOhcyBhbHRhIGNvbmZpZ3VyYWRhLgogIC8vIFVuIGRpYWduw7NzdGljbyBhbnRlcmlvciBubyBkZWJlIGZvcnphciB1bmEgY2FsaWRhZCBpbmZlcmlvciBhbCBhYnJpci4KICAvLyBTZSBjb25zZXJ2YW4gbGFzIGFsdGVybmF0aXZhcyBwYXJhIHNlbGVjY2nDs24gbWFudWFsIHkgZXJyb3JlcyByZWFsZXMuCiAgcmV0dXJuIG9wdGlvbnM7Cn0pKCk7Cjwvc2NyaXB0Pgo8c2NyaXB0IHR5cGU9InRleHQvamF2YXNjcmlwdCI+CkZXREVWUFV0aWxzLm9uUmVhZHkoZnVuY3Rpb24oKXsKICBGV0RFVlBsYXllci52aWRlb1N0YXJ0QmVoYXZpb3VyID0gInBhdXNlIjsKICB2YXIgcGxheWVyMSA9IG5ldyBGV0RFVlBsYXllcih7CiAgICBpbnN0YW5jZU5hbWU6InBsYXllcjEiLAogICAgcGFyZW50SWQ6Im15RGl2IiwKICAgIG1haW5Gb2xkZXJQYXRoOiJodHRwczovL2Nkbi5qc2RlbGl2ci5uZXQvZ2gvSGFja2VyVHV0b3JpYWxlcy1TZWd1cmlkYWRJbmZvcm1hdGljYS9SZXByb2R1Y3Rvckdvb2dsZVBob3Rvc0BtYWluL0dvb2dsZVBob3Rvc1BsYXllci9zdGFydC9jb250ZW50IiwKICAgIHNraW5QYXRoOiJtaW5pbWFsX3NraW5fZGFyayIsCiAgICBpbml0aWFsaXplT25seVdoZW5WaXNpYmxlOiJubyIsCiAgICBkaXNwbGF5VHlwZToiRnVsbFNjcmVlbiIsCiAgICBhdXRvU2NhbGU6InllcyIsCiAgICBmaWxsRW50aXJlVmlkZW9TY3JlZW46Im5vIiwKICAgIG9wZW5Eb3dubG9hZExpbmtPbk1vYmlsZToibm8iLAogICAgdXNlSEVYQ29sb3JzRm9yU2tpbjoibm8iLAogICAgbm9ybWFsSEVYQnV0dG9uc0NvbG9yOiIjRkYwMDAwIiwKICAgIHNlbGVjdGVkSEVYQnV0dG9uc0NvbG9yOiIjMDAwMDAwIiwKICAgIHByaXZhdGVWaWRlb1Bhc3N3b3JkOiIiLAogICAgc3RhcnRBdFRpbWU6IiIsCiAgICBzdG9wQXRUaW1lOiIiLAogICAgc3RhcnRBdFZpZGVvU291cmNlOjAsCiAgICAvLyBNTUhEOiBvbWl0aXIgbGFzIGNhbGlkYWRlcyBzaW4gZW5sYWNlLiBMYSBwcmltZXJhIGRpc3BvbmlibGUgc2Vyw6EgbGEgaW5pY2lhbC4KICAgIC8vIE5vIGFzb2NpYXIgNzIwcCBjb24gbGEgZXRpcXVldGEgMTA4MHAgbmkgZ2VuZXJhciBvcGNpb25lcyB2YWPDrWFzLgogICAgdmlkZW9Tb3VyY2U6d2luZG93Lk1NSERfUVVBTElUWV9PUFRJT05TLAogICAgcG9zdGVyUGF0aDoiX19CQUNLRFJPUF9VUkxfXyIsCiAgICBzaG93RXJyb3JJbmZvOiJubyIsCiAgICBmaWxsRW50aXJlU2NyZWVuV2l0aFBvc3RlcjoieWVzIiwKICAgIHJpZ2h0Q2xpY2tDb250ZXh0TWVudToiZGV2ZWxvcGVyIiwKICAgIGRpc2FibGVEb3VibGVDbGlja0Z1bGxzY3JlZW46Im5vIiwKICAgIHVzZUNocm9tZWxlc3M6Im5vIiwKICAgIHNob3dQcmVsb2FkZXI6InllcyIsCiAgICBhZGRLZXlib2FyZFN1cHBvcnQ6InllcyIsCiAgICBhdXRvUGxheToibm8iLAogICAgbG9vcDoibm8iLAogICAgc2NydWJBdFRpbWVBdEZpcnN0UGxheToiMDA6MDA6MDAiLAogICAgbWF4V2lkdGg6NjAwLAogICAgbWF4SGVpZ2h0OjM4MCwKICAgIHZvbHVtZTouOSwKICAgIGdyZWVuU2NyZWVuVG9sZXJhbmNlOjIwMCwKICAgIGJhY2tncm91bmRDb2xvcjoiIzAwMDAwMCIsCiAgICBwb3N0ZXJCYWNrZ3JvdW5kQ29sb3I6IiMwMDAwMDAiLAogICAgc2hvd0xvZ286InllcyIsCiAgICBoaWRlTG9nb1dpdGhDb250cm9sbGVyOiJ5ZXMiLAogICAgbG9nb1Bvc2l0aW9uOiJ0b3BMZWZ0IiwKICAgIGxvZ29MaW5rOiJodHRwczovL21vdmllbWFuaWFoZC52ZXJjZWwuYXBwLyIsCiAgICBsb2dvUGF0aDoiIiwKICAgIGxvZ29NYXJnaW5zOjUsCiAgICBzaG93Q29udHJvbGxlcjoieWVzIiwKICAgIHNob3dDb250cm9sbGVyV2hlblZpZGVvSXNTdG9wcGVkOiJ5ZXMiLAogICAgc2hvd1Jld2luZEJ1dHRvbjoieWVzIiwKICAgIHNob3dWb2x1bWVTY3J1YmJlcjoieWVzIiwKICAgIHNob3dWb2x1bWVCdXR0b246InllcyIsCiAgICBzaG93VGltZToieWVzIiwKICAgIHNob3dRdWFsaXR5QnV0dG9uOiJ5ZXMiLAogICAgc2hvd1N1YnRpdGxlQnV0dG9uOiJubyIsCiAgICBzaG93U2hhcmVCdXR0b246Im5vIiwKICAgIHNob3dFbWJlZEJ1dHRvbjoibm8iLAogICAgc2hvd0Z1bGxTY3JlZW5CdXR0b246InllcyIsCiAgICByZXBlYXRCYWNrZ3JvdW5kOiJ5ZXMiLAogICAgY29udHJvbGxlckhlaWdodDo0MSwKICAgIGNvbnRyb2xsZXJIaWRlRGVsYXk6MywKICAgIHN0YXJ0U3BhY2VCZXR3ZWVuQnV0dG9uczo3LAogICAgc3BhY2VCZXR3ZWVuQnV0dG9uczo5LAogICAgbWFpblNjcnViYmVyT2ZmZXN0VG9wOjE0LAogICAgc2NydWJiZXJzT2Zmc2V0V2lkdGg6NCwKICAgIHRpbWVPZmZzZXRMZWZ0V2lkdGg6NSwKICAgIHRpbWVPZmZzZXRSaWdodFdpZHRoOjMsCiAgICB2b2x1bWVTY3J1YmJlcldpZHRoOjgwLAogICAgdm9sdW1lU2NydWJiZXJPZmZzZXRSaWdodFdpZHRoOjAsCiAgICB0aW1lQ29sb3I6IiM4ODg4ODgiLAogICAgeW91dHViZVF1YWxpdHlCdXR0b25Ob3JtYWxDb2xvcjoiIzg4ODg4OCIsCiAgICB5b3V0dWJlUXVhbGl0eUJ1dHRvblNlbGVjdGVkQ29sb3I6IiNGRkZGRkYiLAogICAgc2hvd1BsYXliYWNrUmF0ZUJ1dHRvbjoieWVzIiwKICAgIGRlZmF1bHRQbGF5YmFja1JhdGU6IjEiCiAgfSk7Cn0pOwo8L3NjcmlwdD4KPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qc29uIiBpZD0ibW92aWVEYXRhIj4KewogICJ0aXRsZSI6ICJfX01PVklFX1RJVExFX0pTT05fXyIsCiAgInllYXIiOiAiX19NT1ZJRV9ZRUFSX18iLAogICJvdmVydmlldyI6ICJfX01PVklFX09WRVJWSUVXX0pTT05fXyIsCiAgInBvc3RlciI6ICJfX1BPU1RFUl9VUkxfXyIsCiAgInJhdGluZyI6ICJfX01PVklFX1JBVElOR19fIiwKICAiYmFja2Ryb3AiOiAiX19CQUNLRFJPUF9VUkxfXyIsCiAgInRtZGJJZCI6ICJfX1RNREJfSURfXyIKfQo8L3NjcmlwdD4KPC9oZWFkPgo8Ym9keT4KPGRpdiBpZD0ibXlEaXYiIGFyaWEtaGlkZGVuPSJ0cnVlIj48L2Rpdj4KCjxzY3JpcHQ+CihmdW5jdGlvbigpewogIGZ1bmN0aW9uIGF0dGFjaENhc3RMaXN0ZW5lcigpewogICAgdmFyIHZpZGVvID0gZG9jdW1lbnQucXVlcnlTZWxlY3RvcigndmlkZW8nKTsKICAgIGlmICghdmlkZW8pIHsKICAgICAgc2V0VGltZW91dChhdHRhY2hDYXN0TGlzdGVuZXIsIDMwMCk7CiAgICAgIHJldHVybjsKICAgIH0KICAgIGlmICh2aWRlby5kYXRhc2V0LmNhc3RCb3VuZCkgcmV0dXJuOwogICAgdmlkZW8uZGF0YXNldC5jYXN0Qm91bmQgPSAiMSI7CgogICAgdmFyIERWX1VSTCA9ICJfX0RWX1VSTF9fIjsKCiAgICBmdW5jdGlvbiBnb1RvQ2FzdFNvdXJjZSgpIHsKICAgICAgdHJ5IHsKICAgICAgICB2YXIgc2F2ZWRUaW1lID0gdmlkZW8uY3VycmVudFRpbWU7CiAgICAgICAgdmFyIHdhc1BsYXlpbmcgPSAhdmlkZW8ucGF1c2VkOwogICAgICAgIHZpZGVvLnNyYyA9IERWX1VSTDsKICAgICAgICB2aWRlby5hZGRFdmVudExpc3RlbmVyKCdsb2FkZWRtZXRhZGF0YScsIGZ1bmN0aW9uIG9uTCgpewogICAgICAgICAgdmlkZW8ucmVtb3ZlRXZlbnRMaXN0ZW5lcignbG9hZGVkbWV0YWRhdGEnLCBvbkwpOwogICAgICAgICAgdmlkZW8uY3VycmVudFRpbWUgPSBzYXZlZFRpbWU7CiAgICAgICAgICBpZiAod2FzUGxheWluZykgdmlkZW8ucGxheSgpOwogICAgICAgIH0pOwogICAgICB9IGNhdGNoKGUpe30KICAgIH0KCiAgICAvLyBDaHJvbWUgLyBFZGdlIChSZW1vdGVQbGF5YmFjayBBUEkpCiAgICBpZiAodmlkZW8ucmVtb3RlKSB7CiAgICAgIHZpZGVvLnJlbW90ZS5hZGRFdmVudExpc3RlbmVyKCdjb25uZWN0JywgZ29Ub0Nhc3RTb3VyY2UpOwogICAgfQoKICAgIC8vIFNhZmFyaSAod2Via2l0UHJlc2VudGF0aW9uTW9kZSkKICAgIHZpZGVvLmFkZEV2ZW50TGlzdGVuZXIoJ3dlYmtpdHByZXNlbnRhdGlvbm1vZGVjaGFuZ2VkJywgZnVuY3Rpb24oKXsKICAgICAgaWYgKHZpZGVvLndlYmtpdFByZXNlbnRhdGlvbk1vZGUgPT09ICdwcmVzZW50YXRpb24nKSB7CiAgICAgICAgZ29Ub0Nhc3RTb3VyY2UoKTsKICAgICAgfQogICAgfSk7CiAgfQogIGF0dGFjaENhc3RMaXN0ZW5lcigpOwp9KSgpOwo8L3NjcmlwdD4KCgo8c2NyaXB0PgovKiBNTUhEOiBvcmllbnRhY2nDs24gaG9yaXpvbnRhbCBhbCBhY3RpdmFyIHBhbnRhbGxhIGNvbXBsZXRhIGVuIG3Ds3ZpbGVzLiAqLwooZnVuY3Rpb24gKCkgewogIHZhciBsb2NrZWRCeU1NSEQgPSBmYWxzZTsKICBmdW5jdGlvbiBpc0Z1bGxzY3JlZW4oKSB7CiAgICByZXR1cm4gISEoZG9jdW1lbnQuZnVsbHNjcmVlbkVsZW1lbnQgfHwgZG9jdW1lbnQud2Via2l0RnVsbHNjcmVlbkVsZW1lbnQpOwogIH0KICBmdW5jdGlvbiBvbkZ1bGxzY3JlZW5DaGFuZ2UoKSB7CiAgICBpZiAoaXNGdWxsc2NyZWVuKCkpIHsKICAgICAgaWYgKHNjcmVlbi5vcmllbnRhdGlvbiAmJiB0eXBlb2Ygc2NyZWVuLm9yaWVudGF0aW9uLmxvY2sgPT09ICdmdW5jdGlvbicpIHsKICAgICAgICB0cnkgewogICAgICAgICAgUHJvbWlzZS5yZXNvbHZlKHNjcmVlbi5vcmllbnRhdGlvbi5sb2NrKCdsYW5kc2NhcGUnKSkudGhlbihmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGxvY2tlZEJ5TU1IRCA9IHRydWU7CiAgICAgICAgICB9KS5jYXRjaChmdW5jdGlvbiAoKSB7fSk7CiAgICAgICAgfSBjYXRjaCAoZSkge30KICAgICAgfQogICAgfSBlbHNlIGlmIChsb2NrZWRCeU1NSEQpIHsKICAgICAgbG9ja2VkQnlNTUhEID0gZmFsc2U7CiAgICAgIHRyeSB7CiAgICAgICAgaWYgKHNjcmVlbi5vcmllbnRhdGlvbiAmJiB0eXBlb2Ygc2NyZWVuLm9yaWVudGF0aW9uLnVubG9jayA9PT0gJ2Z1bmN0aW9uJykgewogICAgICAgICAgc2NyZWVuLm9yaWVudGF0aW9uLnVubG9jaygpOwogICAgICAgIH0KICAgICAgfSBjYXRjaCAoZSkge30KICAgIH0KICB9CiAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcignZnVsbHNjcmVlbmNoYW5nZScsIG9uRnVsbHNjcmVlbkNoYW5nZSk7CiAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcignd2Via2l0ZnVsbHNjcmVlbmNoYW5nZScsIG9uRnVsbHNjcmVlbkNoYW5nZSk7Cn0pKCk7Cjwvc2NyaXB0PgoKPHN0eWxlPgojbW1oZC1yZWNvdmVyeS10b2FzdHtwb3NpdGlvbjpmaXhlZDt6LWluZGV4OjIxNDc0ODMwMDA7bGVmdDo1MCU7Ym90dG9tOjcwcHg7dHJhbnNmb3JtOnRyYW5zbGF0ZVgoLTUwJSk7CiAgbWF4LXdpZHRoOm1pbig5NHZ3LDU0MHB4KTtiYWNrZ3JvdW5kOnJnYmEoMTEsMTgsMzMsLjk2KTtjb2xvcjojZmZmO2JvcmRlcjoxcHggc29saWQgIzNiNTQ3NzsKICBib3JkZXItcmFkaXVzOjEwcHg7cGFkZGluZzoxMHB4IDE0cHg7Ym94LXNoYWRvdzowIDhweCAyOHB4ICMwMDA5O2ZvbnQ6NjAwIDEycHgvMS41IEFyaWFsLHNhbnMtc2VyaWY7CiAgdGV4dC1hbGlnbjpjZW50ZXI7cG9pbnRlci1ldmVudHM6bm9uZTtkaXNwbGF5Om5vbmV9CiNtbWhkLXJlY292ZXJ5LXRvYXN0Lm1taGQtZXJyb3J7cG9pbnRlci1ldmVudHM6YXV0bztib3JkZXItY29sb3I6I2ZmNmI4MDtiYWNrZ3JvdW5kOiMyNDE1MjJ9CiNtbWhkLXJlY292ZXJ5LXRvYXN0IGJ1dHRvbnttYXJnaW4tbGVmdDoxMHB4O2JhY2tncm91bmQ6IzI0MzY0ZTtib3JkZXI6MDtjb2xvcjojZmZmO2JvcmRlci1yYWRpdXM6NnB4OwogIHBhZGRpbmc6NXB4IDhweDtjdXJzb3I6cG9pbnRlcn0KPC9zdHlsZT4KPHNjcmlwdD4KLyogRmFzZSAxMS41LjU6IHJlY3VwZXJhY2nDs24gc29sbyBhbnRlIGVycm9yIHJlYWw7IGxhIGVzcGVyYSBsZW50YSBOTyBjYW1iaWEgbGEgY2FsaWRhZC4gKi8KKGZ1bmN0aW9uKCl7CiAgJ3VzZSBzdHJpY3QnOwogIHZhciBzb3VyY2VzPXdpbmRvdy5NTUhEX1FVQUxJVFlfT1BUSU9OU3x8W107CiAgaWYoIXNvdXJjZXMubGVuZ3RoKXJldHVybjsKICB2YXIgdmlkZW89bnVsbCxhY3RpdmU9MCxmYWlsZWQ9e30sbGFzdFRpbWU9MCxsYXN0QWR2YW5jZT0wLHJlcXVlc3RlZD1mYWxzZTsKICB2YXIgbGFzdFRpY2s9MCxzd2l0Y2hpbmc9ZmFsc2UscGVuZGluZ1Jlc3VtZT0wLHRvYXN0VGltZXI9MCxvYnNlcnZlclRpbWVyPTA7CiAgLy8gTGFzIGZ1ZW50ZXMgZGUgR29vZ2xlIFBob3RvcyBwdWVkZW4gdGFyZGFyIDQwLTUwIHMgKG8gbcOhcykgZW4gaW5pY2lhci4KICAvLyBOdW5jYSBjYW1iaWFyIGRlIGNhbGlkYWQgc29sbyBwb3IgdW5hIGVzcGVyYTogZWwgdXN1YXJpbyBkZWNpZGUuCiAgdmFyIHNsb3dOb3RpY2VNcz05MDAwMDsKICB2YXIgc2xvd1Byb21wdFNob3duPWZhbHNlOwogIHZhciBzbG93UHJvbXB0U291cmNlPS0xOwogIHZhciBub3RpY2U9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnZGl2Jyk7CiAgbm90aWNlLmlkPSdtbWhkLXJlY292ZXJ5LXRvYXN0Jztub3RpY2Uuc2V0QXR0cmlidXRlKCdyb2xlJywnc3RhdHVzJyk7bm90aWNlLnNldEF0dHJpYnV0ZSgnYXJpYS1saXZlJywncG9saXRlJyk7CiAgZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChub3RpY2UpOwoKICBmdW5jdGlvbiBzaG93KHRleHQscGVyc2lzdGVudCl7CiAgICBjbGVhclRpbWVvdXQodG9hc3RUaW1lcik7CiAgICBub3RpY2UudGV4dENvbnRlbnQ9dGV4dDsKICAgIG5vdGljZS5jbGFzc05hbWU9cGVyc2lzdGVudD8nbW1oZC1lcnJvcic6Jyc7CiAgICBpZihwZXJzaXN0ZW50KXsKICAgICAgdmFyIGNsb3NlPWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2J1dHRvbicpO2Nsb3NlLnR5cGU9J2J1dHRvbic7Y2xvc2UudGV4dENvbnRlbnQ9J0NlcnJhcic7CiAgICAgIGNsb3NlLmFkZEV2ZW50TGlzdGVuZXIoJ2NsaWNrJyxmdW5jdGlvbigpe25vdGljZS5zdHlsZS5kaXNwbGF5PSdub25lJzt9KTsKICAgICAgbm90aWNlLmFwcGVuZENoaWxkKGNsb3NlKTsKICAgIH0KICAgIG5vdGljZS5zdHlsZS5kaXNwbGF5PSdibG9jayc7CiAgICBpZighcGVyc2lzdGVudCl0b2FzdFRpbWVyPXNldFRpbWVvdXQoZnVuY3Rpb24oKXtub3RpY2Uuc3R5bGUuZGlzcGxheT0nbm9uZSc7fSw0NzAwKTsKICB9CiAgZnVuY3Rpb24gY2xlYXJTbG93UHJvbXB0KCl7CiAgICBpZihub3RpY2UuZGF0YXNldC5tbWhkU2xvdz09PScxJyl7CiAgICAgIGNsZWFyVGltZW91dCh0b2FzdFRpbWVyKTsKICAgICAgbm90aWNlLnN0eWxlLmRpc3BsYXk9J25vbmUnOwogICAgICBkZWxldGUgbm90aWNlLmRhdGFzZXQubW1oZFNsb3c7CiAgICB9CiAgICBzbG93UHJvbXB0U2hvd249ZmFsc2U7CiAgICBzbG93UHJvbXB0U291cmNlPS0xOwogIH0KICBmdW5jdGlvbiBzaG93U2xvd1Byb21wdCgpewogICAgaWYoIXZpZGVvIHx8IHNsb3dQcm9tcHRTaG93biB8fCBhY3RpdmU+PXNvdXJjZXMubGVuZ3RoKXJldHVybjsKICAgIHZhciBpbmRleD1hY3RpdmVTb3VyY2UoKTsKICAgIGlmKGluZGV4PDApcmV0dXJuOwogICAgdmFyIG5leHQ9LTE7CiAgICBmb3IodmFyIGk9aW5kZXgrMTtpPHNvdXJjZXMubGVuZ3RoO2krKylpZighZmFpbGVkW2ldKXtuZXh0PWk7YnJlYWs7fQogICAgdmFyIGxhYmVsPXNvdXJjZXNbaW5kZXhdLmxhYmVsOwogICAgc2hvdygnTGEgY2FsaWRhZCAnK2xhYmVsKycgdG9kYXbDrWEgZXN0w6EgY2FyZ2FuZG8uIFB1ZWRlcyBzZWd1aXIgZXNwZXJhbmRvOiBubyBzZSByZWR1Y2lyw6EgYXV0b23DoXRpY2FtZW50ZS4nLHRydWUpOwogICAgbm90aWNlLmRhdGFzZXQubW1oZFNsb3c9JzEnOwogICAgc2xvd1Byb21wdFNob3duPXRydWU7CiAgICBzbG93UHJvbXB0U291cmNlPWluZGV4OwogICAgLy8gRWwgYm90w7NuIENlcnJhciBkZSBzaG93KCkgZGVqYSBhbCB1c3VhcmlvIHNlZ3VpciBlc3BlcmFuZG8uCiAgICB2YXIgY2xvc2U9bm90aWNlLnF1ZXJ5U2VsZWN0b3IoJ2J1dHRvbicpOwogICAgaWYoY2xvc2UpY2xvc2UuYWRkRXZlbnRMaXN0ZW5lcignY2xpY2snLGZ1bmN0aW9uKCl7c2xvd1Byb21wdFNob3duPWZhbHNlO2xhc3RUaWNrPURhdGUubm93KCk7ZGVsZXRlIG5vdGljZS5kYXRhc2V0Lm1taGRTbG93O30pOwogICAgaWYobmV4dD49MCl7CiAgICAgIHZhciBjaGFuZ2U9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnYnV0dG9uJyk7CiAgICAgIGNoYW5nZS50eXBlPSdidXR0b24nOwogICAgICBjaGFuZ2UudGV4dENvbnRlbnQ9J1Byb2JhciAnK3NvdXJjZXNbbmV4dF0ubGFiZWw7CiAgICAgIGNoYW5nZS5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsZnVuY3Rpb24oKXsKICAgICAgICBjbGVhclNsb3dQcm9tcHQoKTsKICAgICAgICBmYWxsYmFjaygndXNlci1yZXF1ZXN0ZWQnKTsKICAgICAgfSk7CiAgICAgIG5vdGljZS5hcHBlbmRDaGlsZChjaGFuZ2UpOwogICAgfQogIH0KICBmdW5jdGlvbiBtYXRjaFNvdXJjZSh2KXsKICAgIGlmKCF2KXJldHVybiAtMTsKICAgIHZhciBjdXI9di5jdXJyZW50U3JjfHwnJyxzcmM9di5nZXRBdHRyaWJ1dGUoJ3NyYycpfHx2LnNyY3x8Jyc7CiAgICAvLyBQcmVmZXIgdGhlIG5ld2x5IGFzc2lnbmVkIHNyYzsgY3VycmVudFNyYyBtYXkgc3RpbGwgcG9pbnQgdG8gdGhlIGZhaWxlZCBVUkwuCiAgICBmb3IodmFyIGk9MDtpPHNvdXJjZXMubGVuZ3RoO2krKylpZihzcmM9PT1zb3VyY2VzW2ldLnNvdXJjZSlyZXR1cm4gaTsKICAgIGZvcih2YXIgaj0wO2o8c291cmNlcy5sZW5ndGg7aisrKWlmKGN1cj09PXNvdXJjZXNbal0uc291cmNlKXJldHVybiBqOwogICAgLy8gQW4gZXhwbGljaXRseSBkaWZmZXJlbnQgVVJMIChlLmcuIHRoZSBDYXN0ID1kdiBVUkwpIGlzIG5vdCBvdXIgcGxheWJhY2sgc291cmNlLgogICAgaWYoc3JjICYmICFzb3VyY2VzLnNvbWUoZnVuY3Rpb24ocyl7cmV0dXJuIHMuc291cmNlPT09c3JjO30pKXJldHVybiAtMjsKICAgIHJldHVybiAtMTsKICB9CiAgZnVuY3Rpb24gcmVtb3RlQWN0aXZlKHYpewogICAgdHJ5e3JldHVybiAodi5yZW1vdGUgJiYgKHYucmVtb3RlLnN0YXRlPT09J2Nvbm5lY3RpbmcnfHx2LnJlbW90ZS5zdGF0ZT09PSdjb25uZWN0ZWQnKSkgfHwKICAgICAgICh2LndlYmtpdFByZXNlbnRhdGlvbk1vZGUgJiYgdi53ZWJraXRQcmVzZW50YXRpb25Nb2RlIT09J2lubGluZScpO30KICAgIGNhdGNoKGUpe3JldHVybiBmYWxzZTt9CiAgfQogIGZ1bmN0aW9uIHJlYWRQcm9ncmVzcygpewogICAgaWYoIXZpZGVvKXJldHVybjsKICAgIHZhciB0PU51bWJlcih2aWRlby5jdXJyZW50VGltZSk7CiAgICBpZihOdW1iZXIuaXNGaW5pdGUodCkgJiYgdD49MCl7bGFzdFRpbWU9dDt9CiAgfQogIGZ1bmN0aW9uIGFjdGl2ZVNvdXJjZSgpewogICAgdmFyIGluZGV4PW1hdGNoU291cmNlKHZpZGVvKTsKICAgIGlmKGluZGV4Pj0wKWFjdGl2ZT1pbmRleDsKICAgIHJldHVybiBpbmRleDsKICB9CiAgZnVuY3Rpb24gZmFpbGVkQWxsKCl7CiAgICByZXF1ZXN0ZWQ9ZmFsc2U7CiAgICBzaG93KCdObyBzZSBwdWRvIHJlcHJvZHVjaXIgZW4gbmluZ3VuYSBjYWxpZGFkLiBSZXZpc2EgbG9zIGVubGFjZXMgZGUgR29vZ2xlIFBob3RvcyBlbiBlbCBwYW5lbC4nLHRydWUpOwogIH0KICBmdW5jdGlvbiBmYWxsYmFjayhyZWFzb24pewogICAgaWYoIXZpZGVvIHx8IHN3aXRjaGluZyB8fCByZW1vdGVBY3RpdmUodmlkZW8pIHx8IGRvY3VtZW50LmhpZGRlbiB8fCB2aWRlby5lbmRlZClyZXR1cm47CiAgICBjbGVhclNsb3dQcm9tcHQoKTsKICAgIHZhciBtYXRjaGVkPWFjdGl2ZVNvdXJjZSgpOwogICAgaWYobWF0Y2hlZD09PS0yKXJldHVybjsKICAgIC8vIFNhdmUgcG9zaXRpb24gYmVmb3JlIHVubG9hZGluZyB0aGUgYnJva2VuIHN0cmVhbS4KICAgIHZhciByZXN1bWVBdD1sYXN0VGltZTsKICAgIHRyeXtpZihOdW1iZXIuaXNGaW5pdGUodmlkZW8uY3VycmVudFRpbWUpICYmIHZpZGVvLmN1cnJlbnRUaW1lPnJlc3VtZUF0KXJlc3VtZUF0PXZpZGVvLmN1cnJlbnRUaW1lO31jYXRjaChlKXt9CiAgICB2YXIgcmVzdW1lPXJlcXVlc3RlZCB8fCAhdmlkZW8ucGF1c2VkOwogICAgZmFpbGVkW2FjdGl2ZV09dHJ1ZTsKICAgIHZhciBuZXh0PS0xOwogICAgZm9yKHZhciBpPWFjdGl2ZSsxO2k8c291cmNlcy5sZW5ndGg7aSsrKWlmKCFmYWlsZWRbaV0pe25leHQ9aTticmVhazt9CiAgICBpZihuZXh0PDApe2ZhaWxlZEFsbCgpO3JldHVybjt9CiAgICBzd2l0Y2hpbmc9dHJ1ZTsKICAgIHZhciBmYWlsZWRMYWJlbD1zb3VyY2VzW2FjdGl2ZV0ubGFiZWw7CiAgICBhY3RpdmU9bmV4dDsKICAgIHBlbmRpbmdSZXN1bWU9cmVzdW1lQXQ7CiAgICBsYXN0VGljaz1EYXRlLm5vdygpOwogICAgc2hvdygnTm8gc2UgcHVkbyBjYXJnYXIgJytmYWlsZWRMYWJlbCsnLiBQcm9iYW5kbyAnK3NvdXJjZXNbbmV4dF0ubGFiZWwrJ+KApicsZmFsc2UpOwogICAgLy8gTm8gcmVtb3RlL0Nhc3Qgc291cmNlIGlzIHRvdWNoZWQuIE5vIHVua25vd24gRldERVYgbWV0aG9kcyBhcmUgaW52b2tlZC4KICAgIHRyeXsKICAgICAgdmFyIGN1cnJlbnRWaWRlbz12aWRlbzsKICAgICAgdmFyIHNob3VsZFJlc3VtZT1yZXN1bWU7CiAgICAgIHZhciBzZWVrUGVuZGluZz1yZXN1bWVBdD4wOwogICAgICBmdW5jdGlvbiByZXN0b3JlKCl7CiAgICAgICAgaWYoIXNlZWtQZW5kaW5nIHx8IHZpZGVvIT09Y3VycmVudFZpZGVvKXJldHVybjsKICAgICAgICBzZWVrUGVuZGluZz1mYWxzZTsKICAgICAgICB0cnl7aWYoTnVtYmVyLmlzRmluaXRlKGN1cnJlbnRWaWRlby5kdXJhdGlvbikpY3VycmVudFZpZGVvLmN1cnJlbnRUaW1lPU1hdGgubWluKHJlc3VtZUF0LE1hdGgubWF4KDAsY3VycmVudFZpZGVvLmR1cmF0aW9uLS4yKSk7CiAgICAgICAgICAgIGVsc2UgY3VycmVudFZpZGVvLmN1cnJlbnRUaW1lPXJlc3VtZUF0O31jYXRjaChlKXt9CiAgICAgICAgcGVuZGluZ1Jlc3VtZT0wOwogICAgICB9CiAgICAgIGN1cnJlbnRWaWRlby5hZGRFdmVudExpc3RlbmVyKCdsb2FkZWRtZXRhZGF0YScscmVzdG9yZSx7b25jZTp0cnVlfSk7CiAgICAgIGN1cnJlbnRWaWRlby5zcmM9c291cmNlc1tuZXh0XS5zb3VyY2U7CiAgICAgIGN1cnJlbnRWaWRlby5sb2FkKCk7CiAgICAgIGlmKCFzaG91bGRSZXN1bWUpe3N3aXRjaGluZz1mYWxzZTtyZXR1cm47fQogICAgICByZXF1ZXN0ZWQ9dHJ1ZTsKICAgICAgdmFyIHJlc3VsdD1jdXJyZW50VmlkZW8ucGxheSgpOwogICAgICBpZihyZXN1bHQgJiYgdHlwZW9mIHJlc3VsdC50aGVuPT09J2Z1bmN0aW9uJyl7CiAgICAgICAgcmVzdWx0LnRoZW4oZnVuY3Rpb24oKXtzd2l0Y2hpbmc9ZmFsc2U7fSkKICAgICAgICAgIC5jYXRjaChmdW5jdGlvbihlcnIpewogICAgICAgICAgICBzd2l0Y2hpbmc9ZmFsc2U7CiAgICAgICAgICAgIGlmKGVyciAmJiBlcnIubmFtZT09PSdOb3RBbGxvd2VkRXJyb3InKXsKICAgICAgICAgICAgICByZXF1ZXN0ZWQ9ZmFsc2U7CiAgICAgICAgICAgICAgc2hvdygnQ2FsaWRhZCAnK3NvdXJjZXNbbmV4dF0ubGFiZWwrJyBsaXN0YS4gUHVsc2EgUGxheSBwYXJhIGNvbnRpbnVhci4nLHRydWUpOwogICAgICAgICAgICB9ZWxzZSBpZihlcnIgJiYgZXJyLm5hbWU9PT0nTm90U3VwcG9ydGVkRXJyb3InKXsKICAgICAgICAgICAgICBzZXRUaW1lb3V0KGZ1bmN0aW9uKCl7ZmFsbGJhY2soJ25vdC1zdXBwb3J0ZWQnKTt9LDApOwogICAgICAgICAgICB9CiAgICAgICAgICAgIC8vIEEgZ2VzdHVyZSBwb2xpY3kgaXMgbm90IGEgc291cmNlIGZhaWx1cmU7IGF2b2lkIGN5Y2xpbmcgdGhyb3VnaCB2YWxpZCBxdWFsaXRpZXMuCiAgICAgICAgICB9KTsKICAgICAgfWVsc2Ugc3dpdGNoaW5nPWZhbHNlOwogICAgICBzZXRUaW1lb3V0KGZ1bmN0aW9uKCl7aWYodmlkZW89PT1jdXJyZW50VmlkZW8pe3N3aXRjaGluZz1mYWxzZTtpZihzZWVrUGVuZGluZyAmJiBjdXJyZW50VmlkZW8ucmVhZHlTdGF0ZT49MSlyZXN0b3JlKCk7fX0sMTYwMCk7CiAgICB9Y2F0Y2goZSl7c3dpdGNoaW5nPWZhbHNlO3NldFRpbWVvdXQoZnVuY3Rpb24oKXtmYWxsYmFjaygnZXhjZXB0aW9uJyk7fSw1MCk7fQogIH0KICBmdW5jdGlvbiBvbkVycm9yKCl7CiAgICBpZihzd2l0Y2hpbmcpe3N3aXRjaGluZz1mYWxzZTt9CiAgICBpZih2aWRlbyAmJiAhcmVtb3RlQWN0aXZlKHZpZGVvKSlmYWxsYmFjaygnbWVkaWEtZXJyb3InKTsKICB9CiAgZnVuY3Rpb24gb25Mb2FkKCl7CiAgICBpZighdmlkZW8pcmV0dXJuOwogICAgdmFyIGN1cnJlbnQ9YWN0aXZlU291cmNlKCk7CiAgICBpZihjdXJyZW50PT09LTIpe3JlcXVlc3RlZD1mYWxzZTtyZXR1cm47fQogICAgbGFzdFRpY2s9RGF0ZS5ub3coKTsKICAgIGNsZWFyU2xvd1Byb21wdCgpOwogIH0KICBmdW5jdGlvbiBvblBsYXkoKXtyZXF1ZXN0ZWQ9dHJ1ZTtsYXN0VGljaz1EYXRlLm5vdygpO30KICBmdW5jdGlvbiBvblBsYXlpbmcoKXtyZXF1ZXN0ZWQ9dHJ1ZTtzd2l0Y2hpbmc9ZmFsc2U7bGFzdFRpY2s9RGF0ZS5ub3coKTtsYXN0QWR2YW5jZT1EYXRlLm5vdygpO3JlYWRQcm9ncmVzcygpO2NsZWFyU2xvd1Byb21wdCgpO30KICBmdW5jdGlvbiBvblBhdXNlKCl7cmVxdWVzdGVkPWZhbHNlO2NsZWFyU2xvd1Byb21wdCgpO30KICBmdW5jdGlvbiBvblRpY2soKXsKICAgIGlmKCF2aWRlbylyZXR1cm47CiAgICB2YXIgdD1OdW1iZXIodmlkZW8uY3VycmVudFRpbWUpfHwwOwogICAgaWYocGVuZGluZ1Jlc3VtZT4xICYmIHQrMTxwZW5kaW5nUmVzdW1lKXJldHVybjsKICAgIGlmKE1hdGguYWJzKHQtbGFzdFRpbWUpPi4yNSl7bGFzdFRpbWU9dDtsYXN0QWR2YW5jZT1EYXRlLm5vdygpO2xhc3RUaWNrPURhdGUubm93KCk7Y2xlYXJTbG93UHJvbXB0KCk7fQogIH0KICBmdW5jdGlvbiBvblNlZWtlZCgpe3JlYWRQcm9ncmVzcygpO2xhc3RUaWNrPURhdGUubm93KCk7fQogIGZ1bmN0aW9uIGF0dGFjaCh2KXsKICAgIGlmKCF2IHx8IHY9PT12aWRlbylyZXR1cm47CiAgICBjbGVhclNsb3dQcm9tcHQoKTsKICAgIHZpZGVvPXY7YWN0aXZlPTA7bGFzdFRpbWU9MDtwZW5kaW5nUmVzdW1lPTA7ZmFpbGVkPXt9O2xhc3RUaWNrPTA7bGFzdEFkdmFuY2U9MDtyZXF1ZXN0ZWQ9ZmFsc2U7c3dpdGNoaW5nPWZhbHNlOwogICAgdi5hZGRFdmVudExpc3RlbmVyKCdlcnJvcicsb25FcnJvcik7CiAgICB2LmFkZEV2ZW50TGlzdGVuZXIoJ2xvYWRzdGFydCcsb25Mb2FkKTsKICAgIHYuYWRkRXZlbnRMaXN0ZW5lcigncGxheScsb25QbGF5KTsKICAgIHYuYWRkRXZlbnRMaXN0ZW5lcigncGxheWluZycsb25QbGF5aW5nKTsKICAgIHYuYWRkRXZlbnRMaXN0ZW5lcigncGF1c2UnLG9uUGF1c2UpOwogICAgdi5hZGRFdmVudExpc3RlbmVyKCd0aW1ldXBkYXRlJyxvblRpY2spOwogICAgdi5hZGRFdmVudExpc3RlbmVyKCdzZWVrZWQnLG9uU2Vla2VkKTsKICAgIHYuYWRkRXZlbnRMaXN0ZW5lcignZW5kZWQnLGZ1bmN0aW9uKCl7cmVxdWVzdGVkPWZhbHNlO2xhc3RUaWNrPTA7fSk7CiAgICBhY3RpdmVTb3VyY2UoKTsKICAgIGlmKHYuZXJyb3Ipc2V0VGltZW91dChmdW5jdGlvbigpe2lmKHZpZGVvPT09dilvbkVycm9yKCk7fSwwKTsKICB9CiAgLy8gRldERVYgbWF5IHJlY3JlYXRlIHRoZSBtZWRpYSBlbGVtZW50IG9uIHF1YWxpdHkgc2VsZWN0aW9uOyBmb2xsb3cgdGhlIG5ldyB2aWRlby4KICBvYnNlcnZlclRpbWVyPXNldEludGVydmFsKGZ1bmN0aW9uKCl7CiAgICB2YXIgY3VycmVudD1kb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcjbXlEaXYgdmlkZW8nKXx8ZG9jdW1lbnQucXVlcnlTZWxlY3RvcigndmlkZW8nKTsKICAgIGlmKGN1cnJlbnQgJiYgY3VycmVudCE9PXZpZGVvKWF0dGFjaChjdXJyZW50KTsKICAgIGlmKCF2aWRlbyB8fCAhdmlkZW8uaXNDb25uZWN0ZWQgfHwgc3dpdGNoaW5nIHx8ICFyZXF1ZXN0ZWQgfHwgdmlkZW8ucGF1c2VkIHx8IHZpZGVvLmVuZGVkIHx8IHZpZGVvLnNlZWtpbmcgfHwKICAgICAgIGRvY3VtZW50LmhpZGRlbiB8fCByZW1vdGVBY3RpdmUodmlkZW8pIHx8IGFjdGl2ZVNvdXJjZSgpPT09LTIpcmV0dXJuOwogICAgdmFyIG5vdz1EYXRlLm5vdygpOwogICAgaWYoIWxhc3RUaWNrKWxhc3RUaWNrPW5vdzsKICAgIC8vIFNvbG8gQVZJU0FSIHNpIHRhcmRhIGRlbWFzaWFkby4gTm8gY2FtYmlhciBkZSBmdWVudGUgcG9yIGJ1ZmZlcmluZzoKICAgIC8vIG0zNy9tMjIgcHVlZGVuIG5lY2VzaXRhciA0MC01MCBzIHBhcmEgY29tZW56YXIsIHkgc2lndWVuIHNpZW5kbyB2w6FsaWRvcy4KICAgIGlmKCFzbG93UHJvbXB0U2hvd24gJiYgbm93LWxhc3RUaWNrPj1zbG93Tm90aWNlTXMpe2xhc3RUaWNrPW5vdztzaG93U2xvd1Byb21wdCgpO30KICB9LDkwMCk7CiAgd2luZG93Lk1NSERfUVVBTElUWV9SRUNPVkVSWT17c3RhdHVzOmZ1bmN0aW9uKCl7cmV0dXJuIHthY3RpdmU6c291cmNlc1thY3RpdmVdJiZzb3VyY2VzW2FjdGl2ZV0ubGFiZWwsCiAgICBmYWlsZWQ6T2JqZWN0LmtleXMoZmFpbGVkKS5tYXAoZnVuY3Rpb24oaSl7cmV0dXJuIHNvdXJjZXNbaV0ubGFiZWw7fSkscG9zaXRpb246bGFzdFRpbWV9O319Owp9KSgpOwo8L3NjcmlwdD4KPC9ib2R5Pgo8L2h0bWw+";
 
 /* ============================================================
    ESTADO GLOBAL + localStorage
@@ -2368,13 +2487,22 @@ function mmhdSaveDiag(kind,id,season,episode,q,url,result){
   mmhdShowQualitySuggestion();
 }
 function mmhdBestQuality(kind,id,season,episode,urls){
-  // Únicamente se prefiere una calidad CONFIRMADA y reciente; las demás quedan accesibles.
-  for(const q of ["m37","m22","m18"]){
-    const url=String(urls?.[q]||"").trim();
+  // Priorizar SIEMPRE la mayor calidad configurada (m37 > m22 > m18).
+  // Solo bajar si esa URL fue confirmada como error en un diagnostico reciente.
+  // Un resultado amarillo o pendiente NO indica que la fuente este rota.
+  const candidates=["m37","m22","m18"].filter(q=>{
+    const value=String(urls?.[q]||"").trim();
+    return value.endsWith("="+q);
+  });
+  if(!candidates.length)return "";
+  const highest=candidates[0];
+  for(const q of candidates){
+    const url=String(urls[q]).trim();
     const row=mmhdDiagFor(kind,id,season,episode,q,url);
-    if(row?.state==="ok" && Date.now()-row.checkedAt<MMHD_HEALTH_VALID_MS)return q;
+    const isRecentError=row?.state==="error" && Date.now()-row.checkedAt<MMHD_HEALTH_VALID_MS;
+    if(!isRecentError)return q===highest?"":q;
   }
-  return ""; // La plantilla elige la primera calidad disponible.
+  return ""; // Si todas fallaron, mantener la primera y la recuperacion actual.
 }
 function mmhdCurrentDiagContext(){
   if(!state.movie)return null;
@@ -2405,9 +2533,11 @@ function mmhdShowQualitySuggestion(){
   if(!ctx){el.textContent='Selecciona una película o episodio para recomendar una calidad inicial.';return;}
   const urls=Object.fromEntries(QUALITY_IDS.map(q=>[q,$(q).value.trim()]));
   const chosen=mmhdBestQuality(ctx.kind,ctx.id,ctx.season,ctx.episode,urls);
-  el.textContent=chosen
-    ?`Calidad inicial recomendada: ${QUALITY_NAMES[chosen]}. Se conservarán las demás calidades para recuperación.`
-    :'Calidad inicial: primera URL disponible. Si una calidad se confirma en verde, se preferirá al exportar.';
+  const highest=QUALITY_IDS.find(q=>String(urls[q]||"").endsWith("="+q));
+  const initial=chosen||highest;
+  el.textContent=initial
+    ?`Calidad inicial: ${QUALITY_NAMES[initial]}. Solo se mostrarán calidades configuradas; si una superior falló en la última revisión, se prioriza la siguiente.`
+    :'Sin URLs de video configuradas.';
 }
 function canVerifyVideoQualities(){
   if(!state.movie || (state.movie.kind==="SERIES" && !state.selectedEpisode))return false;
@@ -2454,7 +2584,7 @@ function validQualityProbeUrl(raw,q){
 // Únicamente declaramos un enlace válido si el tiempo de reproducción avanza.
 // El error de media es un fallo confirmado; el timeout o bloqueo del navegador
 // no demuestra que la URL esté rota, así que se señalan en amarillo.
-function checkQualityHtml5(q,url,generation){
+function checkQualityHtml5(q,url,generation,timeoutMs=QUALITY_TIMEOUT_MS){
   return new Promise(resolve=>{
     if(generation!==qualityCheckGeneration){resolve({state:"cancelled"});return;}
     const v=document.createElement("video");
@@ -2496,7 +2626,7 @@ function checkQualityHtml5(q,url,generation){
     v.addEventListener("playing",onPlaying);
     v.addEventListener("timeupdate",onProgress);
     v.addEventListener("ended",onProgress);
-    timeoutId=setTimeout(()=>finish("unknown","Sin confirmar","No avanzó en 35 segundos; podría estar lento o bloqueado"),QUALITY_TIMEOUT_MS);
+    timeoutId=setTimeout(()=>finish("unknown","Sin confirmar",`No avanzó en ${Math.round(timeoutMs/1000)} segundos; podría estar lento o bloqueado`),timeoutMs);
     document.body.appendChild(v);
     try{
       v.src=url;
@@ -3322,6 +3452,7 @@ let mmhdMassToken=0;
 let mmhdMassPaused=false;
 let mmhdHealthVisible=80;
 let mmhdMassDone=0;
+const MMHD_MASS_TIMEOUT_MS = 70000; // Solo Diagnóstico general. Verificación individual: 35 s.
 function mmhdAllVideoLinks(){
   const entries=[];
   for(const item of state.collection){
@@ -3331,11 +3462,14 @@ function mmhdAllVideoLinks(){
       :[{season:null,episode:null,ep:item}];
     for(const part of parts){
       const suffix=kind==='SERIES'?` · Temporada ${part.season}, Capítulo ${part.episode}${part.ep.name?' — '+part.ep.name:''}`:'';
-      for(const q of QUALITY_IDS){
-        const url=String(part.ep[q]||'').trim();if(!url)continue;
-        entries.push({kind,id:item.id,title:String(item.title||'Sin título')+suffix,season:part.season,
-          episode:part.episode,q,url});
-      }
+      // Una prueba por película o episodio. m37 primero; si no existe, m22.
+      // No probamos m18 en Diagnóstico general (sí sigue disponible en el editor).
+      const m37=String(part.ep.m37||'').trim();
+      const m22=String(part.ep.m22||'').trim();
+      const q=m37?'m37':(m22?'m22':'');
+      if(!q)continue;
+      entries.push({kind,id:item.id,title:String(item.title||'Sin título')+suffix,season:part.season,
+        episode:part.episode,q,url:q==='m37'?m37:m22});
     }
   }
   return entries;
@@ -3351,6 +3485,32 @@ function mmhdHealthSummary(all){
   for(const item of all){counts[mmhdHealthStatus(item)]++;}
   return counts;
 }
+// El reporte conserva errores anteriores aunque tengan más de 30 días.
+// Nunca conserva errores si la URL se modificó: el fingerprint dejará de coincidir.
+function mmhdHealthErrors(all){
+  return all.map(item=>({item,check:mmhdDiagFor(item.kind,item.id,item.season,item.episode,item.q,item.url)}))
+    .filter(entry=>entry.check?.state==='error');
+}
+function mmhdExportHealthErrors(){
+  const errors=mmhdHealthErrors(mmhdAllVideoLinks());
+  if(!errors.length){alert('No hay enlaces con errores confirmados para exportar.');return;}
+  const quote=value=>{
+    let s=String(value??'');
+    // Evita interpretar los títulos como fórmulas al abrir el CSV en hojas de cálculo.
+    if(/^[\s]*[=+@-]/.test(s))s="'"+s;
+    return '"'+s.replace(/"/g,'""')+'"';
+  };
+  const rows=[['Tipo','Título / episodio','Temporada','Capítulo','Calidad','Enlace corto guardado','Enlace de video','Error confirmado','Fecha de verificación']];
+  for(const {item,check} of errors){
+    rows.push([item.kind==='SERIES'?'Serie':'Película',item.title,item.season??'',item.episode??'',
+      QUALITY_NAMES[item.q]+' ('+item.q+')',mmhdRepairTarget(item.id,item.season,item.episode)?.part?.googleUrl||'',item.url,check.detail||'Error HTML5',new Date(check.checkedAt).toLocaleString('es')]);
+  }
+  const blob=new Blob(['\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const link=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=link;a.download='MMHD_reporte_enlaces_con_error_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(link),4000);
+}
 function mmhdRenderHealth(){
   const all=mmhdAllVideoLinks(),counts=mmhdHealthSummary(all);
   const metrics=$('healthMetrics');
@@ -3358,6 +3518,17 @@ function mmhdRenderHealth(){
     .map(([key,label])=>`<div class="mmhd-health-metric" data-state="${key}"><strong>${counts[key]}</strong><small>${label}</small></div>`).join('');
   const hint=$('libraryQualityHint');
   if(hint)hint.textContent=`${counts.ok} verdes · ${counts.error} rojas · ${counts.unknown} amarillas · ${counts.pending} sin verificar`;
+  const errors=mmhdHealthErrors(all),preview=$('healthErrorPreview'),download=$('healthDownloadErrors');
+  if(download)download.disabled=!errors.length;
+  if(preview){
+    preview.innerHTML=errors.length?`<p>${errors.length} enlace(s) con error confirmado. Pulsa «Editar» para corregirlos. Los errores antiguos se conservan en este reporte hasta cambiar la URL o repetir la prueba con éxito.</p>`+
+      errors.slice(0,12).map(({item,check})=>`<div class="mmhd-health-row"><div><strong title="${escHtml(item.title)}">${escHtml(item.title)}</strong><small>${escHtml(check.detail||'Error HTML5')} · ${new Date(check.checkedAt).toLocaleDateString('es')}</small></div>`+
+        `<span class="mmhd-health-state" data-state="error">${QUALITY_NAMES[item.q]}</span><span class="mmhd-health-state" data-state="error">Error</span>`+
+        `<button class="secondary" type="button" data-mmhd-repair="${escHtml(String(item.id))}" data-mmhd-season="${item.season??''}" data-mmhd-episode="${item.episode??''}">Reemplazar enlace</button>`+
+        `<button class="secondary" type="button" data-mmhd-edit="${escHtml(String(item.id))}" data-mmhd-season="${item.season??''}" data-mmhd-episode="${item.episode??''}">Editar</button></div>`).join('')+
+      (errors.length>12?`<small>Se muestran los primeros 12. Descarga el CSV para ver los ${errors.length} registros.</small>`:'')
+      :'<span>No hay errores confirmados en los enlaces prioritarios.</span>';
+  }
   const chosen=$('healthFilter')?.value||'all';
   const filtered=chosen==='all'?all:all.filter(item=>mmhdHealthStatus(item)===chosen);
   const list=$('healthList');
@@ -3369,11 +3540,12 @@ function mmhdRenderHealth(){
     const label={ok:'Reproduce',error:'Error',unknown:'Sin confirmar',pending:'Sin verificar'}[status];
     return `<div class="mmhd-health-row"><div><strong title="${escHtml(item.title)}">${escHtml(item.title)}</strong><small>${escHtml(date)}${check?.detail&&status!=='pending'?' · '+escHtml(check.detail):''}</small></div>`+
       `<span class="mmhd-health-state" data-state="${status}">${QUALITY_NAMES[item.q]}</span><span class="mmhd-health-state" data-state="${status}">${label}</span>`+
-      `<button class="secondary" type="button" data-mmhd-edit="${escHtml(String(item.id))}">Editar</button></div>`;
+      `<div class="mmhd-actions">${status==='error'?`<button class="secondary" type="button" data-mmhd-repair="${escHtml(String(item.id))}" data-mmhd-season="${item.season??''}" data-mmhd-episode="${item.episode??''}">Reemplazar enlace</button>`:''}`+
+      `<button class="secondary" type="button" data-mmhd-edit="${escHtml(String(item.id))}" data-mmhd-season="${item.season??''}" data-mmhd-episode="${item.episode??''}">Editar</button></div></div>`;
   }).join('');
   $('healthMore').hidden=filtered.length<=mmhdHealthVisible;
   if(!mmhdMassRunning&&!mmhdMassPaused&&!mmhdMassQueue.length){
-    $('healthProgressText').textContent=`${all.length} enlaces de video encontrados · ${state.collection.length} títulos. Los resultados caducan a los 30 días.`;
+    $('healthProgressText').textContent=`${all.length} películas o episodios con m37/m22 para revisar · ${state.collection.length} títulos. Las verificaciones se consideran recientes durante 30 días; los errores permanecen en el reporte hasta corregirse.`;
   }
 }
 function mmhdBatchButtons(){
@@ -3398,10 +3570,10 @@ async function mmhdRunBatch(){
       if(!mmhdMassRunning||token!==mmhdMassToken)return;
       const item=mmhdMassQueue[mmhdMassIndex];
       const pos=mmhdMassIndex+1;
-      mmhdBatchProgress(`Comprobando ${pos} de ${mmhdMassQueue.length}: ${item.title} · ${QUALITY_NAMES[item.q]} (máximo 35 s)`);
+      mmhdBatchProgress(`Comprobando ${pos} de ${mmhdMassQueue.length}: ${item.title} · ${QUALITY_NAMES[item.q]} (máximo 70 s)`);
       let result;
       if(!validQualityProbeUrl(item.url,item.q))result={state:'error',detail:'URL directa inválida para '+item.q};
-      else result=await checkQualityHtml5(item.q,item.url,generation);
+      else result=await checkQualityHtml5(item.q,item.url,generation,MMHD_MASS_TIMEOUT_MS);
       if(!mmhdMassRunning||token!==mmhdMassToken||result.state==='cancelled')return;
       // La colección podría cambiarse durante la prueba: no aplicar un dato obsoleto.
       const stillThere=mmhdAllVideoLinks().some(e=>e.kind===item.kind&&String(e.id)===String(item.id)&&
@@ -3445,18 +3617,30 @@ $('healthResume').addEventListener('click',mmhdResumeBatch);
 $('healthCancel').addEventListener('click',()=>mmhdStopBatch(false));
 $('healthFilter').addEventListener('change',()=>{mmhdHealthVisible=80;mmhdRenderHealth();});
 $('healthMore').addEventListener('click',()=>{mmhdHealthVisible+=80;mmhdRenderHealth();});
-$('healthList').addEventListener('click',e=>{
+$('healthShowErrors').addEventListener('click',()=>{
+  $('healthErrorPreview').scrollIntoView({behavior:'smooth',block:'nearest'});
+});
+$('healthDownloadErrors').addEventListener('click',mmhdExportHealthErrors);
+function mmhdHealthEditClick(e){
+  const repair=e.target.closest('[data-mmhd-repair]');
+  if(repair){mmhdOpenRepair(repair.dataset.mmhdRepair,repair.dataset.mmhdSeason,repair.dataset.mmhdEpisode);return;}
   const btn=e.target.closest('[data-mmhd-edit]');if(!btn)return;
   const id=btn.dataset.mmhdEdit;
   if(typeof window.MMHDAdminView==='function')window.MMHDAdminView('editor');
-  editSavedMovie(id);
-});
+  // En series, abrir directamente el episodio señalado por el reporte.
+  const season=btn.dataset.mmhdSeason,episode=btn.dataset.mmhdEpisode;
+  if(season!=='' && episode!=='' && Number.isFinite(Number(season)) && Number(episode)>0){
+    void openAdminAuditEpisode(id,Number(season),Number(episode));
+  }else editSavedMovie(id);
+}
+$('healthList').addEventListener('click',mmhdHealthEditClick);
+$('healthErrorPreview').addEventListener('click',mmhdHealthEditClick);
 $('healthOnlyPending').addEventListener('change',mmhdRenderHealth);
 
 /* FASE 11.5 — Respaldo completo con integridad, previsualización y combinación segura. */
 let mmhdPendingRestore=null;
 function mmhdBackupPayload(){
-  return {collection:state.collection,catalogSettings:normalizeCatalogSettings(state.catalogSettings),diagnostics:mmhdDiagRecords};
+  return {collection:state.collection,catalogSettings:normalizeCatalogSettings(state.catalogSettings),diagnostics:mmhdDiagRecords,txtReviews:mmhdReviewQueue};
 }
 async function mmhdDigest(value){
   if(!crypto?.subtle)throw Error('Este navegador no permite calcular la integridad del respaldo. Usa HTTPS.');
@@ -3475,7 +3659,7 @@ async function mmhdCreateBackup(){
   const btn=$('btnBackupCollection');btn.disabled=true;
   try{
     const payload=mmhdBackupPayload();
-    const backup={format:'mmhd-collection',version:5,createdAt:new Date().toISOString(),count:payload.collection.length,
+    const backup={format:'mmhd-collection',version:6,createdAt:new Date().toISOString(),count:payload.collection.length,
       ...payload,integrity:{algorithm:'SHA-256',hash:await mmhdDigest(payload)}};
     const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
@@ -3487,7 +3671,7 @@ async function mmhdCreateBackup(){
   finally{btn.disabled=false;}
 }
 function mmhdBackFileValid(data){
-  if(!data||data.format!=='mmhd-collection'||![1,2,3,4,5].includes(data.version)||!Array.isArray(data.collection))
+  if(!data||data.format!=='mmhd-collection'||![1,2,3,4,5,6].includes(data.version)||!Array.isArray(data.collection))
     throw Error('Formato de respaldo no reconocido.');
   if(data.collection.length>50000)throw Error('El respaldo tiene demasiados registros.');
   if(!data.collection.every(item=>item&&typeof item==='object'&&!Array.isArray(item)&&typeof item.title==='string'&&
@@ -3499,9 +3683,10 @@ async function mmhdPrepareRestore(file){
   if(!file)return;
   if(file.size>40*1024*1024)throw Error('El archivo supera los 40 MB admitidos.');
   const data=mmhdBackFileValid(JSON.parse(await file.text()));
-  if(data.version===5){
-    if(data.integrity?.algorithm!=='SHA-256'||typeof data.integrity.hash!=='string')throw Error('El respaldo v5 no tiene firma de integridad.');
-    const digest=await mmhdDigest({collection:data.collection,catalogSettings:data.catalogSettings,diagnostics:data.diagnostics});
+  if(data.version===5||data.version===6){
+    if(data.integrity?.algorithm!=='SHA-256'||typeof data.integrity.hash!=='string')throw Error('El respaldo no tiene firma de integridad SHA-256.');
+    const digest=await mmhdDigest(data.version===6?{collection:data.collection,catalogSettings:data.catalogSettings,diagnostics:data.diagnostics,txtReviews:data.txtReviews}:
+      {collection:data.collection,catalogSettings:data.catalogSettings,diagnostics:data.diagnostics});
     if(digest!==data.integrity.hash)throw Error('La comprobación SHA-256 no coincide. El archivo podría estar incompleto o modificado.');
   }
   mmhdPendingRestore=data;
@@ -3516,7 +3701,7 @@ function mmhdRestorePreview(){
     ?`Se conservarán ${state.collection.length} títulos actuales y se añadirán ${adding} nuevos (los coincidentes no se sobrescribirán).`
     :`Se reemplazarán ${state.collection.length} títulos por ${data.collection.length} del archivo.`;
   const timestamp=data.createdAt?new Date(data.createdAt).toLocaleString('es'):'fecha desconocida';
-  $('backupPreview').textContent=`Respaldo versión ${data.version} · ${data.collection.length} títulos · ${timestamp}. ${labels} ${data.version===5?'Integridad SHA-256 verificada.':'Respaldo anterior: sin comprobación criptográfica.'}`;
+  $('backupPreview').textContent=`Respaldo versión ${data.version} · ${data.collection.length} títulos · ${timestamp}. ${labels} ${data.version>=5?'Integridad SHA-256 verificada.':'Respaldo anterior: sin comprobación criptográfica.'} ${data.version>=6?((data.txtReviews?.length||0)+' registros de revisión TXT incluidos.'):''}`;
   $('backupPreview').hidden=false;$('btnConfirmRestore').hidden=false;
   $('btnConfirmRestore').textContent=mode==='merge'?'Combinar biblioteca':'Reemplazar biblioteca';
 }
@@ -3541,8 +3726,16 @@ function mmhdFinishRestore(){
     }
     try{localStorage.setItem(MMHD_DIAG_KEY,JSON.stringify(mmhdDiagRecords));}catch{}
   }
+  if(data.version>=6&&Array.isArray(data.txtReviews)){
+    const source=data.txtReviews.slice(0,MMHD_REVIEW_MAX).map(mmhdReviewSanitize).filter(Boolean);
+    if(mode==='replace')mmhdReviewQueue=source;
+    else{const existing=new Set(mmhdReviewQueue.map(r=>mmhdReviewSignature(r)));
+      for(const r of source){const sig=mmhdReviewSignature(r);if(!existing.has(sig)){mmhdReviewQueue.push(r);existing.add(sig);}}
+      mmhdReviewQueue=mmhdReviewQueue.slice(-MMHD_REVIEW_MAX);}
+    mmhdReviewStore();
+  }
   mmhdPendingRestore=null;$('backupPreview').hidden=true;$('btnConfirmRestore').hidden=true;
-  resetSelection();mmhdRenderHealth();
+  resetSelection();mmhdRenderHealth();mmhdReviewRender();
   alert(`Restauración completada: ${state.collection.length} títulos en tu biblioteca.`);
 }
 $('btnBackupCollection').addEventListener('click',mmhdCreateBackup);
@@ -3633,6 +3826,7 @@ async function mmhdBulkLoadFile(file){
   try{
     if(file.size>2*1024*1024)throw Error('El archivo supera los 2 MB. Divídelo en varios TXT.');
     mmhdBulkRows=mmhdBulkParse(await file.text());
+    mmhdReviewKeepRows(mmhdBulkRows.filter(r=>r.state==='invalid'));
     if(!mmhdBulkRows.length)throw Error('No se encontraron registros. Usa una película por línea.');
     const valid=mmhdBulkRows.filter(r=>r.state==='pending').length;
     $('btnBulkTxtStart').disabled=!valid;
@@ -3727,7 +3921,7 @@ function mmhdBulkItem(movie,shortUrl,qualities){
 }
 function mmhdBulkDuplicate(movieId,shortUrl){
   const key=mmhdBulkUrlKey(shortUrl);
-  if(state.collection.some(m=>String(m.id)===String(movieId)))return 'Este título ya está guardado en Mi biblioteca.';
+  if(state.collection.some(m=>m.kind!=='SERIES'&&String(m.id)===String(movieId)))return 'Esta película ya está guardada en Mi biblioteca.';
   if(key&&state.collection.some(m=>mmhdBulkUrlKey(m.googleUrl)===key))return 'El enlace corto ya está asignado a otro título de la biblioteca.';
   return '';
 }
@@ -3818,6 +4012,7 @@ async function mmhdBulkStart(){
     $('bulkTxtFile').disabled=false;
     $('btnBulkTxtStart').disabled=!mmhdBulkRows.some(x=>x.state==='pending');
     renderCollection();
+    mmhdReviewKeepRows(mmhdBulkRows.filter(r=>['review','error','invalid'].includes(r.state)));
     if(typeof mmhdRenderHealth==='function')mmhdRenderHealth();
     const totals=mmhdBulkRender();
     mmhdBulkMessage((mmhdBulkStop?'Importación detenida. ':'Importación finalizada. ')+
@@ -3848,6 +4043,340 @@ $('btnBulkTxtCancel').addEventListener('click',()=>{
 });
 $('btnBulkTxtReport').addEventListener('click',mmhdBulkReport);
 
+/* ============================================================
+   FASE 11.5.7 - Revisión permanente de incidencias TXT
+   y reemplazo seguro de enlaces cortos desde Diagnóstico.
+   ============================================================ */
+const MMHD_REVIEW_KEY='mmhdTxtReviewQueueV1';
+const MMHD_REVIEW_MAX=1500;
+let mmhdReviewQueue=[];
+let mmhdReviewActiveId='';
+let mmhdReviewCandidate=null;
+let mmhdReviewBusy=false;
+let mmhdReviewRequest=0;
+let mmhdReviewSerial=0;
+function mmhdReviewSanitize(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  const state=String(value.state||'review');
+  if(!['review','error','invalid','resolved','ignored'].includes(state))return null;
+  return {id:String(value.id||'').slice(0,90)||'review-'+Date.now()+'-'+(++mmhdReviewSerial),
+    title:String(value.title||'').slice(0,250),year:(Number(value.year)>=1880&&Number(value.year)<=2100)?Number(value.year):null,
+    url:String(value.url||'').slice(0,500),state,detail:String(value.detail||'').slice(0,400),
+    createdAt:String(value.createdAt||new Date().toISOString()).slice(0,50),
+    tmdbId:Number(value.tmdbId)||null};
+}
+function mmhdReviewRead(){
+  try{const data=JSON.parse(localStorage.getItem(MMHD_REVIEW_KEY)||'[]');
+    return Array.isArray(data)?data.slice(-MMHD_REVIEW_MAX).map(mmhdReviewSanitize).filter(Boolean):[];
+  }catch{return []}
+}
+mmhdReviewQueue=mmhdReviewRead();
+function mmhdReviewStore(){
+  try{localStorage.setItem(MMHD_REVIEW_KEY,JSON.stringify(mmhdReviewQueue));return true;}
+  catch(e){console.warn('No fue posible conservar la revisión TXT:',e);$('mmhdReviewInfo').textContent='No fue posible guardar las revisiones en este navegador. Descarga el CSV antes de salir.';return false;}
+}
+function mmhdReviewSignature(row){
+  return mmhdBulkTitleKey(row.title)+'|'+(row.year||'')+'|'+mmhdBulkUrlKey(row.url);
+}
+function mmhdReviewKeepRows(rows){
+  let changed=0;
+  for(const input of rows){
+    if(!['invalid','review','error'].includes(input.state))continue;
+    const row=mmhdReviewSanitize({id:'review-'+Date.now()+'-'+(++mmhdReviewSerial),title:input.title,year:input.year,url:input.url,
+      state:input.state,detail:input.detail,createdAt:new Date().toISOString(),tmdbId:input.tmdbId});
+    if(!row)continue;
+    const sig=mmhdReviewSignature(row);
+    // No duplicar un registro sin resolver, incluso al volver a subir el TXT.
+    if(mmhdReviewQueue.some(r=>!['resolved','ignored'].includes(r.state)&&mmhdReviewSignature(r)===sig))continue;
+    if(mmhdReviewQueue.length>=MMHD_REVIEW_MAX){$('mmhdReviewInfo').textContent='Límite de revisiones alcanzado; descarga el CSV y resuelve algunas antes de importar más.';break;}
+    mmhdReviewQueue.push(row);changed++;
+  }
+  if(changed)mmhdReviewStore();
+  mmhdReviewRender();
+}
+function mmhdReviewRender(){
+  const metrics=$('mmhdReviewMetrics');if(!metrics)return;
+  const open=mmhdReviewQueue.filter(x=>!['resolved','ignored'].includes(x.state));
+  const solved=mmhdReviewQueue.filter(x=>x.state==='resolved');
+  metrics.innerHTML=`<div><strong>${open.length}</strong><small>Por revisar</small></div>`+
+    `<div><strong>${solved.length}</strong><small>Resueltas</small></div>`+
+    `<div><strong>${mmhdReviewQueue.length}</strong><small>Registros guardados</small></div>`;
+  const badge=$('mmhdReviewBadge');if(badge)badge.textContent=open.length;
+  const filter=$('mmhdReviewFilter').value;
+  const list=mmhdReviewQueue.filter(r=>filter==='all'||(filter==='open'?!['resolved','ignored'].includes(r.state):r.state==='resolved'));
+  const labels={invalid:'Formato inválido',review:'Revisión TMDB',error:'Error de extracción',resolved:'Resuelta',ignored:'Descartada'};
+  $('mmhdReviewList').innerHTML=list.length?list.slice(0,300).map(row=>`<article class="mmhd-review-item">
+    <header><strong>${escHtml(row.title)}${row.year?' ('+row.year+')':''}</strong><span class="mmhd-txt-state" data-state="${row.state==='resolved'?'ok':row.state}">${labels[row.state]}</span></header>
+    <p>${escHtml(row.detail)}</p>
+    <p>Enlace corto: ${row.url?escHtml(row.url):'Sin enlace válido'}</p>
+    <div class="mmhd-actions">${!['resolved','ignored'].includes(row.state)?`<button class="secondary" type="button" data-review-open="${escHtml(row.id)}"><i class="fa-solid fa-pen"></i> Corregir y agregar</button>
+      <button class="secondary" type="button" data-review-ignore="${escHtml(row.id)}">Descartar</button>`:''}</div>
+  </article>`).join('')+(list.length>300?`<p>Mostrando 300 de ${list.length} registros. Descarga el CSV para consultar el resto.</p>`:''):
+    '<p class="mmhd-review-note">Todavía no hay películas en este estado. Las próximas incidencias de la importación TXT aparecerán aquí automáticamente.</p>';
+}
+function mmhdReviewCurrent(){return mmhdReviewQueue.find(x=>x.id===mmhdReviewActiveId)||null;}
+function mmhdReviewSelect(rowId){
+  if(mmhdReviewBusy)return;
+  const row=mmhdReviewQueue.find(x=>x.id===rowId&&!['resolved','ignored'].includes(x.state));if(!row)return;
+  mmhdReviewRequest++;mmhdReviewActiveId=row.id;mmhdReviewCandidate=null;
+  $('mmhdReviewTitle').value=row.title;
+  $('mmhdReviewYear').value=row.year??'';
+  $('mmhdReviewShort').value=row.url;
+  $('mmhdReviewManualId').value=row.tmdbId||'';
+  $('mmhdReviewCandidates').replaceChildren();
+  $('mmhdReviewSelected').textContent='Busca en TMDB y elige manualmente el título correcto antes de extraer.';
+  $('mmhdReviewResolve').disabled=true;
+  $('mmhdReviewEditor').hidden=false;
+  $('mmhdReviewEditor').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function mmhdReviewEditorClose(){
+  if(mmhdReviewBusy)return;
+  mmhdReviewActiveId='';mmhdReviewCandidate=null;mmhdReviewRequest++;
+  $('mmhdReviewEditor').hidden=true;
+}
+function mmhdReviewCredentials(){
+  const key=credentialValue();if(!key)throw Error('Configura tu credencial de TMDB en Herramientas.');return key;
+}
+function mmhdReviewSetBusy(flag){
+  mmhdReviewBusy=flag;
+  for(const id of ['mmhdReviewSearch','mmhdReviewResolve','mmhdReviewUseId','mmhdReviewClose','mmhdReviewTitle','mmhdReviewYear','mmhdReviewShort','mmhdReviewManualId'])
+    $(id).disabled=flag;
+  if(!flag)$('mmhdReviewResolve').disabled=!mmhdReviewCandidate;
+}
+function mmhdReviewShowCandidates(rows){
+  $('mmhdReviewCandidates').innerHTML=rows.map(m=>{
+    const year=String(m.release_date||'').slice(0,4)||'Año no disponible';
+    const image=m.poster_path?'https://image.tmdb.org/t/p/w92'+m.poster_path:'';
+    return `<button type="button" class="mmhd-review-candidate" data-review-tmdb="${Number(m.id)}" data-selected="${mmhdReviewCandidate?.id===m.id}">
+      ${image?`<img src="${escHtml(image)}" alt="" loading="lazy">`:''}
+      <span><strong>${escHtml(m.title||m.original_title||'Sin título')}</strong><small>${escHtml(year)} · ID TMDB ${Number(m.id)}</small></span></button>`;
+  }).join('');
+}
+let mmhdReviewLastCandidates=[];
+async function mmhdReviewLookup(){
+  const current=mmhdReviewCurrent();if(!current||mmhdReviewBusy)return;
+  const term=$('mmhdReviewTitle').value.trim();if(!term){$('mmhdReviewSelected').textContent='Introduce un nombre para buscar.';return;}
+  const token=++mmhdReviewRequest;
+  mmhdReviewCandidate=null;mmhdReviewLastCandidates=[];
+  $('mmhdReviewCandidates').replaceChildren();
+  mmhdReviewSetBusy(true);$('mmhdReviewSelected').textContent='Buscando coincidencias en TMDB…';
+  try{
+    const key=mmhdReviewCredentials();const matches=new Map();
+    for(const lang of ['es-MX','en-US']){
+      const results=await mmhdBulkTmdb('search/movie?language='+lang+'&query='+encodeURIComponent(term)+'&include_adult=false',key);
+      if(token!==mmhdReviewRequest)return;
+      for(const movie of (results.results||[]))if(movie?.id&&!matches.has(movie.id))matches.set(movie.id,movie);
+    }
+    mmhdReviewLastCandidates=[...matches.values()].slice(0,18);
+    mmhdReviewShowCandidates(mmhdReviewLastCandidates);
+    $('mmhdReviewSelected').textContent=mmhdReviewLastCandidates.length?'Selecciona la ficha correcta de TMDB. El año del TXT es orientativo.':'No hubo coincidencias. Prueba con otro nombre o introduce el ID exacto de TMDB.';
+  }catch(err){$('mmhdReviewSelected').textContent='Error TMDB: '+String(err?.message||err);}
+  finally{if(token===mmhdReviewRequest)mmhdReviewSetBusy(false);}
+}
+async function mmhdReviewSelectId(){
+  const id=Number($('mmhdReviewManualId').value);
+  if(!Number.isInteger(id)||id<1||id>999999999){$('mmhdReviewSelected').textContent='Introduce un ID de película válido en TMDB.';return;}
+  if(mmhdReviewBusy)return;
+  const token=++mmhdReviewRequest;
+  mmhdReviewSetBusy(true);
+  try{
+    const movie=await mmhdBulkTmdb('movie/'+id+'?language=es-MX',mmhdReviewCredentials());
+    if(token!==mmhdReviewRequest)return;
+    mmhdReviewCandidate=movie;mmhdReviewLastCandidates=[movie];mmhdReviewShowCandidates([movie]);
+    $('mmhdReviewSelected').textContent=`Elegida: ${movie.title||'Película'} (${String(movie.release_date||'').slice(0,4)||'sin año'}) · TMDB #${id}.`;
+  }catch(err){$('mmhdReviewSelected').textContent='No se pudo cargar ese ID: '+String(err?.message||err);}
+  finally{if(token===mmhdReviewRequest)mmhdReviewSetBusy(false);}
+}
+function mmhdValidShortUrl(raw){
+  try{const u=new URL(String(raw||'').trim());return u.protocol==='https:'&&u.hostname==='photos.app.goo.gl'&&
+    /^\/[a-z0-9_-]{6,}\/?$/i.test(u.pathname)&&!u.search&&!u.hash&&!u.username&&!u.password&&!u.port;}
+  catch{return false;}
+}
+async function mmhdReviewResolve(){
+  const row=mmhdReviewCurrent(),movie=mmhdReviewCandidate;if(!row||!movie||mmhdReviewBusy)return;
+  const url=$('mmhdReviewShort').value.trim(),name=$('mmhdReviewTitle').value.trim();
+  if(!mmhdValidShortUrl(url)){$('mmhdReviewSelected').textContent='Corrige el enlace corto: debe ser https://photos.app.goo.gl/...';return;}
+  const duplicate=mmhdBulkDuplicate(movie.id,url);
+  if(duplicate){$('mmhdReviewSelected').textContent='No se agregó: '+duplicate;return;}
+  if(!confirm(`¿Agregar «${movie.title||name}» de TMDB #${movie.id} con el nuevo enlace de Google Photos? Primero se extraerán las calidades; si falla, no se guardará nada.`))return;
+  mmhdReviewSetBusy(true);$('mmhdReviewSelected').textContent='Consultando ficha TMDB y extrayendo enlaces de Google Photos…';
+  try{
+    const details=await mmhdBulkTmdb('movie/'+movie.id+'?language=es-MX&append_to_response=translations,alternative_titles',mmhdReviewCredentials());
+    if(mmhdBulkDuplicate(details.id,url))throw Error('La película o el enlace ya existen en Mi biblioteca.');
+    const data=await mmhdBulkJson(EXTRACTOR_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({google_url:url})},50000);
+    if(!data.ok)throw Error(data.error||'El extractor no devolvió URLs.');
+    const qualities={};for(const q of QUALITY_IDS){const value=String(data[q]||'').trim();qualities[q]=validQualityProbeUrl(value,q)?value:'';}
+    const available=QUALITY_IDS.filter(q=>qualities[q]);
+    if(!available.length)throw Error('Google Photos no devolvió ninguna calidad válida. No se modificó tu biblioteca.');
+    if(mmhdBulkDuplicate(details.id,url))throw Error('Se detectó un duplicado antes de guardar.');
+    const item=mmhdBulkItem(details,url,qualities);
+    if(!commitCollection(state.collection.concat([item])))throw Error('No se pudo guardar la película. Comprueba el almacenamiento del navegador.');
+    row.title=name||item.title;row.year=Number($('mmhdReviewYear').value)||null;row.url=url;
+    row.tmdbId=movie.id;row.state='resolved';row.detail='Agregada con '+available.join(', ')+' · TMDB #'+movie.id;
+    mmhdReviewStore();
+    $('mmhdReviewSelected').textContent='✓ Película agregada. '+row.detail;
+    mmhdReviewRender();
+    $('mmhdReviewEditor').hidden=true;mmhdReviewActiveId='';mmhdReviewCandidate=null;
+    mmhdRenderHealth();
+  }catch(err){$('mmhdReviewSelected').textContent='No se agregó: '+String(err?.message||err);}
+  finally{mmhdReviewSetBusy(false);}
+}
+function mmhdReviewCSV(){
+  const rows=mmhdReviewQueue.filter(r=>!['resolved','ignored'].includes(r.state));
+  if(!rows.length){alert('No hay pendientes para exportar.');return;}
+  const quote=v=>'"'+String(v??'').replace(/^\s*[=+@-]/,m=>"'"+m).replace(/"/g,'""')+'"';
+  const lines=['Nombre para TMDB,Enlace corto,Estado,Detalle,Línea'];
+  for(const r of rows)lines.push([r.title+(r.year?' ('+r.year+')':''),r.url,r.state,r.detail,''].map(quote).join(','));
+  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='MMHD_revisiones_TXT_pendientes.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);
+}
+function mmhdReviewCsvFields(line){
+  const cols=[];let field='',inside=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){if(inside&&line[i+1]==='"'){field+='"';i++;}else inside=!inside;}
+    else if(ch===','&&!inside){cols.push(field);field='';}
+    else field+=ch;
+  }
+  cols.push(field);return cols;
+}
+async function mmhdReviewImportCSV(file){
+  if(!file||mmhdBulkBusy||mmhdReviewBusy)return;
+  try{
+    if(file.size>2*1024*1024)throw Error('El CSV es demasiado grande (límite 2 MB).');
+    const lines=(await file.text()).replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean);
+    if(lines.length<2||!/^Nombre para TMDB,Enlace corto,Estado,Detalle/i.test(lines[0]))throw Error('Debe ser un CSV de incidencias de Movie Mania HD.');
+    const rows=lines.slice(1,MMHD_REVIEW_MAX+1).map(line=>{
+      const [full,url,state,detail]=mmhdReviewCsvFields(line);
+      const found=String(full||'').match(/\s*\((19\d{2}|20\d{2}|21\d{2})\)\s*$/);
+      return {title:found?full.slice(0,found.index).trim():full,year:found?Number(found[1]):null,url,
+        state:['invalid','review','error'].includes(state)?state:'review',detail:detail||'Importado del CSV de incidencias.'};
+    });
+    const before=mmhdReviewQueue.length;mmhdReviewKeepRows(rows);
+    $('mmhdReviewInfo').textContent=`CSV leído: ${rows.length} registros; ${mmhdReviewQueue.length-before} pendientes nuevos guardados.`;
+  }catch(err){$('mmhdReviewInfo').textContent='No se pudo importar el CSV: '+String(err?.message||err);}
+}
+$('mmhdReviewFilter').addEventListener('change',mmhdReviewRender);
+$('mmhdReviewList').addEventListener('click',event=>{
+  const open=event.target.closest('[data-review-open]');
+  if(open){mmhdReviewSelect(open.dataset.reviewOpen);return;}
+  const ignore=event.target.closest('[data-review-ignore]');if(!ignore)return;
+  const row=mmhdReviewQueue.find(r=>r.id===ignore.dataset.reviewIgnore);if(!row||mmhdReviewBusy)return;
+  if(confirm(`¿Descartar el registro «${row.title}»? No se añadirá a la biblioteca.`)){
+    row.state='ignored';row.detail='Descartado manualmente.';mmhdReviewStore();mmhdReviewRender();
+  }
+});
+$('mmhdReviewClose').addEventListener('click',mmhdReviewEditorClose);
+$('mmhdReviewSearch').addEventListener('click',()=>{void mmhdReviewLookup();});
+$('mmhdReviewUseId').addEventListener('click',()=>{void mmhdReviewSelectId();});
+$('mmhdReviewCandidates').addEventListener('click',event=>{
+  const btn=event.target.closest('[data-review-tmdb]');if(!btn||mmhdReviewBusy)return;
+  const movie=mmhdReviewLastCandidates.find(m=>Number(m.id)===Number(btn.dataset.reviewTmdb));if(!movie)return;
+  mmhdReviewCandidate=movie;mmhdReviewShowCandidates(mmhdReviewLastCandidates);
+  $('mmhdReviewSelected').textContent=`Elegida: ${movie.title||movie.original_title} (${String(movie.release_date||'').slice(0,4)||'sin año'}) · TMDB #${movie.id}.`;
+  $('mmhdReviewResolve').disabled=false;
+});
+$('mmhdReviewResolve').addEventListener('click',()=>{void mmhdReviewResolve();});
+$('mmhdReviewExport').addEventListener('click',mmhdReviewCSV);
+$('mmhdReviewImport').addEventListener('change',e=>{void mmhdReviewImportCSV(e.target.files?.[0]);e.target.value='';});
+mmhdReviewRender();
+
+/* Reparación guiada desde el reporte del diagnóstico masivo. */
+let mmhdRepairRef=null;
+let mmhdRepairData=null;
+let mmhdRepairBusy=false;
+let mmhdRepairToken=0;
+function mmhdRepairTarget(id,season,episode){
+  const item=state.collection.find(x=>String(x.id)===String(id));if(!item)return null;
+  if(item.kind!=='SERIES')return {item,part:item,season:null,episode:null};
+  const s=(item.seasons||[]).find(x=>String(x.number)===String(season));
+  const ep=(s?.episodes||[]).find(x=>String(x.number)===String(episode));
+  return ep?{item,part:ep,season:Number(season),episode:Number(episode)}:null;
+}
+function mmhdOpenRepair(id,season='',episode=''){
+  if(mmhdRepairBusy)return;
+  const target=mmhdRepairTarget(id,season,episode);if(!target){alert('El título o episodio ya no existe.');return;}
+  const p=target.part,quality=p.m37?'m37':p.m22?'m22':'m18';
+  // Restaurar la calidad con fallo consultando la misma clave que usa el diagnóstico.
+  const entry=mmhdAllVideoLinks().find(e=>String(e.id)===String(id)&&
+    String(e.season??'')===String(target.season??'')&&String(e.episode??'')===String(target.episode??''));
+  const q=entry?.q||quality;
+  mmhdRepairRef={id:String(id),season:target.season,episode:target.episode,
+    oldShort:String(p.googleUrl||''),oldQuality:String(p[q]||''),q};
+  mmhdRepairData=null;mmhdRepairToken++;
+  $('mmhdRepairTitle').textContent=(target.item.kind==='SERIES'?'Serie: ':'Película: ')+target.item.title+
+    (target.season!==null?` · Temporada ${target.season}, Capítulo ${target.episode}`:'')+` · Calidad examinada: ${QUALITY_NAMES[q]||q}`;
+  $('mmhdRepairOld').value=mmhdRepairRef.oldShort||'No hay enlace corto guardado';
+  $('mmhdRepairOldNote').hidden=!!mmhdRepairRef.oldShort;
+  $('mmhdRepairOldNote').textContent='Esta ficha no conserva un enlace corto original. No puede reconstruirse a partir de m37/m22/m18; puedes pegar uno nuevo.';
+  $('mmhdRepairNew').value='';$('mmhdRepairPreview').hidden=true;
+  $('mmhdRepairQualities').replaceChildren();
+  $('mmhdRepairMessage').textContent='Pega el enlace corto nuevo, extráelo y revisa las calidades antes de confirmar.';
+  $('mmhdRepairDialog').showModal();
+}
+function mmhdRepairSetBusy(flag){
+  mmhdRepairBusy=flag;
+  for(const id of ['mmhdRepairNew','mmhdRepairExtract','mmhdRepairConfirm','mmhdRepairClose'])$(id).disabled=flag;
+}
+async function mmhdRepairExtract(){
+  if(!mmhdRepairRef||mmhdRepairBusy)return;
+  const url=$('mmhdRepairNew').value.trim();
+  if(!mmhdValidShortUrl(url)){$('mmhdRepairMessage').textContent='Introduce un enlace corto válido de photos.app.goo.gl.';return;}
+  const token=++mmhdRepairToken;
+  mmhdRepairData=null;$('mmhdRepairPreview').hidden=true;
+  mmhdRepairSetBusy(true);$('mmhdRepairMessage').textContent='Consultando Google Photos… Los enlaces actuales no se modificarán.';
+  try{
+    const res=await mmhdBulkJson(EXTRACTOR_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({google_url:url})},50000);
+    if(token!==mmhdRepairToken)return;
+    if(!res.ok)throw Error(res.error||'No fue posible extraer los enlaces.');
+    const qualities={};for(const q of QUALITY_IDS){const u=String(res[q]||'').trim();qualities[q]=validQualityProbeUrl(u,q)?u:'';}
+    if(!QUALITY_IDS.some(q=>qualities[q]))throw Error('No se obtuvo ninguna calidad reproducible. No se cambiaron los enlaces guardados.');
+    const current=mmhdRepairTarget(mmhdRepairRef.id,mmhdRepairRef.season,mmhdRepairRef.episode);
+    if(!current||String(current.part.googleUrl||'')!==mmhdRepairRef.oldShort||
+       String(current.part[mmhdRepairRef.q]||'')!==mmhdRepairRef.oldQuality)
+      throw Error('La película o capítulo cambió mientras se extraían las URLs. Abre la reparación de nuevo.');
+    mmhdRepairData={short:url,qualities};
+    $('mmhdRepairQualities').innerHTML=QUALITY_IDS.map(q=>{
+      const ok=!!qualities[q];return `<div><span>${QUALITY_NAMES[q]} · ${q}</span><strong>${ok?'URL obtenida':'Sin URL (quedará vacía)'}</strong></div>`;
+    }).join('');
+    $('mmhdRepairPreview').hidden=false;
+    $('mmhdRepairMessage').textContent='Extracción completada. Revisa los resultados antes de confirmar. Las URLs antiguas aún no han cambiado.';
+  }catch(err){if(token===mmhdRepairToken)$('mmhdRepairMessage').textContent='No se reemplazó nada: '+String(err?.message||err);}
+  finally{if(token===mmhdRepairToken)mmhdRepairSetBusy(false);}
+}
+function mmhdRepairConfirm(){
+  const ref=mmhdRepairRef,data=mmhdRepairData;
+  if(!ref||!data||mmhdRepairBusy)return;
+  const target=mmhdRepairTarget(ref.id,ref.season,ref.episode);
+  if(!target||String(target.part.googleUrl||'')!==ref.oldShort||String(target.part[ref.q]||'')!==ref.oldQuality){
+    $('mmhdRepairMessage').textContent='Los enlaces cambiaron desde que abriste la ventana. Cancela y vuelve a abrirla.';return;
+  }
+  const missing=QUALITY_IDS.filter(q=>!data.qualities[q]);
+  const msg=`¿Confirmas el reemplazo del enlace corto y las URLs de ${target.item.title}${ref.season!==null?' T'+ref.season+' E'+ref.episode:''}?`+
+    (missing.length?'\n\nEstas calidades quedarán vacías: '+missing.join(', ')+'.':'')+'\n\nEsta acción no modifica otras películas ni episodios.';
+  if(!confirm(msg))return;
+  const copy=structuredClone(state.collection);
+  const item=copy.find(x=>String(x.id)===ref.id);
+  const part=ref.season===null?item:item?.seasons?.find(s=>Number(s.number)===ref.season)?.episodes?.find(e=>Number(e.number)===ref.episode);
+  if(!part){$('mmhdRepairMessage').textContent='No se encontró el episodio en el catálogo. No se guardaron cambios.';return;}
+  part.googleUrl=data.short;
+  for(const q of QUALITY_IDS)part[q]=data.qualities[q]||'';
+  part.updatedAt=new Date().toISOString();item.updatedAt=part.updatedAt;
+  if(!commitCollection(copy)){$('mmhdRepairMessage').textContent='No se pudieron guardar los enlaces; tu biblioteca conserva los originales.';return;}
+  // Una reparación requiere nueva verificación, incluso si alguna URL coincide por casualidad.
+  for(const q of QUALITY_IDS)delete mmhdDiagRecords[mmhdItemKey(target.item.kind,ref.id,ref.season,ref.episode,q)];
+  try{localStorage.setItem(MMHD_DIAG_KEY,JSON.stringify(mmhdDiagRecords));}catch{}
+  mmhdRenderHealth();mmhdRepairRef=null;mmhdRepairData=null;
+  $('mmhdRepairDialog').close();
+  $('healthProgressText').textContent='✓ Enlaces actualizados. Puedes revisar nuevamente la calidad prioritaria desde Diagnóstico.';
+}
+$('mmhdRepairExtract').addEventListener('click',()=>{void mmhdRepairExtract();});
+$('mmhdRepairConfirm').addEventListener('click',mmhdRepairConfirm);
+$('mmhdRepairClose').addEventListener('click',()=>{if(!mmhdRepairBusy)$('mmhdRepairDialog').close();});
+$('mmhdRepairNew').addEventListener('input',()=>{mmhdRepairData=null;$('mmhdRepairPreview').hidden=true;});
+$('mmhdRepairDialog').addEventListener('cancel',e=>{if(mmhdRepairBusy)e.preventDefault();});
+$('mmhdRepairDialog').addEventListener('close',()=>{mmhdRepairRef=null;mmhdRepairData=null;mmhdRepairToken++;});
+
 updateSteps(1);
 fillCatalogSettings();
 renderCollection();
@@ -3858,7 +4387,7 @@ renderCollection();
 (function(){
   const navButtons=[...document.querySelectorAll('.rail-link[data-view]')];
   const views=[...document.querySelectorAll('.admin-view[data-page]')];
-  const navTitles={overview:'Resumen',library:'Mi biblioteca',editor:'Agregar / editar',pending:'Pendientes',diagnostic:'Diagnóstico',appearance:'Personalización',tools:'Herramientas'};
+  const navTitles={overview:'Resumen',library:'Mi biblioteca',editor:'Agregar / editar',pending:'Pendientes',diagnostic:'Diagnóstico',review:'Revisiones TXT',appearance:'Personalización',tools:'Herramientas'};
   function setPanelView(name){
     if(!navTitles[name])name='overview';
     views.forEach(el=>{el.hidden=el.dataset.page!==name});
