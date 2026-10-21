@@ -1486,7 +1486,13 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div class="mmhd-backup-tools">
   <div class="mmhd-backup-info" id="backupInfo" role="status">Todavía no hay registro de respaldo descargado en este navegador.</div>
   <label for="backupRestoreMode">Al restaurar un respaldo:</label>
-  <select id="backupRestoreMode"><option value="merge" selected>Combinar sin borrar lo que ya tengo (recomendado)</option><option value="replace">Reemplazar toda mi biblioteca</option></select>
+  <select id="backupRestoreMode">
+    <option value="sync-links" selected>Sincronizar enlaces de títulos existentes y añadir los nuevos (recomendado)</option>
+    <option value="merge">Combinar solo títulos nuevos (no actualizar los existentes)</option>
+    <option value="sync-titles">Actualizar títulos existentes completos y añadir los nuevos</option>
+    <option value="replace">Reemplazar toda mi biblioteca</option>
+  </select>
+  <div class="mmhd-backup-info" id="backupRestoreModeHelp">Sincroniza el enlace corto y las calidades m37, m22 y m18 de cada película y de los episodios coincidentes. Mantiene tus otras modificaciones locales y no elimina episodios.</div>
   <div id="backupPreview" class="mmhd-backup-preview" hidden></div>
   <button type="button" class="secondary" id="btnConfirmRestore" hidden>Confirmar restauración</button>
 </div>
@@ -3692,27 +3698,113 @@ async function mmhdPrepareRestore(file){
   mmhdPendingRestore=data;
   mmhdRestorePreview();
 }
+/* FASE 11.5.8 — Sincronización de respaldos entre navegadores.
+   No sobrescribe títulos existentes silenciosamente ni modifica episodios
+   ausentes del archivo. El respaldo tiene prioridad SOLO para las cuatro URLs. */
+const MMHD_BACKUP_LINK_FIELDS=['googleUrl','m37','m22','m18'];
+function mmhdBackupTitleKey(item){
+  return String(item?.kind==='SERIES'?'SERIES':'MOVIE')+':'+String(item?.id);
+}
+function mmhdPlanRestore(data,mode,current=state.collection){
+  const stats={added:0,matched:0,updatedTitles:0,updatedEpisodes:0,changedFields:0,
+    blankedFields:0,examples:[]};
+  if(mode==='replace')return {collection:structuredClone(data.collection),stats:{...stats,
+    added:data.collection.length,matched:current.length,updatedTitles:current.length}};
+  const result=structuredClone(current);
+  const existing=new Map(result.map((item,index)=>[mmhdBackupTitleKey(item),index]));
+  for(const incoming of data.collection){
+    const key=mmhdBackupTitleKey(incoming),index=existing.get(key);
+    if(index===undefined){
+      result.push(structuredClone(incoming));existing.set(key,result.length-1);stats.added++;
+      continue;
+    }
+    stats.matched++;
+    if(mode==='merge')continue;
+    if(mode==='sync-titles'){
+      const before=JSON.stringify(result[index]),after=JSON.stringify(incoming);
+      if(before!==after){
+        result[index]=structuredClone(incoming);
+        stats.updatedTitles++;
+        if(stats.examples.length<5)stats.examples.push(String(incoming.title||'Sin título'));
+      }
+      continue;
+    }
+    if(mode!=='sync-links')throw Error('Modo de restauración desconocido.');
+    const original=result[index];
+    let changedTitle=false;
+    const syncPart=(target,source)=>{
+      let changed=false;
+      for(const field of MMHD_BACKUP_LINK_FIELDS){
+        if(!Object.prototype.hasOwnProperty.call(source,field))continue;
+        const value=String(source[field]??'');
+        if(String(target[field]??'')===value)continue;
+        target[field]=value;
+        stats.changedFields++;
+        if(!value)stats.blankedFields++;
+        changed=true;
+      }
+      return changed;
+    };
+    if(syncPart(original,incoming))changedTitle=true;
+    if(original.kind==='SERIES'){
+      const sourceSeasons=Array.isArray(incoming.seasons)?incoming.seasons:[];
+      for(const season of (Array.isArray(original.seasons)?original.seasons:[])){
+        const sourceSeason=sourceSeasons.find(s=>Number(s.number)===Number(season.number));
+        if(!sourceSeason)continue;
+        for(const ep of (Array.isArray(season.episodes)?season.episodes:[])){
+          const sourceEp=(Array.isArray(sourceSeason.episodes)?sourceSeason.episodes:[])
+            .find(e=>Number(e.number)===Number(ep.number));
+          if(sourceEp&&syncPart(ep,sourceEp)){stats.updatedEpisodes++;changedTitle=true;}
+        }
+      }
+    }
+    if(changedTitle){
+      stats.updatedTitles++;
+      // La sincronización de URLs sí es una modificación local a la biblioteca.
+      original.updatedAt=new Date().toISOString();
+      if(stats.examples.length<5)stats.examples.push(String(original.title||'Sin título'));
+    }
+  }
+  return {collection:result,stats};
+}
 function mmhdRestorePreview(){
   if(!mmhdPendingRestore)return;
   const data=mmhdPendingRestore,mode=$('backupRestoreMode').value;
-  const existing=new Set(state.collection.map(x=>String(x.kind==='SERIES'?'SERIES':'MOVIE')+':'+String(x.id)));
-  const adding=data.collection.filter(x=>!existing.has(String(x.kind==='SERIES'?'SERIES':'MOVIE')+':'+String(x.id))).length;
-  const labels=mode==='merge'
-    ?`Se conservarán ${state.collection.length} títulos actuales y se añadirán ${adding} nuevos (los coincidentes no se sobrescribirán).`
-    :`Se reemplazarán ${state.collection.length} títulos por ${data.collection.length} del archivo.`;
+  const plan=mmhdPlanRestore(data,mode),n=plan.stats;
   const timestamp=data.createdAt?new Date(data.createdAt).toLocaleString('es'):'fecha desconocida';
-  $('backupPreview').textContent=`Respaldo versión ${data.version} · ${data.collection.length} títulos · ${timestamp}. ${labels} ${data.version>=5?'Integridad SHA-256 verificada.':'Respaldo anterior: sin comprobación criptográfica.'} ${data.version>=6?((data.txtReviews?.length||0)+' registros de revisión TXT incluidos.'):''}`;
+  const labels={
+    'sync-links':`Se agregarán ${n.added} títulos nuevos. Coinciden ${n.matched} títulos: ${n.updatedTitles} tendrán cambios (${n.updatedEpisodes} episodios; ${n.changedFields} campos de URL). No se cambiarán otros metadatos ni se eliminarán episodios.`,
+    'merge':`Se agregarán ${n.added} títulos nuevos. Los ${n.matched} títulos existentes NO se modificarán, aunque sus enlaces sean distintos.`,
+    'sync-titles':`Se agregarán ${n.added} títulos nuevos y se reemplazarán ${n.updatedTitles} títulos existentes COMPLETOS por las versiones del archivo. Las series coincidentes perderán cambios locales no incluidos en el respaldo.`,
+    'replace':`Se reemplazará TODA la biblioteca actual (${state.collection.length} títulos) por ${data.collection.length} títulos del archivo.`
+  };
+  let extra='';
+  if(mode==='sync-links'&&n.blankedFields)extra=` Atención: ${n.blankedFields} URL(s) del respaldo están vacías y sustituirán URLs anteriores al confirmar.`;
+  if(n.examples.length)extra+=` Ejemplos de títulos modificados: ${n.examples.join(' · ')}.`;
+  $('backupPreview').textContent=`Respaldo versión ${data.version} · ${data.collection.length} títulos · ${timestamp}. ${labels[mode]||'Modo inválido.'}${extra} ${data.version>=5?'Integridad SHA-256 verificada.':'Respaldo anterior: sin comprobación criptográfica.'} ${data.version>=6?((data.txtReviews?.length||0)+' revisiones TXT incluidas.'):''}`;
   $('backupPreview').hidden=false;$('btnConfirmRestore').hidden=false;
-  $('btnConfirmRestore').textContent=mode==='merge'?'Combinar biblioteca':'Reemplazar biblioteca';
+  $('btnConfirmRestore').textContent={
+    'sync-links':'Confirmar sincronización de enlaces',
+    'merge':'Agregar solo títulos nuevos',
+    'sync-titles':'Actualizar títulos del respaldo',
+    'replace':'Reemplazar biblioteca'
+  }[mode]||'Confirmar restauración';
+  const help=$('backupRestoreModeHelp');
+  if(help)help.textContent={
+    'sync-links':'Los enlaces del respaldo tienen prioridad para películas y episodios coincidentes. Las URLs que estén vacías en el respaldo también se copiarán. No se borran capítulos ni se reemplazan pósters o descripciones.',
+    'merge':'Importa únicamente títulos que no estén en este navegador. No sincroniza cambios de enlaces de títulos ya guardados.',
+    'sync-titles':'Sustituye por completo cada película o serie coincidente con la versión del respaldo. Úsalo solo si el archivo debe tener prioridad sobre los datos locales.',
+    'replace':'Borra la biblioteca de este navegador y la reemplaza por la del archivo. Haz antes un respaldo de este navegador.'
+  }[mode]||'';
 }
 function mmhdFinishRestore(){
   const data=mmhdPendingRestore;if(!data)return;
   const mode=$('backupRestoreMode').value;
+  const plan=mmhdPlanRestore(data,mode),n=plan.stats;
   if(mode==='replace'&&!confirm(`Vas a reemplazar toda tu biblioteca actual (${state.collection.length} títulos) por ${data.collection.length}. ¿Continuar?`))return;
-  const oldKeys=new Set(state.collection.map(x=>String(x.kind==='SERIES'?'SERIES':'MOVIE')+':'+String(x.id)));
-  const collection=mode==='replace'?data.collection:
-    state.collection.concat(data.collection.filter(x=>!oldKeys.has(String(x.kind==='SERIES'?'SERIES':'MOVIE')+':'+String(x.id))));
-  if(!commitCollection(collection)){alert('No se pudo guardar la biblioteca. Revisa el almacenamiento disponible.');return;}
+  if(mode==='sync-titles'&&!confirm(`Se reemplazarán COMPLETAMENTE ${n.updatedTitles} títulos existentes por las versiones del archivo. Se perderán las modificaciones locales de esas fichas, incluidos los episodios que no figuren en el respaldo. ¿Continuar?`))return;
+  if(mode==='sync-links'&&n.changedFields&&!confirm(`Se actualizarán ${n.changedFields} campos de enlace en ${n.updatedTitles} títulos (${n.updatedEpisodes} episodios). ${n.blankedFields?`ATENCIÓN: ${n.blankedFields} URLs se dejarán vacías según el respaldo. `:''}¿Confirmar la sincronización?`))return;
+  if(!commitCollection(plan.collection)){alert('No se pudo guardar la biblioteca. Revisa el almacenamiento disponible.');return;}
   if(mode==='replace'&&data.version>=3&&data.catalogSettings){
     const s=normalizeCatalogSettings(data.catalogSettings);
     try{localStorage.setItem(CATALOG_SETTINGS_KEY,JSON.stringify(s));state.catalogSettings=s;fillCatalogSettings();}catch{}
@@ -3736,7 +3828,7 @@ function mmhdFinishRestore(){
   }
   mmhdPendingRestore=null;$('backupPreview').hidden=true;$('btnConfirmRestore').hidden=true;
   resetSelection();mmhdRenderHealth();mmhdReviewRender();
-  alert(`Restauración completada: ${state.collection.length} títulos en tu biblioteca.`);
+  alert(`Restauración completada: ${state.collection.length} títulos. ${n.added} añadidos y ${n.updatedTitles} títulos actualizados desde el respaldo.`);
 }
 $('btnBackupCollection').addEventListener('click',mmhdCreateBackup);
 $('backupRestoreMode').addEventListener('change',mmhdRestorePreview);
