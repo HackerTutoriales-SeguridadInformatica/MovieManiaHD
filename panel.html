@@ -4557,7 +4557,7 @@ renderCollection();
     const steps=editor.querySelector('#stepsBar');
     if(steps)observer.observe(steps);
   }
-  // Los cambios de selección y de página pueden alterar la visibilidad.
+  // Los cambios de selección y de página pueden alterar la visibilidad
   if(typeof MutationObserver!=='undefined'){
     const changes=new MutationObserver(schedule);
     changes.observe(card,{attributes:true,attributeFilter:['style','class','hidden']});
