@@ -4572,7 +4572,7 @@ renderCollection();
     }
     const cardRect=card.getBoundingClientRect();
     const panelRect=panel.getBoundingClientRect();
-    // Sin película/serie seleccionada: altura compacta para la búsqueda.
+    // Sin película/serie seleccionada: altura compacta para la búsqueda
     // Con selección: el pie del listado coincide con el del editor de imágenes.
     const selected=cardRect.height>0 && getComputedStyle(card).display!=='none';
     const wanted=selected ? Math.max(220,Math.ceil(cardRect.bottom-panelRect.top)) : 420;
