@@ -1948,6 +1948,125 @@ a{color:inherit;text-decoration:none}
   #hero .hero-slide,#hero .hero-arrow,#hero .hero-dot,#hero .hero-actions .btn{transition:none!important}
 }
 
+
+/* ===============================================================
+   MMHD FASE 12.1.3 — AZUL DE MARCA + MICROANIMACIONES EN EL HERO
+   Solo estilos: la reproducción, TMDB y el temporizador no cambian.
+   =============================================================== */
+#hero .hero-eyebrow{color:#e1eaff;text-shadow:0 2px 12px rgba(48,109,255,.3)}
+#hero .hero-eyebrow .hero-line{width:28px;height:3px;
+  background:linear-gradient(90deg,#63a2ff,#3a73ff);box-shadow:0 0 13px rgba(58,115,255,.55)}
+#hero .hero-eyebrow .fa-sparkles{color:#7cb3ff}
+
+#hero .hero-actions .btn{
+  position:relative;isolation:isolate;overflow:hidden;
+  border:1px solid transparent;
+  transition:transform .24s cubic-bezier(.2,.8,.2,1),background .24s ease,
+    border-color .24s ease,box-shadow .24s ease,color .24s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+#hero .hero-actions .btn i{position:relative;z-index:1;transition:transform .23s ease}
+#hero .hero-actions .btn .hero-list-text{position:relative;z-index:1}
+#hero .hero-actions .btn::after{
+  content:"";position:absolute;z-index:0;top:-65%;left:-95%;height:230%;width:55%;
+  transform:translateX(-100%) rotate(22deg);pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.30),transparent);
+  transition:transform .65s cubic-bezier(.25,.8,.2,1);
+}
+#hero .hero-actions .btn:focus-visible{outline:2px solid #b8d4ff;outline-offset:3px}
+#hero .hero-actions .btn:active{transform:translateY(0) scale(.975)!important;
+  transition-duration:.1s}
+
+/* El botón principal recupera el azul eléctrico del banner anterior. */
+#hero .hero-actions .btn-primary{
+  color:#fff;background:linear-gradient(125deg,#3b82f6 0%,#2868ec 55%,#2056d8 100%);
+  border-color:#73a9ff8c;
+  box-shadow:0 7px 19px rgba(37,99,235,.31),inset 0 1px 0 rgba(255,255,255,.19);
+  text-shadow:0 1px 1px rgba(0,31,103,.28);
+}
+#hero .hero-actions .btn-primary i{color:#fff}
+/* La información es azul cristalino: visible sin competir con Reproducir. */
+#hero .hero-actions .hero-btn-info{
+  color:#edf5ff;background:linear-gradient(130deg,rgba(31,58,101,.78),rgba(38,76,133,.47));
+  border-color:rgba(132,181,255,.48);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 4px 15px rgba(4,15,40,.20);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+#hero .hero-actions .hero-btn-info i{color:#a9cdff}
+/* Mi lista conserva el tono discreto; al guardarse cambia a verde. */
+#hero .hero-actions .hero-btn-list{
+  color:#d9e8ff;background:linear-gradient(130deg,rgba(18,35,70,.78),rgba(28,50,91,.62));
+  border-color:rgba(117,155,219,.49);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+}
+#hero .hero-actions .hero-btn-list i{color:#9cc4ff}
+#hero .hero-actions .hero-btn-list.is-added{
+  color:#c6ffe6;background:linear-gradient(120deg,rgba(17,104,73,.62),rgba(12,76,63,.70));
+  border-color:rgba(100,236,177,.66);box-shadow:0 0 13px rgba(16,185,129,.11);
+}
+#hero .hero-actions .hero-btn-list.is-added i{color:#93fbd0}
+
+/* Flechas y barra de estado armonizan con el nuevo azul. */
+#hero .hero-arrow{
+  background:rgba(24,47,91,.73);border-color:rgba(135,180,255,.45);
+  box-shadow:0 5px 16px rgba(2,10,32,.24),inset 0 1px 0 rgba(255,255,255,.10);
+  transition:transform .23s ease,background .23s ease,box-shadow .23s ease,border-color .23s ease;
+}
+#hero .hero-arrow:disabled{box-shadow:none}
+#hero .hero-dot.active{background:#81b4ff;box-shadow:0 0 12px rgba(67,132,255,.43)}
+
+/* La animación de entrada se repite una sola vez al mostrar cada película. */
+@keyframes mmhdHeroButtonEnter{
+  0%{opacity:.40;transform:translateY(9px)}
+  100%{opacity:1;transform:translateY(0)}
+}
+#hero .hero-slide.active .hero-actions .btn{
+  animation:mmhdHeroButtonEnter .38s both cubic-bezier(.2,.75,.2,1);
+}
+#hero .hero-slide.active .hero-actions .btn:nth-child(2){animation-delay:.07s}
+#hero .hero-slide.active .hero-actions .btn:nth-child(3){animation-delay:.14s}
+@media (hover:hover) and (pointer:fine){
+  #hero .hero-actions .btn:hover{transform:translateY(-3px)}
+  #hero .hero-actions .btn:hover::after{transform:translateX(490%) rotate(22deg)}
+  #hero .hero-actions .btn:hover i{transform:scale(1.11)}
+  #hero .hero-actions .btn-primary:hover{
+    background:linear-gradient(125deg,#5699ff 0%,#387dff 53%,#2965ec 100%);
+    box-shadow:0 10px 26px rgba(45,111,255,.46),0 0 15px rgba(61,129,255,.18),
+      inset 0 1px 0 rgba(255,255,255,.23);
+    border-color:#a2caff;
+  }
+  #hero .hero-actions .hero-btn-info:hover{
+    background:linear-gradient(130deg,rgba(41,83,143,.94),rgba(46,90,153,.72));
+    border-color:rgba(163,202,255,.8);
+    box-shadow:0 7px 22px rgba(29,75,164,.22);
+  }
+  #hero .hero-actions .hero-btn-list:hover{
+    background:linear-gradient(135deg,rgba(37,72,125,.9),rgba(40,73,129,.75));
+    border-color:rgba(150,193,255,.8);box-shadow:0 7px 20px rgba(24,66,137,.2);
+  }
+  #hero .hero-actions .hero-btn-list.is-added:hover{
+    background:linear-gradient(125deg,rgba(23,126,86,.86),rgba(13,96,79,.84));
+    border-color:#a3f8d0;
+  }
+  #hero .hero-arrow:hover:not(:disabled){
+    background:#3264b2;border-color:#a4cbff;
+    transform:translateY(-2px) scale(1.05);
+    box-shadow:0 6px 21px rgba(31,90,193,.3);
+  }
+}
+@media(max-width:600px){
+  #hero .hero-actions .btn{box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  #hero .hero-actions .btn-primary{box-shadow:0 5px 15px rgba(37,99,235,.28)}
+  #hero .hero-actions .btn:active{transform:scale(.97)!important}
+}
+@media(prefers-reduced-motion:reduce){
+  #hero .hero-slide.active .hero-actions .btn{animation:none!important}
+  #hero .hero-actions .btn,#hero .hero-actions .btn i,#hero .hero-actions .btn::after,
+  #hero .hero-arrow,#hero .hero-dot{transition:none!important}
+  #hero .hero-actions .btn::after{display:none!important}
+}
+
 </style>
 </head>
 <body>
