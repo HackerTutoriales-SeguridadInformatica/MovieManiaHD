@@ -2067,6 +2067,35 @@ a{color:inherit;text-decoration:none}
   #hero .hero-actions .btn::after{display:none!important}
 }
 
+
+/* Fase 12.2 — Carruseles automáticos con estética azul Movie Mania HD */
+.mmhd-home-rows{display:flex;flex-direction:column;gap:22px;margin:0 0 27px}
+.mmhd-home-row{min-width:0;position:relative}
+.mmhd-home-row-head{display:flex;align-items:center;gap:9px;margin:0 0 13px}
+.mmhd-home-row-head h2{margin:0;color:#f0f4ff;font-size:18px;font-weight:800;letter-spacing:-.3px}
+.mmhd-home-row-head>i{display:grid;place-items:center;flex:none;width:26px;height:26px;border-radius:8px;color:#9ec6ff;background:#19335c;font-size:13px}
+.mmhd-home-count{font-size:10px;font-weight:700;padding:4px 8px;border-radius:8px;background:#1b253b;color:#b9d1ff}
+.mmhd-home-row-nav{display:flex;gap:7px;margin-left:auto}
+.mmhd-home-row-nav button{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#1b2a45;border:1px solid #365582;color:#d6e7ff;transition:.22s}
+.mmhd-home-row-nav button:hover:not(:disabled){background:#316ed0;transform:translateY(-2px)}
+.mmhd-home-row-nav button:disabled{opacity:.25;cursor:default}
+.mmhd-home-track{display:flex;align-items:stretch;gap:12px;overflow-x:auto;scroll-behavior:smooth;scroll-snap-type:x mandatory;padding:2px 2px 14px;scrollbar-width:none}
+.mmhd-home-track::-webkit-scrollbar{display:none}
+.mmhd-home-card{flex:0 0 150px;min-width:0;display:flex;flex-direction:column;text-align:left;overflow:hidden;scroll-snap-align:start;position:relative;border:1px solid #27374f;border-radius:12px;background:#141c2e;transition:transform .22s,border-color .22s,box-shadow .22s}
+.mmhd-home-card:hover{transform:translateY(-4px);border-color:#4e81d3;box-shadow:0 10px 20px #03091977}
+.mmhd-home-poster{position:relative;aspect-ratio:2/3;background:#101522;overflow:hidden}
+.mmhd-home-poster img{display:block;width:100%;height:100%;object-fit:cover}
+.mmhd-home-badge{position:absolute;top:7px;left:7px;background:#2362ce;color:#fff;padding:5px 8px;border-radius:6px;font-size:9px;font-weight:850;letter-spacing:.3px;box-shadow:0 2px 9px #06153388}
+.mmhd-home-caption{min-width:0;padding:9px 9px 11px;color:#e5edff;font-size:12px;font-weight:750;line-height:1.35}
+.mmhd-home-caption strong{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mmhd-home-caption small{display:block;margin-top:4px;color:#9baed0;font-size:10px;font-weight:500}
+.mmhd-home-episode-card{flex-basis:226px}
+.mmhd-home-episode-card .mmhd-home-poster{aspect-ratio:16/9}
+.mmhd-home-note{color:#8da3c5;font-size:10px;line-height:1.5;margin:0 0 8px}
+.mmhd-home-note a{color:#9fc7ff;text-decoration:underline}
+.genre-browsing #mmhdHomeRows{display:none!important}
+@media(max-width:600px){.mmhd-home-rows{gap:19px}.mmhd-home-card{flex-basis:116px;border-radius:9px}.mmhd-home-caption{font-size:11px;padding:7px}.mmhd-home-episode-card{flex-basis:191px}.mmhd-home-row-head h2{font-size:15px}.mmhd-home-row-nav{display:none}.mmhd-home-track{gap:8px;margin-right:-12px;padding-right:12px}}
+@media(prefers-reduced-motion:reduce){.mmhd-home-track{scroll-behavior:auto}.mmhd-home-card,.mmhd-home-row-nav button{transition:none!important}}
 </style>
 </head>
 <body>
@@ -2164,6 +2193,8 @@ a{color:inherit;text-decoration:none}
       <div class="continue-row" id="continueRow"></div>
     </section>
 
+
+    <div class="mmhd-home-rows" id="mmhdHomeRows" aria-label="Carruseles de Inicio"></div>
     <section class="section" id="catalogSection">
       <div class="section-head">
         <h2 id="catalogHeading">Catálogo</h2>
@@ -3883,7 +3914,94 @@ function observeGridFooter(){
   }
 }
 
+/* ============================================================
+   FASE 12.2 — FILAS DE INICIO + PLATAFORMAS MIXTAS MX
+   ============================================================ */
+function mmhdPlatformVisible(movie,key){
+  const mode=movie.providerOverridesMx?.[key];
+  if(mode==="on")return true;
+  if(mode==="off")return false;
+  return Array.isArray(movie.watchProvidersMx)&&movie.watchProvidersMx.includes(key);
+}
+function mmhdMovieRecentDate(movie){const t=Date.parse(movie.addedAt||"");return Number.isFinite(t)?t:0;}
+function mmhdRecentItems(){
+  return MOVIES.map((m,i)=>({m,i})).sort((a,b)=>
+    mmhdMovieRecentDate(b.m)-mmhdMovieRecentDate(a.m)||b.i-a.i).slice(0,20).map(x=>x.m);
+}
+function mmhdPremiereItems(){
+  const now=new Date(),year=now.getFullYear(),month=now.getMonth();
+  const start=Math.max(0,month-3);
+  return MOVIES.filter(m=>{
+    if(m.kind!=="MOVIE"||!/^\d{4}-\d{2}-\d{2}$/.test(String(m.releaseDate||"")))return false;
+    const d=new Date(m.releaseDate+"T00:00:00");
+    return Number.isFinite(d.valueOf())&&d.getFullYear()===year&&d.getMonth()>=start&&d.getMonth()<=month;
+  }).sort((a,b)=>String(b.releaseDate).localeCompare(String(a.releaseDate))).slice(0,20);
+}
+function mmhdLatestEpisodes(){
+  const result=[];
+  for(const series of MOVIES.filter(m=>m.kind==="SERIES")){
+    for(const season of series.seasons||[])for(const ep of season.episodes||[]){
+      if(!isPlayableEpisode(ep))continue;
+      const timestamp=Date.parse(ep.addedAt||ep.updatedAt||series.addedAt||"")||0;
+      result.push({series,season:Number(season.number)||0,episode:ep,time:timestamp});
+    }
+  }
+  return result.sort((a,b)=>b.time-a.time||Number(b.episode.number)-Number(a.episode.number)).slice(0,18);
+}
+function mmhdHomeCard(item){
+  const {m,episode}=item;
+  const isEpisode=Boolean(episode);
+  const title=isEpisode?m.title:m.title;
+  const img=isEpisode?(episode.episode.still||m.backdrop||m.poster):m.poster;
+  const name=isEpisode?`T${episode.season}:E${episode.episode.number} · ${episode.episode.name||"Episodio"}`:(m.kind==="SERIES"?"Serie · ":"Película · ")+(m.year||"—");
+  const recent=!isEpisode&&mmhdMovieRecentDate(m)>Date.now()-30*86400000;
+  const badge=isEpisode?"NUEVO EPISODIO":(item.badge|| (recent?"NUEVO":""));
+  return `<button type="button" class="mmhd-home-card ${isEpisode?"mmhd-home-episode-card":""}" data-mmhd-row-id="${esc(m.id)}" ${isEpisode?`data-mmhd-row-season="${episode.season}" data-mmhd-row-episode="${episode.episode.number}"`:""}
+    aria-label="${esc(m.title)} ${esc(name)}">
+     <span class="mmhd-home-poster"><img loading="lazy" decoding="async" alt="" src="${esc(isEpisode?tmdbSize(img,"w780"):posterSmall(m))}">
+       ${badge?`<span class="mmhd-home-badge">${esc(badge)}</span>`:""}</span>
+     <span class="mmhd-home-caption"><strong>${esc(title)}</strong><small>${esc(name)}</small></span>
+  </button>`;
+}
+function mmhdRenderHomeRows(){
+  const holder=$("mmhdHomeRows");if(!holder)return;
+  if(state.filter!=="all"||state.search||state.genre||state.year){holder.hidden=true;return;}
+  holder.hidden=false;
+  const rows=[
+    {id:"recent",title:"Recién agregados",icon:"fa-clock-rotate-left",items:mmhdRecentItems().map(m=>({m}))},
+    {id:"premieres",title:"Películas de estreno",icon:"fa-star",items:mmhdPremiereItems().map(m=>({m,badge:"ESTRENO"}))},
+    {id:"episodes",title:"Nuevos episodios",icon:"fa-tv",items:mmhdLatestEpisodes().map(ep=>({m:ep.series,episode:ep}))},
+    {id:"netflix",title:"Títulos de Netflix",icon:"fa-play",items:MOVIES.filter(m=>mmhdPlatformVisible(m,"netflix")).sort((a,b)=>mmhdMovieRecentDate(b)-mmhdMovieRecentDate(a)).slice(0,24).map(m=>({m}))},
+    {id:"max",title:"Títulos de HBO Max",icon:"fa-play",items:MOVIES.filter(m=>mmhdPlatformVisible(m,"max")).sort((a,b)=>mmhdMovieRecentDate(b)-mmhdMovieRecentDate(a)).slice(0,24).map(m=>({m}))},
+    {id:"disney",title:"Títulos de Disney+",icon:"fa-play",items:MOVIES.filter(m=>mmhdPlatformVisible(m,"disney")).sort((a,b)=>mmhdMovieRecentDate(b)-mmhdMovieRecentDate(a)).slice(0,24).map(m=>({m}))}
+  ].filter(r=>r.items.length);
+  holder.innerHTML=rows.map(row=>`<section class="mmhd-home-row" data-mmhd-row="${row.id}" aria-label="${row.title}">
+    <div class="mmhd-home-row-head"><i class="fa-solid ${row.icon}"></i><h2>${row.title}</h2><span class="mmhd-home-count">${row.items.length}</span>
+     <div class="mmhd-home-row-nav"><button type="button" data-mmhd-scroll="prev" aria-label="Desplazar ${row.title} a la izquierda"><i class="fa-solid fa-chevron-left"></i></button>
+     <button type="button" data-mmhd-scroll="next" aria-label="Desplazar ${row.title} a la derecha"><i class="fa-solid fa-chevron-right"></i></button></div></div>
+    ${["netflix","max","disney"].includes(row.id)?'<p class="mmhd-home-note">Disponibilidad de streaming en México, orientativa. Datos de <a href="https://www.justwatch.com/mx" target="_blank" rel="noopener noreferrer">JustWatch</a> vía TMDB, con ajustes manuales.</p>':""}
+    <div class="mmhd-home-track">${row.items.map(mmhdHomeCard).join("")}</div>
+  </section>`).join("");
+  holder.querySelectorAll(".mmhd-home-row").forEach(row=>{
+    const track=row.querySelector(".mmhd-home-track");
+    for(const button of row.querySelectorAll("[data-mmhd-scroll]")){
+      button.onclick=()=>track.scrollBy({left:(button.dataset.mmhdScroll==="prev"?-1:1)*Math.max(250,track.clientWidth*.75),behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+    }
+  });
+  holder.querySelectorAll(".mmhd-home-card").forEach(button=>{
+    button.onclick=()=>{
+      const series=MOVIES.find(m=>String(m.id)===button.dataset.mmhdRowId);
+      if(!series)return;
+      if(!button.dataset.mmhdRowSeason){openDetail(series.id);return;}
+      const found=findSeriesEpisode(series,Number(button.dataset.mmhdRowSeason),Number(button.dataset.mmhdRowEpisode));
+      if(found&&isPlayableEpisode(found.data))openPlayer(playableForSeries(series,Number(button.dataset.mmhdRowSeason),found.data));
+      else openDetail(series.id);
+    };
+  });
+}
+
 function renderAll(){
+  mmhdRenderHomeRows();
   renderGrid(true);
   renderContinue();
   syncActiveGenre();
