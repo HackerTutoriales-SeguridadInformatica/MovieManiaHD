@@ -1,51 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-
-<script disable-devtool-auto src='https://cdn.jsdelivr.net/npm/disable-devtool'></script>
-
-<script>
-(function(){
-  "use strict";
-  const REDIRECT_URL = "https://www.google.com/";
-  let redirecting = false;
-  document.addEventListener("keydown", function(e){
-    const k = (e.key || "").toLowerCase();
-    const ctrl = e.ctrlKey || e.metaKey;
-    const shift = e.shiftKey;
-    if(e.key === "F12" || e.keyCode === 123){ e.preventDefault(); e.stopPropagation(); return false; }
-    if(ctrl && shift && (k === "c" || k === "i" || k === "j" || k === "k")){ e.preventDefault(); e.stopPropagation(); return false; }
-    if(ctrl && !shift && (k === "u" || k === "s" || k === "p")){ e.preventDefault(); e.stopPropagation(); return false; }
-    if(ctrl && !shift && k === "a" && !e.target.matches("input, textarea")){ e.preventDefault(); e.stopPropagation(); return false; }
-  }, true);
-  document.addEventListener("contextmenu", function(e){ e.preventDefault(); return false; }, true);
-  document.addEventListener("dragstart", function(e){ e.preventDefault(); return false; }, true);
-  function isDevtoolsOpen(){
-    if(window.matchMedia("(pointer: coarse)").matches) return false;
-    if(window.innerWidth < 900) return false;
-    const widthDiff  = window.outerWidth  - window.innerWidth;
-    const heightDiff = window.outerHeight - window.innerHeight;
-    return (widthDiff > 400 || heightDiff > 400);
-  }
-  function redirectAway(){
-    if(redirecting) return;
-    redirecting = true;
-    const delay = 2000 + Math.random() * 1500;
-    setTimeout(function(){
-      try{ window.location.replace(REDIRECT_URL); }
-      catch(_){ window.location.href = REDIRECT_URL; }
-    }, delay);
-  }
-  function check(){
-    if(redirecting) return;
-    try{ if(isDevtoolsOpen()) redirectAway(); }catch(_){}
-  }
-  setInterval(check, 2000);
-  window.addEventListener("focus", function(){ setTimeout(check, 800); });
-  try{ if(window.top !== window.self){ window.top.location = window.self.location; } }catch(_){}
-})();
-</script>
-
 <meta name="referrer" content="no-referrer" />
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -1866,6 +1821,133 @@ a{color:inherit;text-decoration:none}
 }
 /* Fase 11: etiqueta secundaria del titulo ES/EN encontrado. */
 .search-matched-title{font-size:10px;color:#8cb5ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
+
+/* ==============================================================
+   MMHD FASE 12.1 — HERO PREMIUM (solo pantalla Inicio)
+   =============================================================== */
+#hero.hero{
+  isolation:isolate;height:clamp(440px,46vw,580px);min-height:440px;
+  border:1px solid #31374a;border-radius:23px;margin-bottom:30px;
+  box-shadow:0 22px 64px rgba(0,0,0,.42);background:#111827;
+  cursor:default;touch-action:pan-y;
+}
+#hero .hero-slide{background-position:center 43%;transition:opacity .72s ease;pointer-events:none;z-index:0}
+#hero .hero-slide.active{pointer-events:auto;z-index:1}
+#hero .hero-slide::before{
+  background:linear-gradient(90deg,rgba(7,10,21,.97) 0%,rgba(9,13,26,.89) 25%,rgba(9,13,26,.54) 57%,rgba(8,12,24,.08) 100%),
+             linear-gradient(0deg,rgba(8,10,20,.94) 0%,transparent 36%,rgba(9,11,22,.22) 100%);
+}
+#hero .hero-slide::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 75% 45%,transparent 35%,rgba(0,0,0,.19) 100%)}
+#hero .hero-content{
+  max-width:730px;box-sizing:border-box;padding:42px 68px 100px;
+  justify-content:center;align-items:flex-start;gap:0;position:relative;
+}
+#hero .hero-eyebrow{display:flex;align-items:center;gap:9px;margin-bottom:19px;
+  font-size:10px;font-weight:800;letter-spacing:2.4px;color:#d4e2ff;text-transform:uppercase}
+#hero .hero-eyebrow .hero-line{display:inline-block;width:24px;height:2px;background:#78a6ff;border-radius:9px}
+#hero .hero-logo{display:block;max-width:min(100%,440px);max-height:135px;width:auto;height:auto;
+  object-fit:contain;object-position:left center;margin:0 0 18px;
+  filter:drop-shadow(0 8px 20px rgba(0,0,0,.6))}
+#hero .hero-logo[hidden],#hero .hero-logo:not(.is-ready){display:none!important}
+#hero .hero-title{color:#fff;font-size:clamp(32px,3.9vw,56px);line-height:1.02;
+  letter-spacing:-1.5px;text-transform:none;margin:0 0 14px;
+  text-shadow:0 6px 25px rgba(0,0,0,.56);max-width:610px}
+#hero .hero-slide.has-hero-logo .hero-title{position:absolute!important;width:1px!important;height:1px!important;
+  padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;border:0!important}
+#hero .hero-subtitle{margin:0 0 15px;color:#d2ddf2;font-size:12px;
+  letter-spacing:1.2px;font-weight:750;text-transform:uppercase}
+#hero .hero-meta{color:#e2e9f7;font-weight:650;gap:11px;margin:0 0 14px;font-size:12px}
+#hero .hero-meta .hero-meta-item{display:inline-flex;align-items:center;gap:6px}
+#hero .hero-meta .star{color:#ffce72}
+#hero .hero-meta .cert{font-size:10px;border:1px solid #b5bfd055;border-radius:5px;
+  background:#11182766;color:#eef2fa;padding:3px 6px}
+#hero .hero-meta .hero-kind{color:#c7d9ff}
+#hero .hero-meta .hero-sep{opacity:.33;font-size:10px}
+#hero .hero-genres{color:#c2cce0;margin-bottom:13px;font-size:12px;font-weight:600;line-height:1.6}
+#hero .hero-overview{max-width:555px;margin-bottom:24px;font-size:13.5px;line-height:1.65;
+  color:#d6deed;-webkit-line-clamp:3;text-wrap:pretty}
+#hero .hero-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+#hero .hero-actions .btn{min-height:45px;border-radius:10px;padding:11px 17px;
+  font-size:12.5px;font-weight:800;transition:background .18s,transform .18s,border-color .18s}
+#hero .hero-actions .btn:hover{transform:translateY(-2px)}
+#hero .hero-actions .btn:focus-visible,#hero .hero-arrow:focus-visible,#hero .hero-dot:focus-visible{
+  outline:2px solid #b9d2ff;outline-offset:3px}
+#hero .hero-actions .btn-primary{background:#eff4ff;color:#0b1529;box-shadow:0 8px 28px #0004}
+#hero .hero-actions .btn-primary:hover{background:#dce8ff}
+#hero .hero-actions .hero-btn-info{background:#ffffff21;border-color:#ffffff48;color:#fff;backdrop-filter:blur(9px)}
+#hero .hero-actions .hero-btn-info:hover{background:#ffffff35}
+#hero .hero-actions .hero-btn-list{background:#111a2a70;border-color:#ffffff42;color:#e1ebfe}
+#hero .hero-actions .hero-btn-list:hover{background:#31456a9c}
+#hero .hero-actions .hero-btn-list.is-added{border-color:#4cdca4aa;color:#9af2c9;background:#12624535}
+#hero #heroControlsWrap[hidden]{display:none!important}
+#hero .hero-ui{position:absolute;z-index:4;bottom:24px;left:68px;right:68px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;pointer-events:none}
+#hero .hero-progress-label{font-size:11px;letter-spacing:1.5px;font-weight:850;color:#d4deef;font-variant-numeric:tabular-nums}
+#hero .hero-progress-label .hero-progress-total{color:#8e9bb5;font-weight:700}
+#hero .hero-dots{position:static;display:flex;gap:9px;align-items:center;pointer-events:auto}
+#hero .hero-dot{display:block;width:22px;height:4px;min-height:4px;background:#b9c5d566;border-radius:20px;
+  padding:0;border:0;transition:width .24s,background .24s}
+#hero .hero-dot.active{width:49px;background:#eff5ff}
+#hero .hero-controls{display:flex;gap:8px;align-items:center;pointer-events:auto}
+#hero .hero-arrow{width:40px;height:40px;display:grid;place-items:center;border-radius:50%;
+  color:#fff;font-size:13px;background:rgba(16,25,42,.6);border:1px solid #ffffff45;
+  backdrop-filter:blur(10px);transition:background .18s,transform .18s}
+#hero .hero-arrow:hover{background:#33568c;transform:translateY(-1px)}
+#hero .hero-arrow:disabled{opacity:.35;cursor:default}
+@media(max-width:900px){
+  #hero.hero{height:470px;min-height:0}
+  #hero .hero-content{padding:32px 40px 94px;max-width:670px}
+  #hero .hero-ui{left:40px;right:40px}
+  #hero .hero-title{font-size:clamp(32px,4.8vw,48px)}
+  #hero .hero-logo{max-height:116px;max-width:380px}
+}
+@media(max-width:600px){
+  #hero.hero{height:clamp(410px,64svh,500px);min-height:0;border-radius:17px;
+    margin-bottom:22px;border-color:#28314b}
+  #hero .hero-slide{background-position:62% 24%}
+  #hero .hero-slide::before{
+    background:linear-gradient(0deg,#090c18 0%,rgba(9,12,24,.98) 18%,rgba(9,12,24,.79) 41%,rgba(7,10,20,.18) 90%),
+               linear-gradient(90deg,rgba(8,11,21,.4),transparent 70%);
+  }
+  #hero .hero-content{max-width:none;width:100%;padding:22px 18px 65px;
+    justify-content:flex-end;align-items:flex-start}
+  #hero .hero-eyebrow{font-size:9px;letter-spacing:1.5px;margin-bottom:10px}
+  #hero .hero-logo{max-width:min(82%,290px);max-height:92px;margin-bottom:10px}
+  #hero .hero-title{font-size:clamp(24px,7vw,36px);line-height:1.08;
+    margin-bottom:9px;letter-spacing:-.6px;max-width:100%}
+  #hero .hero-subtitle{font-size:10px;letter-spacing:.8px;margin-bottom:9px}
+  #hero .hero-meta{font-size:10px;gap:7px;margin:0 0 9px}
+  #hero .hero-meta .hero-kind{display:none}
+  #hero .hero-genres{font-size:10px;margin-bottom:7px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;width:100%}
+  #hero .hero-overview{font-size:11px;line-height:1.45;-webkit-line-clamp:2;margin:0 0 14px}
+  #hero .hero-actions{width:100%;gap:7px;flex-wrap:nowrap}
+  #hero .hero-actions .btn{min-height:41px;font-size:11px;padding:8px 10px;
+    gap:6px;justify-content:center}
+  #hero .hero-actions .btn-primary{flex:1.25}
+  #hero .hero-actions .hero-btn-info{flex:1.15}
+  #hero .hero-actions .hero-btn-list{flex:0 0 42px;width:42px;padding:0;font-size:13px}
+  #hero .hero-actions .hero-btn-list .hero-list-text{display:none}
+  #hero .hero-ui{bottom:15px;left:18px;right:18px;gap:10px}
+  #hero .hero-dot{width:15px;height:3px;min-height:3px}
+  #hero .hero-dot.active{width:30px}
+  #hero .hero-progress-label{font-size:9px;letter-spacing:.9px}
+  #hero .hero-arrow{width:31px;height:31px;font-size:11px}
+  #hero .hero-controls{gap:5px}
+}
+@media(max-width:370px){
+  #hero .hero-content{padding-left:14px;padding-right:14px}
+  #hero .hero-ui{left:14px;right:14px}
+  #hero .hero-actions .btn{font-size:10px;padding-left:7px;padding-right:7px}
+  #hero .hero-overview{-webkit-line-clamp:2}
+  #hero .hero-logo{max-height:74px}
+}
+@media(prefers-reduced-motion:reduce){
+  #hero .hero-slide,#hero .hero-arrow,#hero .hero-dot,#hero .hero-actions .btn{transition:none!important}
+}
+
 </style>
 </head>
 <body>
@@ -1932,9 +2014,18 @@ a{color:inherit;text-decoration:none}
       </div>
     </div>
 
-    <section class="hero" id="hero">
+    <section class="hero" id="hero" aria-label="Películas y series destacadas">
       <div id="heroSlides"></div>
-      <div class="hero-dots" id="heroDots"></div>
+      <div class="hero-ui" id="heroControlsWrap">
+        <span class="hero-progress-label" aria-live="off">
+          <span id="heroCurrentNumber">01</span> <span class="hero-progress-total">/ <span id="heroTotalNumber">06</span></span>
+        </span>
+        <div class="hero-dots" id="heroDots" role="group" aria-label="Elegir título destacado"></div>
+        <div class="hero-controls">
+          <button type="button" class="hero-arrow" data-hero-direction="prev" aria-label="Destacado anterior"><i class="fa-solid fa-chevron-left"></i></button>
+          <button type="button" class="hero-arrow" data-hero-direction="next" aria-label="Siguiente destacado"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+      </div>
     </section>
 
     <section class="section" id="continueSection" style="display:none">
@@ -2912,111 +3003,166 @@ function closeMobileSearch(){
 /* ============================================================
    HERO CARRUSEL
    ============================================================ */
+/* ============================================================
+   FASE 12.1 — CARRUSEL PREMIUM / LOGOS TMDB
+   ============================================================ */
 function getHeroMovies(){
   const featured=MOVIES.filter(m=>m.featured===true);
-  if(featured.length)return featured.sort((a,b)=>(Number(a.featuredOrder)||0)-(Number(b.featuredOrder)||0)).slice(0,6);
+  if(featured.length) return featured.sort((a,b)=>(Number(a.featuredOrder)||0)-(Number(b.featuredOrder)||0)).slice(0,6);
   return MOVIES.filter(m=>m.rating>0).sort((a,b)=>b.rating-a.rating).slice(0,6);
 }
-
+function heroLogoAvailable(logo){
+  return /^https:\/\/image\.tmdb\.org\/t\/p\/(?:w500|original)\/[A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|svg)$/i.test(String(logo||""));
+}
+function syncHeroListButtons(){
+  document.querySelectorAll('#hero [data-action="list"]').forEach(btn=>{
+    const id=Number(btn.dataset.id),active=myList.has(id);
+    btn.classList.toggle('is-added',active);
+    btn.setAttribute('aria-pressed',String(active));
+    const icon=btn.querySelector('i');
+    if(icon)icon.className='fa-solid fa-'+(active?'check':'plus');
+    const text=btn.querySelector('.hero-list-text');
+    if(text)text.textContent=active?'En mi lista':'Mi lista';
+    btn.title=active?'Quitar de Mi lista':'Añadir a Mi lista';
+    btn.setAttribute('aria-label',btn.title);
+  });
+}
+function holdHero(ms=9500){state.heroHoldUntil=Date.now()+ms;}
 function renderHero(){
   const list = CATALOG_CONFIG.showHero === false ? [] : getHeroMovies();
   const hero=$('hero');
-  hero.style.display=list.length ? "" : "none";
+  hero.style.display=list.length ? '' : 'none';
   if(state.heroTimer){clearInterval(state.heroTimer);state.heroTimer=null;}
   state.heroIndex=0;
-  const slidesBox = $("heroSlides");
-  const dotsBox = $("heroDots");
-  if (!list.length){ slidesBox.innerHTML = ""; dotsBox.innerHTML = ""; return; }
-
-  slidesBox.innerHTML = list.map((m, i) => `
-    <div class="hero-slide ${i === 0 ? "active" : ""}"
-         data-index="${i}"
-         data-bg="${esc(mobileBackdrop(m.backdrop))}"
-         ${i === 0 ? `style="background-image:url('${esc(mobileBackdrop(m.backdrop))}')" data-bg-loaded="1"` : ""}>
+  const slidesBox=$('heroSlides'),dotsBox=$('heroDots');
+  const ui=$('heroControlsWrap');
+  if(!list.length){slidesBox.innerHTML='';dotsBox.innerHTML='';if(ui)ui.hidden=true;return;}
+  if(ui)ui.hidden=false;
+  const multiple=list.length>1;
+  hero.querySelectorAll('.hero-arrow').forEach(btn=>{btn.disabled=!multiple;btn.hidden=!multiple;});
+  slidesBox.innerHTML=list.map((m,i)=>{
+    const logoOk=heroLogoAvailable(m.logo);
+    const rating=Number(m.rating)||0;
+    const safeId=esc(m.id);
+    const genres=String(m.genres||'').split(',').map(g=>g.trim()).filter(Boolean).slice(0,3).join(' · ');
+    const runtime=String(m.runtime||'').trim();
+    const isSeries=m.kind==='SERIES';
+    return `
+    <div class="hero-slide ${i===0?'active':''}"
+         data-index="${i}" data-bg="${esc(mobileBackdrop(m.backdrop))}"
+         ${i===0?`style="background-image:url('${esc(mobileBackdrop(m.backdrop))}')" data-bg-loaded="1"`:''}
+         aria-hidden="${i!==0}">
       <div class="hero-content">
-        <span class="hero-tag">
-          <i class="fa-solid fa-${m.kind === "SERIES" ? "tv" : "film"}"></i>
-          ${m.kind === "SERIES" ? "Serie" : "Película"} · ${esc(m.year)}
-        </span>
+        <div class="hero-eyebrow"><span class="hero-line"></span><i class="fa-solid fa-sparkles"></i> Selección Movie Mania HD</div>
+        ${logoOk?`<img class="hero-logo" src="${esc(m.logo)}" alt="" loading="${i===0?'eager':'lazy'}" decoding="async">`:''}
         <h2 class="hero-title">${esc(m.title)}</h2>
-        ${m.subtitle ? `<p style="margin:-4px 0 12px;color:#c8ccd6;font-size:14px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase">${esc(m.subtitle)}</p>` : ""}
+        ${m.subtitle&&!logoOk?`<p class="hero-subtitle">${esc(m.subtitle)}</p>`:''}
         <div class="hero-meta">
-          ${m.rating > 0 ? `<span class="star"><i class="fa-solid fa-star"></i> ${m.rating.toFixed(1)}</span>` : ""}
-          <span>${esc(m.year)}</span>
-          ${m.cert && m.cert !== "—" ? `<span class="cert">${esc(m.cert)}</span>` : ""}
+          ${rating>0?`<span class="hero-meta-item star"><i class="fa-solid fa-star"></i>${rating.toFixed(1)}</span><span class="hero-sep">•</span>`:''}
+          ${m.year?`<span class="hero-meta-item">${esc(m.year)}</span><span class="hero-sep">•</span>`:''}
+          <span class="hero-meta-item hero-kind"><i class="fa-solid fa-${isSeries?'tv':'film'}"></i>${isSeries?'Serie':'Película'}</span>
+          ${runtime?`<span class="hero-meta-item"><i class="fa-regular fa-clock"></i>${esc(runtime)}</span>`:''}
+          ${m.cert&&m.cert!=='—'?`<span class="cert">${esc(m.cert)}</span>`:''}
         </div>
-        <div class="hero-genres">${esc(m.genres)}</div>
-        <p class="hero-overview">${esc(m.overview)}</p>
+        ${genres?`<div class="hero-genres">${esc(genres)}</div>`:''}
+        ${m.overview?`<p class="hero-overview">${esc(m.overview)}</p>`:''}
         <div class="hero-actions">
-          <button class="btn btn-primary" data-action="play" data-id="${m.id}">
-            <i class="fa-solid fa-play"></i> Ver ahora
+          <button type="button" class="btn btn-primary" data-action="play" data-id="${safeId}">
+            <i class="fa-solid fa-play"></i> ${isSeries?'Ver episodios':'Reproducir'}
           </button>
-          <button class="btn btn-secondary" data-action="list" data-id="${m.id}">
-            <i class="fa-solid fa-plus"></i> Mi Lista
+          <button type="button" class="btn btn-secondary hero-btn-info" data-action="info" data-id="${safeId}">
+            <i class="fa-solid fa-circle-info"></i> Más información
+          </button>
+          <button type="button" class="btn btn-secondary hero-btn-list" data-action="list" data-id="${safeId}" aria-pressed="false">
+            <i class="fa-solid fa-plus"></i><span class="hero-list-text">Mi lista</span>
           </button>
         </div>
       </div>
-    </div>
-  `).join("");
-
-  dotsBox.innerHTML = list.map((_, i) => `
-    <button class="hero-dot ${i === 0 ? "active" : ""}" data-dot="${i}" aria-label="Slide ${i+1}"></button>
-  `).join("");
-
-  slidesBox.querySelectorAll("[data-action]").forEach(btn => {
-    btn.addEventListener("click", e => {
-      e.stopPropagation();
-      const id = Number(btn.dataset.id);
-      const m = MOVIES.find(x => x.id === id);
-      if (!m) return;
-      if (btn.dataset.action === "play") openDetail(m.id);
-      if (btn.dataset.action === "list") toggleMyList(m.id, true);
+    </div>`;
+  }).join('');
+  dotsBox.innerHTML=multiple?list.map((m,i)=>`
+    <button type="button" class="hero-dot ${i===0?'active':''}" data-dot="${i}"
+      aria-label="Mostrar destacado ${i+1}: ${esc(m.title)}" aria-pressed="${i===0}" title="${esc(m.title)}"></button>
+  `).join(''):'';
+  slidesBox.querySelectorAll('.hero-logo').forEach(img=>{
+    const slide=img.closest('.hero-slide');
+    const show=()=>{img.classList.add('is-ready');slide?.classList.add('has-hero-logo');};
+    const fail=()=>{img.hidden=true;slide?.classList.remove('has-hero-logo');};
+    img.addEventListener('load',show,{once:true});
+    img.addEventListener('error',fail,{once:true});
+    if(img.complete){if(img.naturalWidth>0)show();else fail();}
+  });
+  slidesBox.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();holdHero();
+      const m=MOVIES.find(x=>x.id===Number(btn.dataset.id));
+      if(!m)return;
+      const action=btn.dataset.action;
+      if(action==='info'){openDetail(m.id);return;}
+      if(action==='play'){
+        if(m.kind==='SERIES')openDetail(m.id);
+        else openPlayer(m);
+      }
+      if(action==='list')toggleMyList(m.id,true);
     });
   });
-  dotsBox.querySelectorAll("[data-dot]").forEach(dot => {
-    dot.addEventListener("click", () => goHero(Number(dot.dataset.dot)));
+  dotsBox.querySelectorAll('[data-dot]').forEach(dot=>{
+    dot.addEventListener('click',()=>{holdHero();goHero(Number(dot.dataset.dot));});
   });
-
+  hero.querySelectorAll('.hero-arrow').forEach(btn=>{
+    // Listeners run once from renderHero on initial setup; leave old callbacks off on repeat calls.
+    btn.onclick=()=>{holdHero();goHero(state.heroIndex+(btn.dataset.heroDirection==='next'?1:-1));};
+  });
+  syncHeroListButtons();
+  goHero(0);
   startHeroTimer();
 }
-
-function goHero(index){
-  const slides = $("heroSlides").querySelectorAll(".hero-slide");
-  if (!slides.length) return;
-  const idx = (index + slides.length) % slides.length;
-  state.heroIndex = idx;
-
-  const active = slides[idx];
-  if (!active.dataset.bgLoaded){
-    // Almacenar la URL en data-bg evita descargar todas las portadas simultáneamente.
-    active.style.backgroundImage = `url(${JSON.stringify(active.dataset.bg)})`;
-    active.dataset.bgLoaded = "1";
-  }
-  slides.forEach((el, i) => {
-    el.classList.toggle("active", i === idx);
-  });
-  document.querySelectorAll(".hero-dot").forEach((el, i) => {
-    el.classList.toggle("active", i === idx);
-  });
+function updateHeroCounter(){
+  const total=$('heroSlides')?.querySelectorAll('.hero-slide').length||0;
+  const current=$('heroCurrentNumber'),totalEl=$('heroTotalNumber');
+  if(current)current.textContent=String(total?state.heroIndex+1:0).padStart(2,'0');
+  if(totalEl)totalEl.textContent=String(total).padStart(2,'0');
 }
-
-function startHeroTimer(){
-  if (state.heroTimer) clearInterval(state.heroTimer);
-  if (typeof IntersectionObserver !== "undefined"){
-    const observer = new IntersectionObserver(entries => {
-      state.heroInView = Boolean(entries[0]?.isIntersecting);
-    }, { threshold: 0.05 });
-    observer.observe($("hero"));
+function goHero(index){
+  const slides=$('heroSlides').querySelectorAll('.hero-slide');
+  if(!slides.length)return;
+  const idx=(index+slides.length)%slides.length;
+  state.heroIndex=idx;
+  const active=slides[idx];
+  if(!active.dataset.bgLoaded){
+    active.style.backgroundImage=`url(${JSON.stringify(active.dataset.bg)})`;
+    active.dataset.bgLoaded='1';
   }
-  if ($( "heroSlides" ).children.length <= 1) return;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  state.heroTimer = setInterval(() => {
-    if (document.hidden || !state.heroInView || state.heroPaused) return;
-    if ($("detailScreen").classList.contains("show") ||
-        $("playerModal").classList.contains("show") ||
-        $("mobileSearchScreen").classList.contains("show")) return;
-    goHero(state.heroIndex + 1);
-  }, 6000);
+  slides.forEach((el,i)=>{
+    el.classList.toggle('active',i===idx);
+    el.setAttribute('aria-hidden',String(i!==idx));
+    el.querySelectorAll('button').forEach(btn=>{btn.tabIndex=i===idx?0:-1;});
+  });
+  document.querySelectorAll('#hero .hero-dot').forEach((el,i)=>{
+    el.classList.toggle('active',i===idx);
+    el.setAttribute('aria-pressed',String(i===idx));
+  });
+  updateHeroCounter();
+}
+function startHeroTimer(){
+  if(state.heroTimer)clearInterval(state.heroTimer);
+  if(typeof IntersectionObserver!=='undefined'){
+    if(state.heroObserver)state.heroObserver.disconnect();
+    state.heroObserver=new IntersectionObserver(entries=>{
+      state.heroInView=Boolean(entries[0]?.isIntersecting);
+    },{threshold:.05});
+    state.heroObserver.observe($('hero'));
+  }
+  if($('heroSlides').children.length<=1)return;
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  state.heroTimer=setInterval(()=>{
+    if(document.hidden||!state.heroInView||state.heroPaused||state.heroHover)return;
+    if(Date.now()<(state.heroHoldUntil||0))return;
+    if($('detailScreen').classList.contains('show')||
+       $('playerModal').classList.contains('show')||
+       $('mobileSearchScreen').classList.contains('show'))return;
+    goHero(state.heroIndex+1);
+  },8000);
 }
 
 /* ============================================================
@@ -3072,6 +3218,7 @@ function setupHeroSwipe(){
       }
     }
 
+    holdHero(8500);
     setTimeout(() => {
       state.heroPaused = false;
     }, 3000);
@@ -3113,17 +3260,18 @@ function setupHeroSwipe(){
     onEnd(e.clientX);
   });
 
+  hero.addEventListener("mouseenter",()=>{state.heroHover=true;});
+  hero.addEventListener("mouseleave",()=>{state.heroHover=false;});
+  hero.addEventListener("focusin",()=>{holdHero(10000);});
   hero.setAttribute("tabindex", "0");
   hero.setAttribute("aria-label", "Películas destacadas: usa las flechas para navegar");
   hero.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft") {
       goHero(state.heroIndex - 1);
-      state.heroPaused = true;
-      setTimeout(() => state.heroPaused = false, 3000);
+      holdHero(8500);
     } else if (e.key === "ArrowRight") {
       goHero(state.heroIndex + 1);
-      state.heroPaused = true;
-      setTimeout(() => state.heroPaused = false, 3000);
+      holdHero(8500);
     }
   });
 
@@ -4319,6 +4467,7 @@ function toggleMyList(id, fromHero = false){
   saveSet(LS_MYLIST, myList);
   if (!fromHero) updateMyListBtn();
   renderAll();
+  syncHeroListButtons();
 }
 
 /* ============================================================
