@@ -1516,7 +1516,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div class="mmhd-backup-tools">
   <div class="mmhd-backup-info" id="backupInfo" role="status">Todavía no hay registro de respaldo descargado en este navegador.</div>
   <label>Al restaurar un respaldo:</label>
-  <div class="mmhd-backup-info" role="note"><strong>Sincronizar enlaces de títulos existentes y añadir los nuevos</strong></div>
+  <div class="mmhd-backup-info" role="note"><strong>Sincronizar títulos existentes (enlaces y metadatos) y añadir los nuevos</strong></div>
   <input type="hidden" id="backupRestoreMode" value="sync-links"/>
   <div class="mmhd-backup-info" id="backupRestoreModeHelp">Sincroniza el enlace corto y las calidades m37, m22 y m18 de cada película y de los episodios coincidentes. Mantiene tus otras modificaciones locales y no elimina episodios.</div>
   <div id="backupPreview" class="mmhd-backup-preview" hidden></div>
@@ -3883,17 +3883,74 @@ async function mmhdPrepareRestore(file){
   mmhdRestorePreview();
 }
 /* FASE 11.5.8 — Sincronización de respaldos entre navegadores.
-   No sobrescribe títulos existentes silenciosamente ni modifica episodios
-   ausentes del archivo. El respaldo tiene prioridad SOLO para las cuatro URLs. */
+   Mantiene la biblioteca local, añade títulos nuevos y actualiza títulos
+   existentes con prioridad del respaldo para URLs, metadatos clave y
+   diagnósticos. No borra episodios ausentes del archivo. */
 const MMHD_BACKUP_LINK_FIELDS=['googleUrl','m37','m22','m18'];
+const MMHD_BACKUP_META_FIELDS=[
+  'title','searchTitles','manualSearchTitles','subtitle','year','runtime',
+  'poster','backdrop','logo','cast','rating','genres','cert','overview',
+  'releaseDate','watchProvidersMx','providerOverridesMx','providersCheckedAtMx','tmdbId'
+];
 function mmhdBackupTitleKey(item){
   return String(item?.kind==='SERIES'?'SERIES':'MOVIE')+':'+String(item?.id);
 }
+function mmhdBackupNormalizeField(field,value){
+  if(field==='rating')return Number.isFinite(Number(value))?Number(value):0;
+  if(field==='tmdbId')return value==null?'':String(value);
+  if(field==='cast')return Array.isArray(value)
+    ? value.slice(0,15).map(p=>({
+        name:String(p?.name||'').slice(0,120),
+        character:String(p?.character||'').slice(0,160),
+        photo:String(p?.photo||'')
+      }))
+    : [];
+  if(field==='watchProvidersMx')return Array.isArray(value)
+    ? value.filter(k=>MMHD_PROVIDERS_MX[k]).map(String)
+    : [];
+  if(field==='providerOverridesMx')return mmhdProviderOverrides(value);
+  if(field==='searchTitles')return Array.isArray(value)
+    ? value.slice(0,42).map(s=>String(s||'').slice(0,160))
+    : [];
+  if(field==='manualSearchTitles')return Array.isArray(value)
+    ? value.slice(0,16).map(s=>String(s||'').slice(0,160))
+    : [];
+  return String(value??'');
+}
+function mmhdBackupEqual(a,b){
+  return JSON.stringify(a)===JSON.stringify(b);
+}
 function mmhdPlanRestore(data,mode,current=state.collection){
   const stats={added:0,matched:0,updatedTitles:0,updatedEpisodes:0,changedFields:0,
-    blankedFields:0,examples:[]};
+    changedMetaFields:0,blankedFields:0,examples:[]};
   const result=structuredClone(current);
   const existing=new Map(result.map((item,index)=>[mmhdBackupTitleKey(item),index]));
+  const syncPart=(target,source,statsRef)=>{
+    let changed=false;
+    for(const field of MMHD_BACKUP_LINK_FIELDS){
+      if(!Object.prototype.hasOwnProperty.call(source,field))continue;
+      const value=String(source[field]??'');
+      if(String(target[field]??'')===value)continue;
+      target[field]=value;
+      statsRef.changedFields++;
+      if(!value)statsRef.blankedFields++;
+      changed=true;
+    }
+    return changed;
+  };
+  const syncMeta=(target,source,statsRef)=>{
+    let changed=false;
+    for(const field of MMHD_BACKUP_META_FIELDS){
+      if(!Object.prototype.hasOwnProperty.call(source,field))continue;
+      const nextValue=mmhdBackupNormalizeField(field,source[field]);
+      const currentValue=mmhdBackupNormalizeField(field,target[field]);
+      if(mmhdBackupEqual(currentValue,nextValue))continue;
+      target[field]=structuredClone(nextValue);
+      statsRef.changedMetaFields++;
+      changed=true;
+    }
+    return changed;
+  };
   for(const incoming of data.collection){
     const key=mmhdBackupTitleKey(incoming),index=existing.get(key);
     if(index===undefined){
@@ -3903,20 +3960,8 @@ function mmhdPlanRestore(data,mode,current=state.collection){
     stats.matched++;
     const original=result[index];
     let changedTitle=false;
-    const syncPart=(target,source)=>{
-      let changed=false;
-      for(const field of MMHD_BACKUP_LINK_FIELDS){
-        if(!Object.prototype.hasOwnProperty.call(source,field))continue;
-        const value=String(source[field]??'');
-        if(String(target[field]??'')===value)continue;
-        target[field]=value;
-        stats.changedFields++;
-        if(!value)stats.blankedFields++;
-        changed=true;
-      }
-      return changed;
-    };
-    if(syncPart(original,incoming))changedTitle=true;
+    if(syncPart(original,incoming,stats))changedTitle=true;
+    if(syncMeta(original,incoming,stats))changedTitle=true;
     if(original.kind==='SERIES'){
       const sourceSeasons=Array.isArray(incoming.seasons)?incoming.seasons:[];
       for(const season of (Array.isArray(original.seasons)?original.seasons:[])){
@@ -3925,15 +3970,14 @@ function mmhdPlanRestore(data,mode,current=state.collection){
         for(const ep of (Array.isArray(season.episodes)?season.episodes:[])){
           const sourceEp=(Array.isArray(sourceSeason.episodes)?sourceSeason.episodes:[])
             .find(e=>Number(e.number)===Number(ep.number));
-          if(sourceEp&&syncPart(ep,sourceEp)){stats.updatedEpisodes++;changedTitle=true;}
+          if(sourceEp&&syncPart(ep,sourceEp,stats)){stats.updatedEpisodes++;changedTitle=true;}
         }
       }
     }
     if(changedTitle){
       stats.updatedTitles++;
-      // La sincronización de URLs sí es una modificación local a la biblioteca.
       original.updatedAt=new Date().toISOString();
-      if(stats.examples.length<5)stats.examples.push(String(original.title||'Sin título'));
+      if(stats.examples.length<5)stats.examples.push(String(original.title||incoming.title||'Sin título'));
     }
   }
   return {collection:result,stats};
@@ -3943,21 +3987,21 @@ function mmhdRestorePreview(){
   const data=mmhdPendingRestore,mode='sync-links';
   const plan=mmhdPlanRestore(data,mode),n=plan.stats;
   const timestamp=data.createdAt?new Date(data.createdAt).toLocaleString('es'):'fecha desconocida';
-  const summary=`Se agregarán ${n.added} títulos nuevos. Coinciden ${n.matched} títulos: ${n.updatedTitles} tendrán cambios (${n.updatedEpisodes} episodios; ${n.changedFields} campos de URL). No se cambiarán otros metadatos ni se eliminarán episodios.`;
+  const summary=`Se agregarán ${n.added} títulos nuevos. Coinciden ${n.matched} títulos: ${n.updatedTitles} tendrán cambios (${n.updatedEpisodes} episodios; ${n.changedFields} campos de enlace y ${n.changedMetaFields} metadatos). Se actualizarán título, póster, logo, descripción, géneros, calificación, fecha de estreno y plataformas cuando existan en el respaldo.`;
   let extra='';
   if(mode==='sync-links'&&n.blankedFields)extra=` Atención: ${n.blankedFields} URL(s) del respaldo están vacías y sustituirán URLs anteriores al confirmar.`;
   if(n.examples.length)extra+=` Ejemplos de títulos modificados: ${n.examples.join(' · ')}.`;
   $('backupPreview').textContent=`Respaldo versión ${data.version} · ${data.collection.length} títulos · ${timestamp}. ${summary}${extra} ${data.version>=5?'Integridad SHA-256 verificada.':'Respaldo anterior: sin comprobación criptográfica.'} ${data.version>=6?((data.txtReviews?.length||0)+' revisiones TXT incluidas.'):''}`;
   $('backupPreview').hidden=false;$('btnConfirmRestore').hidden=false;
-  $('btnConfirmRestore').textContent='Confirmar sincronización de enlaces';
+  $('btnConfirmRestore').textContent='Confirmar sincronización';
   const help=$('backupRestoreModeHelp');
-  if(help)help.textContent='Los enlaces del respaldo tienen prioridad para películas y episodios coincidentes. Las URLs que estén vacías en el respaldo también se copiarán. No se borran capítulos ni se reemplazan pósters o descripciones.';
+  if(help)help.textContent='El respaldo tiene prioridad para enlaces y metadatos de títulos coincidentes. También se actualizan plataformas MX y diagnósticos. Las URLs vacías del respaldo también se copiarán. No se eliminan capítulos ausentes del archivo.';
 }
 function mmhdFinishRestore(){
   const data=mmhdPendingRestore;if(!data)return;
   const mode='sync-links';
   const plan=mmhdPlanRestore(data,mode),n=plan.stats;
-  if(mode==='sync-links'&&n.changedFields&&!confirm(`Se actualizarán ${n.changedFields} campos de enlace en ${n.updatedTitles} títulos (${n.updatedEpisodes} episodios). ${n.blankedFields?`ATENCIÓN: ${n.blankedFields} URLs se dejarán vacías según el respaldo. `:''}¿Confirmar la sincronización?`))return;
+  if((n.changedFields||n.changedMetaFields)&&!confirm(`Se actualizarán ${n.changedFields} campos de enlace y ${n.changedMetaFields} metadatos en ${n.updatedTitles} títulos (${n.updatedEpisodes} episodios). ${n.blankedFields?`ATENCIÓN: ${n.blankedFields} URLs se dejarán vacías según el respaldo. `:''}También se actualizarán diagnósticos coincidentes. ¿Confirmar la sincronización?`))return;
   if(!commitCollection(plan.collection)){alert('No se pudo guardar la biblioteca. Revisa el almacenamiento disponible.');return;}
   if(mode==='replace'&&data.version>=3&&data.catalogSettings){
     const s=normalizeCatalogSettings(data.catalogSettings);
@@ -3967,7 +4011,7 @@ function mmhdFinishRestore(){
     for(const [key,row] of Object.entries(data.diagnostics).slice(0,45000)){
       if(typeof key!=='string'||key.length>150||!/^([ms]):/.test(key)||!row||!['ok','error','unknown'].includes(row.state)||
         typeof row.fingerprint!=='string'||!Number.isFinite(row.checkedAt))continue;
-      if(mode==='replace'||!mmhdDiagRecords[key])mmhdDiagRecords[key]={fingerprint:row.fingerprint,state:row.state,
+      mmhdDiagRecords[key]={fingerprint:row.fingerprint,state:row.state,
         detail:String(row.detail||'').slice(0,180),checkedAt:row.checkedAt};
     }
     try{localStorage.setItem(MMHD_DIAG_KEY,JSON.stringify(mmhdDiagRecords));}catch{}
@@ -3982,7 +4026,7 @@ function mmhdFinishRestore(){
   }
   mmhdPendingRestore=null;$('backupPreview').hidden=true;$('btnConfirmRestore').hidden=true;
   resetSelection();mmhdRenderHealth();mmhdReviewRender();
-  alert(`Restauración completada: ${state.collection.length} títulos. ${n.added} añadidos y ${n.updatedTitles} títulos actualizados desde el respaldo.`);
+  alert(`Restauración completada: ${state.collection.length} títulos. ${n.added} añadidos y ${n.updatedTitles} títulos actualizados desde el respaldo (${n.changedFields} enlaces, ${n.changedMetaFields} metadatos).`);
 }
 $('btnBackupCollection').addEventListener('click',mmhdCreateBackup);
 $('btnConfirmRestore').addEventListener('click',mmhdFinishRestore);
