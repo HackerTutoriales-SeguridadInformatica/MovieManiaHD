@@ -3073,7 +3073,11 @@ function syncHeroListButtons(){
     btn.setAttribute('aria-label',btn.title);
   });
 }
-function holdHero(ms=9500){state.heroHoldUntil=Date.now()+ms;}
+function holdHero(ms=5000){
+  state.heroHoldUntil=Date.now()+Math.min(ms,4800);
+  // Reset the five-second clock after any interaction with the carousel.
+  if(state.heroTimer)startHeroTimer();
+}
 function renderHero(){
   const list = CATALOG_CONFIG.showHero === false ? [] : getHeroMovies();
   const hero=$('hero');
@@ -3101,7 +3105,7 @@ function renderHero(){
          aria-hidden="${i!==0}">
       <div class="hero-content">
         <div class="hero-eyebrow"><span class="hero-line"></span><i class="fa-solid fa-sparkles"></i> Garantía cinéfila</div>
-        ${logoOk?`<img class="hero-logo" src="${esc(heroLogo)}" alt="" loading="${i===0?'eager':'lazy'}" decoding="async">`:''}
+        ${logoOk?`<img class="hero-logo" src="${esc(heroLogo)}" alt="" loading="eager" decoding="async">`:''}
         <h2 class="hero-title">${esc(m.title)}</h2>
         ${m.subtitle&&!logoOk?`<p class="hero-subtitle">${esc(m.subtitle)}</p>`:''}
         <div class="hero-meta">
@@ -3133,11 +3137,22 @@ function renderHero(){
   `).join(''):'';
   slidesBox.querySelectorAll('.hero-logo').forEach(img=>{
     const slide=img.closest('.hero-slide');
-    const show=()=>{img.classList.add('is-ready');slide?.classList.add('has-hero-logo');};
-    const fail=()=>{img.hidden=true;slide?.classList.remove('has-hero-logo');};
-    img.addEventListener('load',show,{once:true});
-    img.addEventListener('error',fail,{once:true});
-    if(img.complete){if(img.naturalWidth>0)show();else fail();}
+    const show=()=>{
+      if(!img.naturalWidth)return;
+      img.hidden=false;
+      img.classList.add('is-ready');
+      slide?.classList.add('has-hero-logo');
+    };
+    const fail=()=>{
+      img.hidden=true;
+      img.classList.remove('is-ready');
+      slide?.classList.remove('has-hero-logo');
+    };
+    img.addEventListener('load',show);
+    img.addEventListener('error',fail);
+    // An image may report complete before a lazy/deferred request begins.
+    // Only mark it loaded when the browser has real image dimensions.
+    if(img.complete&&img.naturalWidth>0)show();
   });
   slidesBox.querySelectorAll('[data-action]').forEach(btn=>{
     btn.addEventListener('click',e=>{
@@ -3193,17 +3208,12 @@ function goHero(index){
 }
 function startHeroTimer(){
   if(state.heroTimer)clearInterval(state.heroTimer);
-  if(typeof IntersectionObserver!=='undefined'){
-    if(state.heroObserver)state.heroObserver.disconnect();
-    state.heroObserver=new IntersectionObserver(entries=>{
-      state.heroInView=Boolean(entries[0]?.isIntersecting);
-    },{threshold:.05});
-    state.heroObserver.observe($('hero'));
-  }
   if($('heroSlides').children.length<=1)return;
-  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   state.heroTimer=setInterval(()=>{
-    if(document.hidden||!state.heroInView||state.heroPaused||state.heroHover)return;
+    if(document.hidden||state.heroPaused)return;
+    const hero=$('hero');
+    const bounds=hero.getBoundingClientRect();
+    if(bounds.bottom<=0||bounds.top>=window.innerHeight)return;
     if(Date.now()<(state.heroHoldUntil||0))return;
     if($('detailScreen').classList.contains('show')||
        $('playerModal').classList.contains('show')||
@@ -3265,7 +3275,7 @@ function setupHeroSwipe(){
       }
     }
 
-    holdHero(8500);
+    holdHero(4800);
     setTimeout(() => {
       state.heroPaused = false;
     }, 3000);
@@ -3307,18 +3317,17 @@ function setupHeroSwipe(){
     onEnd(e.clientX);
   });
 
-  hero.addEventListener("mouseenter",()=>{state.heroHover=true;});
-  hero.addEventListener("mouseleave",()=>{state.heroHover=false;});
-  hero.addEventListener("focusin",()=>{holdHero(10000);});
+  // Hover no longer pauses auto-rotation: the banner must advance every 5 seconds.
+  hero.addEventListener("focusin",()=>{holdHero(4800);});
   hero.setAttribute("tabindex", "0");
   hero.setAttribute("aria-label", "Películas destacadas: usa las flechas para navegar");
   hero.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft") {
       goHero(state.heroIndex - 1);
-      holdHero(8500);
+      holdHero(4800);
     } else if (e.key === "ArrowRight") {
       goHero(state.heroIndex + 1);
-      holdHero(8500);
+      holdHero(4800);
     }
   });
 
