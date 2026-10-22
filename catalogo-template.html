@@ -4050,7 +4050,7 @@ function mmhdRecentItems(){
 }
 function mmhdPremiereItems(limit=20){
   const now=new Date(),year=now.getFullYear(),month=now.getMonth();
-  const start=Math.max(0,month-3);
+  const start=Math.max(0,month-5);
   return MOVIES.filter(m=>{
     if(m.kind!=="MOVIE"||!/^\d{4}-\d{2}-\d{2}$/.test(String(m.releaseDate||"")))return false;
     const d=new Date(m.releaseDate+"T00:00:00");
@@ -4078,7 +4078,7 @@ function mmhdBrowseItems(tag){
     return MOVIES.map((m,i)=>({m,i})).sort((a,b)=>byDate(a.m,b.m)||b.i-a.i).map(x=>x.m);
   }
   // «Ver más» usa todo el año en curso (enero a diciembre). El carrusel de Inicio
-  // conserva su ventana original de cuatro meses.
+  // conserva su ventana de seis meses (sin incluir meses de años anteriores).
   if(tag==="premieres"){
     const year=String(new Date().getFullYear());
     const release=m=>String(m.releaseDate||"").trim();
