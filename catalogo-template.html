@@ -3011,8 +3011,54 @@ function getHeroMovies(){
   if(featured.length) return featured.sort((a,b)=>(Number(a.featuredOrder)||0)-(Number(b.featuredOrder)||0)).slice(0,6);
   return MOVIES.filter(m=>m.rating>0).sort((a,b)=>b.rating-a.rating).slice(0,6);
 }
+function isTmdbLogoUrl(url){
+  return /^https:\/\/image\.tmdb\.org\/t\/p\/(?:original|w\d+)\/[A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|svg)$/i.test(String(url||""));
+}
+function pickTmdbLogoFromValue(value){
+  if(!value)return "";
+  if(typeof value==='string') return isTmdbLogoUrl(value) ? value : "";
+  if(Array.isArray(value)){
+    for(const item of value){
+      const found=pickTmdbLogoFromValue(item);
+      if(found)return found;
+    }
+    return "";
+  }
+  if(typeof value==='object'){
+    const directCandidates=[
+      value.url,value.src,value.logo,value.logoUrl,value.logoURL,value.file,value.file_path,value.filePath,
+      value.secure_url,value.secureUrl,value.image,value.imageUrl,value.path
+    ];
+    for(const candidate of directCandidates){
+      const found=pickTmdbLogoFromValue(candidate);
+      if(found)return found;
+    }
+  }
+  return "";
+}
+function getMovieLogo(movie){
+  if(!movie || typeof movie!=='object') return "";
+  const sources=[
+    movie.logo,
+    movie.tmdbLogo,
+    movie.logoUrl,
+    movie.logoURL,
+    movie.tmdb_logo,
+    movie.tmdb_logo_url,
+    movie.logos,
+    movie.tmdbLogos,
+    movie.images,
+    movie.branding,
+    movie.assets
+  ];
+  for(const source of sources){
+    const found=pickTmdbLogoFromValue(source);
+    if(found)return found;
+  }
+  return "";
+}
 function heroLogoAvailable(logo){
-  return /^https:\/\/image\.tmdb\.org\/t\/p\/(?:w500|original)\/[A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|svg)$/i.test(String(logo||""));
+  return isTmdbLogoUrl(logo);
 }
 function syncHeroListButtons(){
   document.querySelectorAll('#hero [data-action="list"]').forEach(btn=>{
@@ -3041,7 +3087,8 @@ function renderHero(){
   const multiple=list.length>1;
   hero.querySelectorAll('.hero-arrow').forEach(btn=>{btn.disabled=!multiple;btn.hidden=!multiple;});
   slidesBox.innerHTML=list.map((m,i)=>{
-    const logoOk=heroLogoAvailable(m.logo);
+    const heroLogo=getMovieLogo(m);
+    const logoOk=heroLogoAvailable(heroLogo);
     const rating=Number(m.rating)||0;
     const safeId=esc(m.id);
     const genres=String(m.genres||'').split(',').map(g=>g.trim()).filter(Boolean).slice(0,3).join(' · ');
@@ -3053,8 +3100,8 @@ function renderHero(){
          ${i===0?`style="background-image:url('${esc(mobileBackdrop(m.backdrop))}')" data-bg-loaded="1"`:''}
          aria-hidden="${i!==0}">
       <div class="hero-content">
-        <div class="hero-eyebrow"><span class="hero-line"></span><i class="fa-solid fa-sparkles"></i> Selección Movie Mania HD</div>
-        ${logoOk?`<img class="hero-logo" src="${esc(m.logo)}" alt="" loading="${i===0?'eager':'lazy'}" decoding="async">`:''}
+        <div class="hero-eyebrow"><span class="hero-line"></span><i class="fa-solid fa-sparkles"></i> Garantía cinéfila</div>
+        ${logoOk?`<img class="hero-logo" src="${esc(heroLogo)}" alt="" loading="${i===0?'eager':'lazy'}" decoding="async">`:''}
         <h2 class="hero-title">${esc(m.title)}</h2>
         ${m.subtitle&&!logoOk?`<p class="hero-subtitle">${esc(m.subtitle)}</p>`:''}
         <div class="hero-meta">
@@ -3162,7 +3209,7 @@ function startHeroTimer(){
        $('playerModal').classList.contains('show')||
        $('mobileSearchScreen').classList.contains('show'))return;
     goHero(state.heroIndex+1);
-  },8000);
+  },5000);
 }
 
 /* ============================================================
@@ -4020,8 +4067,8 @@ function setupSimilarRowNav(){
 }
 function renderMovieLogo(movie){
   const image=$("detailLogo"), container=document.querySelector(".detail-titles");
-  const logo=String(movie.logo||"");
-  const hasLogo=/^https:\/\/image\.tmdb\.org\/t\/p\/(?:w500|original)\/[A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|svg)$/i.test(logo);
+  const logo=getMovieLogo(movie);
+  const hasLogo=isTmdbLogoUrl(logo);
   image.hidden=!hasLogo;
   container.classList.toggle("has-logo",hasLogo);
   // Accessible title remains as an H1; text is visually hidden only when logo works.
