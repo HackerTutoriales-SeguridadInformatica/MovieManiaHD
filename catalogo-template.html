@@ -2091,8 +2091,6 @@ a{color:inherit;text-decoration:none}
 .mmhd-home-caption small{display:block;margin-top:4px;color:#9baed0;font-size:10px;font-weight:500}
 .mmhd-home-episode-card{flex-basis:226px}
 .mmhd-home-episode-card .mmhd-home-poster{aspect-ratio:16/9}
-.mmhd-home-note{color:#8da3c5;font-size:10px;line-height:1.5;margin:0 0 8px}
-.mmhd-home-note a{color:#9fc7ff;text-decoration:underline}
 .genre-browsing #mmhdHomeRows{display:none!important}
 @media(max-width:600px){.mmhd-home-rows{gap:19px}.mmhd-home-card{flex-basis:116px;border-radius:9px}.mmhd-home-caption{font-size:11px;padding:7px}.mmhd-home-episode-card{flex-basis:191px}.mmhd-home-row-head h2{font-size:15px}.mmhd-home-row-nav{display:none}.mmhd-home-track{gap:8px;margin-right:-12px;padding-right:12px}}
 @media(prefers-reduced-motion:reduce){.mmhd-home-track{scroll-behavior:auto}.mmhd-home-card,.mmhd-home-row-nav button{transition:none!important}}
@@ -2109,24 +2107,26 @@ a{color:inherit;text-decoration:none}
 .mmhd-home-see-more strong{font-size:14px;font-weight:850}
 .mmhd-home-see-more small{color:#acc8ff;font-size:10px;line-height:1.5}
 .mmhd-home-see-more:hover{transform:translateY(-4px);background:linear-gradient(145deg,#274b85,#183052);border-color:#8ab8ff}
-.mmhd-home-see-more:focus-visible,.mmhd-search-context button:focus-visible,.mmhd-search-show-more:focus-visible{
+.mmhd-home-see-more:focus-visible,.mmhd-search-context button:focus-visible{
   outline:2px solid #a1c9ff;outline-offset:3px}
 .mmhd-search-context{display:flex;justify-content:space-between;align-items:center;gap:14px;
   padding:15px 20px;border-bottom:1px solid #2c4976;
   background:linear-gradient(110deg,#1b365f,#101b31);color:#e9f2ff}
 .mmhd-search-context[hidden]{display:none!important}
 .mmhd-search-context-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
-.mmhd-search-context-kicker{color:#a3c4ff;font-size:10px;font-weight:750;letter-spacing:1.1px;text-transform:uppercase}
+.mmhd-search-context-kicker{color:#a3c4ff;font-size:11px;font-weight:750;letter-spacing:.2px;text-transform:none}
 #mmhdSearchContextTitle{font-size:16px;font-weight:850}
-.mmhd-search-context-description{color:#bed0ed;font-size:11px;line-height:1.45}
 .mmhd-search-context button{flex:none;display:flex;align-items:center;gap:7px;
   border:1px solid #587bb9;border-radius:9px;background:#203d6a;color:#eef5ff;
   padding:10px 12px;font-size:11px;font-weight:800;cursor:pointer}
 .mmhd-search-context button:hover{background:#3164aa}
-.mmhd-search-show-more{display:block;margin:20px auto 26px;padding:12px 22px;
-  border:1px solid #547fc0;border-radius:10px;color:#fff;background:#234b87;font-weight:750;cursor:pointer}
-.mmhd-search-show-more[hidden]{display:none!important}
-.mmhd-search-show-more:hover{background:#3169bb}
+/* Carga progresiva dentro de la ventana de búsqueda, sin botón manual. */
+.mmhd-search-infinite-sentinel{display:flex;align-items:center;justify-content:center;
+  gap:10px;min-height:68px;margin:12px auto 16px;color:#a9bfdf;font-size:12px}
+.mmhd-search-infinite-sentinel[hidden]{display:none!important}
+.mmhd-search-loading-icon{width:19px;height:19px;flex:none;border-radius:50%;
+  border:2px solid #2e4566;border-top-color:#69a2ff;animation:spin .8s linear infinite}
+@media(prefers-reduced-motion:reduce){.mmhd-search-loading-icon{animation:none}}
 @media(max-width:600px){
  .mmhd-home-see-more{flex-basis:116px;min-height:184px;border-radius:9px;padding:14px 7px;gap:9px}
  .mmhd-home-see-more .mmhd-more-icon{width:40px;height:40px;font-size:16px}
@@ -2135,7 +2135,6 @@ a{color:inherit;text-decoration:none}
  .mmhd-search-context{padding:12px 14px;gap:8px;align-items:flex-start}
  .mmhd-search-context button{font-size:10px;padding:8px}
  #mmhdSearchContextTitle{font-size:14px}
- .mmhd-search-context-description{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){.mmhd-home-see-more{transition:none!important}}
 </style>
@@ -2311,24 +2310,24 @@ a{color:inherit;text-decoration:none}
   <!-- Fase 12.2.1: contexto de búsqueda que viene de «Ver más» -->
   <div class="mmhd-search-context" id="mmhdSearchContext" hidden>
     <div class="mmhd-search-context-copy">
-      <span class="mmhd-search-context-kicker"><i class="fa-solid fa-filter"></i> Filtro del carrusel</span>
+      <span class="mmhd-search-context-kicker"><i class="fa-solid fa-filter"></i> Filtro</span>
       <strong id="mmhdSearchContextTitle"></strong>
-      <span class="mmhd-search-context-description" id="mmhdSearchContextDescription"></span>
     </div>
     <button type="button" id="mmhdSearchContextClear" aria-label="Quitar el filtro y buscar en todo el catálogo">
       <i class="fa-solid fa-xmark"></i> Quitar filtro
     </button>
   </div>
-  <div class="mobile-search-body">
+  <div class="mobile-search-body" id="mmhdSearchScrollArea">
     <div class="mobile-search-empty" id="mobileSearchEmpty">
       <i class="fa-solid fa-magnifying-glass"></i>
       <p>Escribe para buscar en todo el catálogo</p>
     </div>
     <p class="mobile-search-count" id="mobileSearchCount" role="status" aria-live="polite"></p>
     <div class="mobile-search-results" id="mobileSearchResults"></div>
-    <button type="button" class="mmhd-search-show-more" id="mmhdSearchShowMore" hidden>
-      <i class="fa-solid fa-angles-down"></i> Mostrar más resultados
-    </button>
+    <div class="mmhd-search-infinite-sentinel" id="mmhdSearchSentinel" role="status" aria-live="polite" hidden>
+      <span class="mmhd-search-loading-icon" aria-hidden="true"></span>
+      <span>Cargando más títulos…</span>
+    </div>
   </div>
 </div>
 
@@ -3114,51 +3113,11 @@ function getSearchResults(query){
   return MOVIES.filter(m=>matchedSearchTitle(m,query)!==null);
 }
 
-function renderMobileSearchResults(){
-  const activeTag=state.homeBrowseTag;
-  const query=normalizeSearchText(state.mobileSearch);
-  const results=activeTag
-    ? mmhdBrowseItems(activeTag).filter(m=>!query||matchedSearchTitle(m,query)!==null)
-    : getSearchResults(state.mobileSearch);
-  const emptyEl = $("mobileSearchEmpty");
-  const resultsEl = $("mobileSearchResults");
-  const countEl = $("mobileSearchCount");
-  $("mobileSearchClear").hidden = !state.mobileSearch;
-
-  if (!state.mobileSearch.trim() && !activeTag) {
-    $("mmhdSearchShowMore").hidden=true;
-    emptyEl.style.display = "flex";
-    emptyEl.querySelector("i").className = "fa-solid fa-magnifying-glass";
-    emptyEl.querySelector("i").style.color = "#2563eb";
-    emptyEl.querySelector("p").textContent = "Escribe para buscar en todo el catálogo";
-    resultsEl.innerHTML = "";
-    countEl.textContent = "";
-    return;
-  }
-
-  if (!results.length) {
-    $("mmhdSearchShowMore").hidden=true;
-    emptyEl.style.display = "flex";
-    emptyEl.querySelector("i").className = "fa-solid fa-film";
-    emptyEl.querySelector("i").style.color = "#2a2a3a";
-    emptyEl.querySelector("p").textContent = activeTag
-      ? "No hay títulos que coincidan con esta etiqueta y tu búsqueda."
-      : "Sin resultados para tu búsqueda";
-    countEl.textContent = "";
-    resultsEl.innerHTML = "";
-    return;
-  }
-
-  emptyEl.style.display = "none";
-  const visibleResults = results.slice(0, state.mobileSearchVisibleCount);
-  countEl.textContent = results.length > state.mobileSearchVisibleCount
-    ? `${results.length} resultados · Mostrando ${visibleResults.length}`
-    : `${results.length} ${results.length === 1 ? "resultado" : "resultados"}`;
-  const moreButton=$("mmhdSearchShowMore");
-  moreButton.hidden=visibleResults.length>=results.length;
-  if(!moreButton.hidden)moreButton.innerHTML=`<i class="fa-solid fa-angles-down"></i> Mostrar más (${visibleResults.length} de ${results.length})`;
-  resultsEl.innerHTML = visibleResults.map(m => `
-    <article class="card" data-id="${m.id}">
+/* Resultados progresivos sin reconstruir las portadas anteriores: evita saltos al
+   inicio del buscador y no vuelve a solicitar imágenes de tarjetas ya dibujadas. */
+function mmhdSearchCardHTML(m){
+  return `
+    <article class="card" data-id="${m.id}" tabindex="0" role="button" aria-label="Ver ${esc(m.title)}">
       <div class="card-poster">
         <img src="${esc(posterSmall(m))}"
              ${posterResponsive(m)}
@@ -3177,30 +3136,111 @@ function renderMobileSearchResults(){
           return match && normalizeSearchText(match)!==normalizeSearchText(m.title)
             ? `<div class="search-matched-title" title="${esc(match)}">También: ${esc(match)}</div>`:"";})()}
       </div>
-    </article>
-  `).join("");
-
-  resultsEl.querySelectorAll(".card").forEach(card => {
-    card.addEventListener("click", () => {
-      const id = Number(card.dataset.id);
+    </article>`;
+}
+function mmhdBindSearchCards(){
+  $("mobileSearchResults").querySelectorAll(".card:not([data-mmhd-search-bound])").forEach(card=>{
+    card.dataset.mmhdSearchBound="1";
+    const open=()=>{
+      const id=Number(card.dataset.id);
       closeMobileSearch();
       openDetail(id);
+    };
+    card.addEventListener("click",open);
+    card.addEventListener("keydown",event=>{
+      if(event.key==="Enter"||event.key===" "){
+        event.preventDefault();open();
+      }
     });
   });
+}
+function mmhdSearchCanAppend(){
+  return $("mobileSearchScreen").classList.contains("show")&&
+    state.mobileSearchVisibleCount<Number(state.mobileSearchResultTotal||0)&&
+    !state.mobileSearchLoadingMore;
+}
+function mmhdSearchNearBottom(){
+  if(!mmhdSearchCanAppend())return;
+  const scroller=$("mmhdSearchScrollArea");
+  if(scroller.scrollHeight-scroller.scrollTop-scroller.clientHeight<360){
+    mmhdAppendSearchResults();
+  }
+}
+function mmhdAppendSearchResults(){
+  if(!mmhdSearchCanAppend())return;
+  state.mobileSearchLoadingMore=true;
+  try{
+    state.mobileSearchVisibleCount+=72;
+    renderMobileSearchResults(true);
+  }finally{
+    state.mobileSearchLoadingMore=false;
+  }
+  // También rellena ventanas grandes cuando una tanda no alcanza el alto visible.
+  requestAnimationFrame(mmhdSearchNearBottom);
+}
+function renderMobileSearchResults(append=false){
+  const activeTag=state.homeBrowseTag;
+  const query=normalizeSearchText(state.mobileSearch);
+  const results=activeTag
+    ? mmhdBrowseItems(activeTag).filter(m=>!query||matchedSearchTitle(m,query)!==null)
+    : getSearchResults(state.mobileSearch);
+  const emptyEl=$("mobileSearchEmpty");
+  const resultsEl=$("mobileSearchResults");
+  const countEl=$("mobileSearchCount");
+  const sentinel=$("mmhdSearchSentinel");
+  $("mobileSearchClear").hidden=!state.mobileSearch;
+  state.mobileSearchResultTotal=results.length;
+
+  if(!state.mobileSearch.trim()&&!activeTag){
+    sentinel.hidden=true;
+    emptyEl.style.display="flex";
+    emptyEl.querySelector("i").className="fa-solid fa-magnifying-glass";
+    emptyEl.querySelector("i").style.color="#2563eb";
+    emptyEl.querySelector("p").textContent="Escribe para buscar en todo el catálogo";
+    resultsEl.innerHTML="";
+    countEl.textContent="";
+    return;
+  }
+  if(!results.length){
+    sentinel.hidden=true;
+    emptyEl.style.display="flex";
+    emptyEl.querySelector("i").className="fa-solid fa-film";
+    emptyEl.querySelector("i").style.color="#2a2a3a";
+    emptyEl.querySelector("p").textContent=activeTag
+      ? "No hay títulos que coincidan con esta etiqueta y tu búsqueda."
+      : "Sin resultados para tu búsqueda";
+    countEl.textContent="";
+    resultsEl.innerHTML="";
+    return;
+  }
+  emptyEl.style.display="none";
+  const visibleResults=results.slice(0,state.mobileSearchVisibleCount);
+  const renderedCount=append?resultsEl.querySelectorAll(".card").length:0;
+  const remaining=visibleResults.slice(renderedCount);
+  if(append)resultsEl.insertAdjacentHTML("beforeend",remaining.map(mmhdSearchCardHTML).join(""));
+  else resultsEl.innerHTML=visibleResults.map(mmhdSearchCardHTML).join("");
+  const visibleCount=visibleResults.length;
+  countEl.textContent=visibleCount<results.length
+    ? `${results.length} resultados · Mostrando ${visibleCount}`
+    : `${results.length} ${results.length===1?"resultado":"resultados"}`;
+  sentinel.hidden=visibleCount>=results.length;
+  mmhdBindSearchCards();
+  if(!append)requestAnimationFrame(mmhdSearchNearBottom);
 }
 
 function openMobileSearch(tag=null){
   // Los menús envían un evento click; los carruseles envían una etiqueta string.
   state.homeBrowseTag=typeof tag==="string" ? tag : null;
   state.mobileSearchVisibleCount=72;
+  state.mobileSearchResultTotal=0;
   const context=mmhdBrowseContext(state.homeBrowseTag);
   $("mmhdSearchContext").hidden=!context;
   if(context){
     $("mmhdSearchContextTitle").textContent=context.title;
-    $("mmhdSearchContextDescription").textContent=context.description;
   }
   const screen = $("mobileSearchScreen");
   screen.classList.add("show");
+  $("mmhdSearchScrollArea").scrollTop=0;
   document.body.style.overflow = "hidden";
   hideMobileNav();
   state.mobileSearch = "";
@@ -4037,7 +4077,23 @@ function mmhdBrowseItems(tag){
   if(tag==="recent"){
     return MOVIES.map((m,i)=>({m,i})).sort((a,b)=>byDate(a.m,b.m)||b.i-a.i).map(x=>x.m);
   }
-  if(tag==="premieres")return mmhdPremiereItems(Infinity);
+  // «Ver más» usa todo el año en curso (enero a diciembre). El carrusel de Inicio
+  // conserva su ventana original de cuatro meses.
+  if(tag==="premieres"){
+    const year=String(new Date().getFullYear());
+    const release=m=>String(m.releaseDate||"").trim();
+    return MOVIES.filter(m=>{
+      if(m.kind!=="MOVIE")return false;
+      const date=release(m);
+      return /^\d{4}-\d{2}-\d{2}$/.test(date)
+        ? date.slice(0,4)===year
+        : String(m.year||"").trim()===year;
+    }).sort((a,b)=>{
+      const dateA=release(a),dateB=release(b);
+      const sortable=d=>/^\d{4}-\d{2}-\d{2}$/.test(d)?d:"";
+      return sortable(dateB).localeCompare(sortable(dateA))||byDate(a,b);
+    });
+  }
   if(tag==="episodes"){
     const unique=new Map();
     // Cada serie aparece una sola vez, ordenada por el capítulo más reciente.
@@ -4053,14 +4109,12 @@ function mmhdBrowseItems(tag){
 }
 function mmhdBrowseContext(tag){
   const currentYear=new Date().getFullYear();
-  const endMonth=new Date().getMonth(),startMonth=Math.max(0,endMonth-3);
-  const monthName=m=>new Intl.DateTimeFormat("es-MX",{month:"long"}).format(new Date(currentYear,m,1));
   const contexts={
-    premieres:{title:`Películas de estreno · ${currentYear}`,description:`Filtro: ${currentYear} · Estrenos de ${monthName(startMonth)} a ${monthName(endMonth)}. Solo películas de tu catálogo.`},
-    episodes:{title:"Series con nuevos episodios",description:"Series de tu biblioteca ordenadas por la fecha de sus capítulos añadidos o editados."},
-    netflix:{title:"Títulos de Netflix · MX",description:"Disponibilidad en Netflix México, con tus ajustes manuales incluidos."},
-    max:{title:"Títulos de HBO Max · MX",description:"Disponibilidad en HBO Max México, con tus ajustes manuales incluidos."},
-    disney:{title:"Títulos de Disney+ · MX",description:"Disponibilidad en Disney+ México, con tus ajustes manuales incluidos."}
+    premieres:{title:`Películas de estreno · ${currentYear}`},
+    episodes:{title:"Series con nuevos episodios"},
+    netflix:{title:"Títulos de Netflix"},
+    max:{title:"Títulos de HBO Max"},
+    disney:{title:"Títulos de Disney+"}
   };
   return contexts[tag]||null;
 }
@@ -4109,7 +4163,6 @@ function mmhdRenderHomeRows(){
     <div class="mmhd-home-row-head"><i class="fa-solid ${row.icon}"></i><h2>${row.title}</h2><span class="mmhd-home-count">${row.id==="episodes"?mmhdLatestEpisodes(Infinity).length:mmhdBrowseItems(row.id).length}</span>
      <div class="mmhd-home-row-nav"><button type="button" data-mmhd-scroll="prev" aria-label="Desplazar ${row.title} a la izquierda"><i class="fa-solid fa-chevron-left"></i></button>
      <button type="button" data-mmhd-scroll="next" aria-label="Desplazar ${row.title} a la derecha"><i class="fa-solid fa-chevron-right"></i></button></div></div>
-    ${["netflix","max","disney"].includes(row.id)?'<p class="mmhd-home-note">Disponibilidad de streaming en México, orientativa. Datos de <a href="https://www.justwatch.com/mx" target="_blank" rel="noopener noreferrer">JustWatch</a> vía TMDB, con ajustes manuales.</p>':""}
     <div class="mmhd-home-track">${row.items.map(mmhdHomeCard).join("")}
       <button type="button" class="mmhd-home-see-more" data-mmhd-more="${row.id}" aria-label="Ver más: ${row.title}">
         <span class="mmhd-more-icon"><i class="fa-solid fa-arrow-right"></i></span>
@@ -5200,6 +5253,7 @@ if (sidebarNavSearch) {
 
 $("mobileSearchInput").addEventListener("input", e => {
   state.mobileSearchVisibleCount=72;
+  $("mmhdSearchScrollArea").scrollTop=0;
   state.mobileSearch = e.target.value;
   $("mobileSearchClear").hidden = !state.mobileSearch;
   clearTimeout(state.mobileSearchTimer);
@@ -5209,6 +5263,7 @@ $("mobileSearchInput").addEventListener("input", e => {
 $("mobileSearchClear").addEventListener("click", () => {
   clearTimeout(state.mobileSearchTimer);
   state.mobileSearchVisibleCount=72;
+  $("mmhdSearchScrollArea").scrollTop=0;
   state.mobileSearch = "";
   $("mobileSearchInput").value = "";
   renderMobileSearchResults();
@@ -5219,14 +5274,22 @@ $("mobileSearchClear").addEventListener("click", () => {
 $("mmhdSearchContextClear").addEventListener("click",()=>{
   state.homeBrowseTag=null;
   state.mobileSearchVisibleCount=72;
+  $("mmhdSearchScrollArea").scrollTop=0;
   $("mmhdSearchContext").hidden=true;
   renderMobileSearchResults();
   $("mobileSearchInput").focus();
 });
-$("mmhdSearchShowMore").addEventListener("click",()=>{
-  state.mobileSearchVisibleCount+=72;
-  renderMobileSearchResults();
-});
+/* El buscador se desplaza dentro de su propia ventana: el observador debe
+   utilizar ese contenedor y no el scroll de toda la página. */
+const mmhdSearchScroller=$("mmhdSearchScrollArea");
+if(typeof IntersectionObserver!=="undefined"){
+  const mmhdSearchObserver=new IntersectionObserver(entries=>{
+    if(entries.some(entry=>entry.isIntersecting))mmhdAppendSearchResults();
+  },{root:mmhdSearchScroller,rootMargin:"360px 0px",threshold:0});
+  mmhdSearchObserver.observe($("mmhdSearchSentinel"));
+}
+// Respaldo para navegadores sin IntersectionObserver y desplazamientos rápidos.
+mmhdSearchScroller.addEventListener("scroll",mmhdSearchNearBottom,{passive:true});
 
 /* ============================================================
    REFRESCAR
