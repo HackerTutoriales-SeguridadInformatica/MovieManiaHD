@@ -1102,6 +1102,23 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-repair-qualities>div{display:flex;justify-content:space-between;gap:12px;background:#13243a;border:1px solid #2d4059;padding:10px 12px;border-radius:8px;font-size:11px}
 .mmhd-repair-qualities strong{color:#b7e8d8}
 @media(max-width:650px){.mmhd-review-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.mmhd-review-edit .mmhd-fields{grid-template-columns:1fr}.mmhd-repair-dialog{padding:14px}.mmhd-review-toolbar>*{flex:1 1 155px}}
+
+/* Fase 12.2 — Panel de disponibilidad México, con prioridad manual */
+.mmhd-platform-panel{margin:18px 0 16px;padding:16px;border:1px solid #304666;border-radius:14px;background:linear-gradient(145deg,#121c30,#111826);color:#dce9ff}
+.mmhd-platform-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.mmhd-platform-heading strong{font-size:14px}
+.mmhd-platform-heading button{width:auto!important;margin:0!important;font-size:12px!important;padding:9px 12px!important}
+.mmhd-platform-panel p{font-size:12px;color:#acbfd9;line-height:1.6;margin:9px 0 12px}
+.mmhd-platform-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mmhd-platform-choice{display:flex;flex-direction:column;gap:7px;padding:10px;border-radius:10px;background:rgba(7,16,32,.63);border:1px solid #273a58}
+.mmhd-platform-choice label{font-size:12px;font-weight:750;color:#e0ebff}
+.mmhd-platform-choice select{display:block;min-width:0;width:100%;font-size:12px;color:#f3f7ff;background:#182b4e;padding:9px;border-radius:8px;border:1px solid #415982}
+.mmhd-platform-choice small{font-size:10.5px;color:#9fb3d4;line-height:1.4}
+#mmhdPlatformStatus{display:block;margin:10px 0 5px;color:#b6cdf0;font-size:11px}
+.mmhd-platform-credit{font-size:10px;color:#879fbe;line-height:1.5}
+.mmhd-platform-credit a{color:#9cc2ff;text-decoration:underline}
+.mmhd-platform-bulk-status{color:#b7d4ff;font-size:11px;line-height:1.6}
+@media(max-width:670px){.mmhd-platform-choices{grid-template-columns:1fr}.mmhd-platform-heading{align-items:flex-start}.mmhd-platform-panel{padding:12px}}
 </style>
 </head>
 <body>
@@ -1275,6 +1292,16 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   <input id="manualSearchTitles" type="text" placeholder="Ej. El hombre araña, Spider-Man" autocomplete="off" spellcheck="false" maxlength="600"/>
   <small>TMDB añade los títulos ES/EN automáticamente. Si falta alguno, escríbelo aquí separado por comas.</small>
 </div>
+
+<section class="mmhd-platform-panel" id="mmhdPlatformPanel" aria-label="Plataformas de streaming en México">
+  <div class="mmhd-platform-heading"><strong><i class="fa-solid fa-tv"></i> Plataformas de streaming · México (MX)</strong>
+    <button type="button" class="secondary" id="mmhdPlatformRefresh"><i class="fa-solid fa-rotate"></i> Consultar TMDB</button>
+  </div>
+  <p>TMDB propone las plataformas disponibles en México; tú decides si mantener la opción automática, agregar el título o quitarlo. Al guardar, tus elecciones manuales tienen prioridad.</p>
+  <div class="mmhd-platform-choices" id="mmhdPlatformChoices"></div>
+  <small id="mmhdPlatformStatus" role="status" aria-live="polite">Selecciona una película o serie para consultar plataformas.</small>
+  <small class="mmhd-platform-credit">Fuente: <a href="https://www.justwatch.com/mx" target="_blank" rel="noopener noreferrer">JustWatch</a> mediante TMDB. Solo streaming (no alquiler o compra). La disponibilidad puede cambiar.</small>
+</section>
 <div class="artwork-panel" hidden="" id="artworkPanel">
 <div class="artwork-heading"><strong><i class="fa-solid fa-images"></i> Elegir póster</strong><span class="tmdb">Selecciona una imagen para esta película</span></div>
 <div class="artwork-list" id="posterChoices"></div>
@@ -1482,6 +1509,9 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <button class="secondary" id="btnBackupCollection" type="button"><i class="fa-solid fa-file-export"></i> Respaldar colección</button>
 <button class="secondary" id="btnEnrichMedia" type="button"><i class="fa-solid fa-users"></i> Completar logos y reparto (TMDB)</button>
 <button class="secondary" id="btnSyncSearchTitles" type="button"><i class="fa-solid fa-language"></i> Completar títulos ES/EN (TMDB)</button>
+<button class="secondary" id="btnSyncProvidersMx" type="button"><i class="fa-solid fa-tv"></i> Actualizar plataformas MX y fechas de estreno (TMDB)</button>
+<button class="secondary" id="btnCancelProvidersMx" type="button" hidden><i class="fa-solid fa-ban"></i> Detener actualización de plataformas</button>
+<span class="mmhd-platform-bulk-status" id="mmhdPlatformBulkStatus" role="status" aria-live="polite"></span>
 <button class="secondary" id="btnRestoreCollection" type="button"><i class="fa-solid fa-file-import"></i> Importar respaldo</button>
 <div class="mmhd-backup-tools">
   <div class="mmhd-backup-info" id="backupInfo" role="status">Todavía no hay registro de respaldo descargado en este navegador.</div>
@@ -1681,6 +1711,134 @@ async function tmdbGet(url, key){
   }
   return data;
 }
+
+/* ============================================================
+   FASE 12.2: WATCH PROVIDERS MX — edición mixta TMDB / manual
+   ============================================================ */
+const MMHD_PROVIDERS_MX={netflix:"Netflix",max:"HBO Max",disney:"Disney+"};
+function mmhdProviderMode(value){return ["auto","on","off"].includes(value)?value:"auto";}
+function mmhdProviderOverrides(value){
+  const o=value&&typeof value==="object"?value:{};
+  return Object.fromEntries(Object.keys(MMHD_PROVIDERS_MX).map(k=>[k,mmhdProviderMode(o[k])]));
+}
+function mmhdProviderKeys(data){
+  const region=data?.results?.MX||{};
+  // No confundir disponibles en streaming con solo renta (rent) o compra (buy).
+  const providers=[...(region.flatrate||[]),...(region.ads||[]),...(region.free||[])];
+  const found=new Set();
+  for(const p of providers){
+    const n=String(p?.provider_name||"").trim().toLowerCase();
+    const id=Number(p?.provider_id);
+    if([8,1796].includes(id)||/^netflix(?:\s|$)/i.test(n))found.add("netflix");
+    if([384,1899].includes(id)||(/^(?:hbo\s*)?max(?:\s|$)/i.test(n)&&!/(?:amazon|channel)/i.test(n)))found.add("max");
+    if(id===337||(/^disney\s*(?:\+|plus)/i.test(n)&&!/(?:amazon|channel)/i.test(n)))found.add("disney");
+  }
+  return [...found];
+}
+function mmhdMediaId(media){return media?.tmdbId||Math.abs(Number(media?.id))||0;}
+function mmhdApplyProviderFields(target,source){
+  target.watchProvidersMx=Array.isArray(source.watchProvidersMx)?source.watchProvidersMx.filter(k=>MMHD_PROVIDERS_MX[k]):[];
+  target.providerOverridesMx=mmhdProviderOverrides(source.providerOverridesMx);
+  target.providersCheckedAtMx=String(source.providersCheckedAtMx||"");
+}
+function mmhdRenderProviderEditor(){
+  const media=state.movie,box=$("mmhdPlatformChoices"),status=$("mmhdPlatformStatus");
+  if(!media){box.replaceChildren();status.textContent="Elige una película o serie.";return;}
+  const automatic=new Set(media.watchProvidersMx||[]);
+  const overrides=mmhdProviderOverrides(media.providerOverridesMx);
+  box.innerHTML=Object.entries(MMHD_PROVIDERS_MX).map(([key,label])=>{
+    const forced=overrides[key];
+    const selected=forced==="on"||forced==="auto"&&automatic.has(key);
+    return `<div class="mmhd-platform-choice"><label for="mmhdProvider-${key}">${label}</label>
+      <select id="mmhdProvider-${key}" data-mmhd-provider="${key}" aria-label="${label} · controlar disponibilidad">
+        <option value="auto" ${forced==="auto"?"selected":""}>Automático (TMDB)</option>
+        <option value="on" ${forced==="on"?"selected":""}>Mostrar manualmente</option>
+        <option value="off" ${forced==="off"?"selected":""}>Ocultar manualmente</option>
+      </select>
+      <small>TMDB: ${automatic.has(key)?"✓ detectado":"No detectado"} · Catálogo: ${selected?"Visible":"Oculto"}</small></div>`;
+  }).join("");
+  const last=media.providersCheckedAtMx?new Date(media.providersCheckedAtMx).toLocaleString("es-MX"):"Sin consultar";
+  status.textContent="Región MX · Última consulta TMDB: "+last+". Las opciones manuales se guardan al guardar el título.";
+}
+async function mmhdRefreshSelectedProviders(){
+  const media=state.movie,key=credentialValue(),button=$("mmhdPlatformRefresh");
+  if(!media)return;
+  if(!key){$("mmhdPlatformStatus").textContent="Configura primero la credencial de TMDB en Herramientas.";return;}
+  const id=mmhdMediaId(media);
+  if(!id){$("mmhdPlatformStatus").textContent="Esta ficha no tiene identificador TMDB válido.";return;}
+  button.disabled=true;
+  $("mmhdPlatformStatus").textContent="Consultando disponibilidad de streaming en México…";
+  try{
+    const prefix=media.kind==="SERIES"?"tv":"movie";
+    const response=await tmdbGet(`https://api.themoviedb.org/3/${prefix}/${encodeURIComponent(id)}/watch/providers`,key);
+    if(state.movie!==media)return;
+    media.watchProvidersMx=mmhdProviderKeys(response);
+    media.providersCheckedAtMx=new Date().toISOString();
+    // Ningún cambio en providerOverridesMx; lo que elegiste manualmente prevalece.
+    mmhdRenderProviderEditor();
+  }catch(err){
+    if(state.movie===media)$("mmhdPlatformStatus").textContent="No se pudo consultar TMDB: "+String(err?.message||err)+". Se mantienen los datos anteriores.";
+  }finally{button.disabled=false;}
+}
+let mmhdProviderBulkCancel=false,mmhdProviderBulkBusy=false;
+async function mmhdSyncLibraryProvidersMx(){
+  const key=credentialValue(),btn=$("btnSyncProvidersMx"),cancel=$("btnCancelProvidersMx"),status=$("mmhdPlatformBulkStatus");
+  if(mmhdProviderBulkBusy)return;
+  if(!key){status.textContent="Agrega primero una credencial de TMDB.";return;}
+  mmhdProviderBulkBusy=true;mmhdProviderBulkCancel=false;btn.disabled=true;cancel.hidden=false;
+  const copy=structuredClone(state.collection);
+  let done=0,failed=0,dates=0,updated=0;
+  snapshotCollection();
+  for(const entry of copy){
+    if(mmhdProviderBulkCancel)break;
+    const id=mmhdMediaId(entry);
+    if(!id){failed++;continue;}
+    status.textContent=`TMDB México: ${done+failed+1}/${copy.length} · ${entry.title}`;
+    try{
+      const kind=entry.kind==="SERIES"?"tv":"movie";
+      const data=await tmdbGet(`https://api.themoviedb.org/3/${kind}/${encodeURIComponent(id)}/watch/providers`,key);
+      entry.watchProvidersMx=mmhdProviderKeys(data);
+      entry.providersCheckedAtMx=new Date().toISOString();
+      // Mantener exclusiones/inclusiones manuales incluso si TMDB cambia su lista.
+      entry.providerOverridesMx=mmhdProviderOverrides(entry.providerOverridesMx);
+      updated++;
+      if(kind==="movie"&&!/^\d{4}-\d{2}-\d{2}$/.test(String(entry.releaseDate||""))){
+        try{
+          const info=await tmdbGet(`https://api.themoviedb.org/3/movie/${encodeURIComponent(id)}?language=es-MX`,key);
+          if(/^\d{4}-\d{2}-\d{2}$/.test(String(info.release_date||""))){entry.releaseDate=info.release_date;dates++;}
+        }catch(_){/* La fecha faltante no bloquea los proveedores. */}
+      }
+      done++;
+    }catch(e){failed++;console.warn("MMHD providers MX",entry.title,e);}
+    // Guardado por lotes sin sustituir la colección completa hasta finalizar.
+    if((done+failed)%10===0){
+      // Guardar solamente las propiedades consultadas; no tocar enlaces editados mientras tanto.
+      if(!mmhdApplyBulkProviders(copy)) {status.textContent="No se pudieron guardar los datos. Haz respaldo y revisa espacio.";break;}
+    }
+  }
+  if(updated||done)mmhdApplyBulkProviders(copy);
+  status.textContent=`${done} título(s) consultado(s) · ${dates} fechas completas · ${failed} errores${mmhdProviderBulkCancel?" · detenido por el usuario":""}. Guarda un respaldo para conservar estos cambios.`;
+  mmhdProviderBulkBusy=false;btn.disabled=false;cancel.hidden=true;
+}
+function mmhdApplyBulkProviders(copy){
+  const next=state.collection.map(local=>{
+    const synced=copy.find(x=>String(x.id)===String(local.id));
+    if(!synced?.providersCheckedAtMx||String(local.providersCheckedAtMx||"")===String(synced.providersCheckedAtMx||""))return local;
+    return {...local,watchProvidersMx:synced.watchProvidersMx,providersCheckedAtMx:synced.providersCheckedAtMx,
+      providerOverridesMx:mmhdProviderOverrides(local.providerOverridesMx),
+      releaseDate:local.releaseDate||synced.releaseDate||""};
+  });
+  return commitCollection(next,{snapshot:false});
+}
+$("mmhdPlatformChoices").addEventListener("change",event=>{
+  const select=event.target.closest("[data-mmhd-provider]");
+  if(!select||!state.movie)return;
+  state.movie.providerOverridesMx={...mmhdProviderOverrides(state.movie.providerOverridesMx),[select.dataset.mmhdProvider]:mmhdProviderMode(select.value)};
+  mmhdRenderProviderEditor();
+});
+$("mmhdPlatformRefresh").addEventListener("click",()=>{void mmhdRefreshSelectedProviders();});
+$("btnSyncProvidersMx").addEventListener("click",()=>{void mmhdSyncLibraryProvidersMx();});
+$("btnCancelProvidersMx").addEventListener("click",()=>{mmhdProviderBulkCancel=true;});
 
 /* ============================================================
    VALIDAR CREDENCIAL TMDB
@@ -1952,7 +2110,11 @@ function activeAdminEpisode(){
 }
 function storeAdminEpisodeFields(){
   const ep=activeAdminEpisode();if(!ep)return;
+  const previousLinks=["m37","m22","m18"].map(id=>String(ep[id]||""));
   for(const id of ["googleUrl","m37","m22","m18"])ep[id]=$(id).value.trim();
+  const playable=["m37","m22","m18"].some(id=>Boolean(ep[id]));
+  if(playable&&!ep.addedAt)ep.addedAt=new Date().toISOString();
+  if(playable&&["m37","m22","m18"].some((id,i)=>String(ep[id]||"")!==previousLinks[i]))ep.updatedAt=new Date().toISOString();
   if(!$('episodeDetailsEditor').hidden){
     ep.name=$('episodeEditName').value.trim() || `Episodio ${ep.number}`;
     ep.overview=$('episodeEditOverview').value.trim();
@@ -2117,6 +2279,7 @@ async function loadSeries(tmdbId){
     const backdrop=info.backdrop_path?TMDB_IMG+"w1280"+info.backdrop_path:"";
     state.movie={id:-Number(info.id),tmdbId:Number(info.id),kind:"SERIES",title:info.name||"",
       searchTitles:tmdbSearchTitles(info),searchTitlesSynced:true,manualSearchTitles:[],
+      watchProvidersMx:[],providerOverridesMx:mmhdProviderOverrides(),providersCheckedAtMx:"",
       release_date:info.first_air_date||"",runtime:Number(info.episode_run_time?.[0])||0,
       overview:info.overview||"",vote_average:Number(info.vote_average)||0,tagline:info.tagline||"",
       logo:chooseTmdbLogo(images),cast:creditsResult.status==="fulfilled"?castFromTmdb(creditsResult.value):[],
@@ -2128,6 +2291,7 @@ async function loadSeries(tmdbId){
     state.posterOptions=buildArtworkOptions("poster",poster,images.posters||[]);
     state.backdropOptions=buildArtworkOptions("backdrop",backdrop,images.backdrops||[]);
     renderSelectedMovie();
+    void mmhdRefreshSelectedProviders();
     if(state.movie.seasonSummaries.length)await loadSeriesSeason(state.movie.seasonSummaries[0].number);
     showStatus("Serie seleccionada. Elige el episodio y configura su enlace.","ok");updateSteps(3);
   }catch(err){if(requestId===movieRequestId)showStatus("No se pudo cargar la serie: "+err.message,"err");}
@@ -2140,6 +2304,9 @@ function editSavedSeries(item){
     title:item.title||"",release_date:item.year||"",runtime:parseInt(item.runtime,10)||0,
     searchTitles:Array.isArray(item.searchTitles)?item.searchTitles:[],searchTitlesSynced:item.searchTitlesSynced===true,
     manualSearchTitles:Array.isArray(item.manualSearchTitles)?item.manualSearchTitles:[],
+    watchProvidersMx:Array.isArray(item.watchProvidersMx)?item.watchProvidersMx:[],
+    providerOverridesMx:mmhdProviderOverrides(item.providerOverridesMx),
+    providersCheckedAtMx:item.providersCheckedAtMx||"",
     overview:item.overview||"",vote_average:Number(item.rating)||0,tagline:item.subtitle||"",
     logo:item.logo||"",cast:item.cast||[],mediaSynced:item.mediaSynced===true,
     seasonSummaries:Array.isArray(item.seasonSummaries)?structuredClone(item.seasonSummaries):(item.seasons||[]).map(s=>({number:s.number,name:s.name,episode_count:(s.episodes||[]).length})),
@@ -2173,6 +2340,10 @@ function saveSeriesToCollection(){
     searchTitlesSynced:m.searchTitlesSynced===true||old?.searchTitlesSynced===true,
     manualSearchTitles:cleanManualSearchTitles($("manualSearchTitles").value),
     seasonSummaries:structuredClone(m.seasonSummaries||[]),seasons:structuredClone(m.seasons||[]),
+    watchProvidersMx:Array.isArray(m.watchProvidersMx)?m.watchProvidersMx:old?.watchProvidersMx||[],
+    providerOverridesMx:mmhdProviderOverrides(m.providerOverridesMx||old?.providerOverridesMx),
+    providersCheckedAtMx:m.providersCheckedAtMx||old?.providersCheckedAtMx||"",
+    releaseDate:m.release_date||old?.releaseDate||"",
     googleUrl:"",m37:"",m22:"",m18:"",addedAt:old?.addedAt||now,updatedAt:now};
   const next=state.collection.slice(),idx=next.findIndex(x=>String(x.id)===String(item.id));
   if(idx>=0)next[idx]=item;else next.push(item);
@@ -2324,6 +2495,7 @@ function renderSelectedMovie(){
   $("btnAddMovie").innerHTML = state.editingId !== null ? '<i class="fa-solid fa-floppy-disk"></i> Guardar cambios' : `<i class="fa-solid fa-plus"></i> ${isSeries?"Agregar serie al catálogo":"Agregar al catálogo"}`;
   $("btnCancelEdit").style.display = state.editingId !== null ? "block" : "none";
   $("manualSearchTitles").value=Array.isArray(movie.manualSearchTitles)?movie.manualSearchTitles.join(", "):"";
+  mmhdRenderProviderEditor();
   updateMovieImages();
 }
 function editSavedMovie(id){
@@ -2339,7 +2511,10 @@ function editSavedMovie(id){
     overview:item.overview || "", vote_average:Number(item.rating)||0,
     logo:item.logo||"", cast:Array.isArray(item.cast)?item.cast:[], mediaSynced:item.mediaSynced===true,
     searchTitles:Array.isArray(item.searchTitles)?item.searchTitles:[],searchTitlesSynced:item.searchTitlesSynced===true,
-    manualSearchTitles:Array.isArray(item.manualSearchTitles)?item.manualSearchTitles:[]
+    manualSearchTitles:Array.isArray(item.manualSearchTitles)?item.manualSearchTitles:[],
+    watchProvidersMx:Array.isArray(item.watchProvidersMx)?item.watchProvidersMx:[],
+    providerOverridesMx:mmhdProviderOverrides(item.providerOverridesMx),
+    providersCheckedAtMx:item.providersCheckedAtMx||""
   };
   state.movie=movie;state.editingId=item.id;
   state.poster=String(item.poster||""); state.backdrop=String(item.backdrop||"");
@@ -2438,6 +2613,7 @@ async function loadMovie(id){
     }catch(_){}
     if (requestId !== movieRequestId) return;
     state.movie = {...movie, searchTitles:tmdbSearchTitles(movie),searchTitlesSynced:true,manualSearchTitles:[],
+      watchProvidersMx:[],providerOverridesMx:mmhdProviderOverrides(),providersCheckedAtMx:"",
       logo:media.logo, cast:media.cast, mediaSynced:media.gotImages&&media.gotCredits};
     state.editingId = null;
     state.poster = selectedPoster;
@@ -2448,6 +2624,7 @@ async function loadMovie(id){
     state.posterOptions = buildArtworkOptions("poster", selectedPoster, posters);
     state.backdropOptions = buildArtworkOptions("backdrop", selectedBackdrop, backdrops);
     renderSelectedMovie();
+    void mmhdRefreshSelectedProviders();
     showStatus("Película seleccionada correctamente.","ok");
     updateSteps(3);
   }catch(e){
@@ -2849,6 +3026,10 @@ function addMovieToCollection(){
     manualSearchTitles:cleanManualSearchTitles($("manualSearchTitles").value),
     tmdbId: state.movie.id != null ? state.movie.id : "",
     kind: "MOVIE", googleUrl: $("googleUrl").value.trim(),
+    releaseDate:/^\d{4}-\d{2}-\d{2}$/.test(String(state.movie.release_date||"")) ? state.movie.release_date : oldItem?.releaseDate||"",
+    watchProvidersMx:Array.isArray(state.movie.watchProvidersMx)?state.movie.watchProvidersMx:oldItem?.watchProvidersMx||[],
+    providerOverridesMx:mmhdProviderOverrides(state.movie.providerOverridesMx||oldItem?.providerOverridesMx),
+    providersCheckedAtMx:state.movie.providersCheckedAtMx||oldItem?.providersCheckedAtMx||"",
     addedAt: oldItem?.addedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     m37, m22, m18
@@ -3246,6 +3427,11 @@ async function buildCollectionHtml(){
       manualSearchTitles:Array.isArray(item.manualSearchTitles)?item.manualSearchTitles.slice(0,16).map(s=>String(s||"").slice(0,160)):[],
       subtitle: String(item.subtitle || ""),
       year: String(item.year || ""),
+      addedAt:String(item.addedAt||""),
+      updatedAt:String(item.updatedAt||""),
+      releaseDate:String(item.releaseDate||""),
+      watchProvidersMx:Array.isArray(item.watchProvidersMx)?item.watchProvidersMx.filter(k=>MMHD_PROVIDERS_MX[k]):[],
+      providerOverridesMx:mmhdProviderOverrides(item.providerOverridesMx),
       runtime: String(item.runtime || ""),
       poster: String(item.poster || ""),
       backdrop: String(item.backdrop || ""),
@@ -3263,6 +3449,7 @@ async function buildCollectionHtml(){
         number:Number(s.number)||0,name:String(s.name||""),
         episodes:(s.episodes||[]).map(e=>({
           number:Number(e.number)||0,name:String(e.name||""),overview:String(e.overview||""),
+          addedAt:String(e.addedAt||""),updatedAt:String(e.updatedAt||""),
           still:String(e.still||""),runtime:Number(e.runtime)||0,
           m37:String(e.m37||""),m22:String(e.m22||""),m18:String(e.m18||""),
           preferredQuality:mmhdBestQuality("SERIES",item.id,s.number,e.number,e)
@@ -3377,6 +3564,7 @@ function resetSelection(){
   $("status").className="status";
   movieRequestId++;
   state.movie=state.backdrop=state.poster=null;
+  mmhdRenderProviderEditor();
   state.editingId=null;state.posterOptions=[];state.backdropOptions=[];
   state.selectedEpisode=null;state.seasonRequestId++;state.bulkLoading=false;
   $("seriesPanel").hidden=true;
@@ -4557,7 +4745,7 @@ renderCollection();
     const steps=editor.querySelector('#stepsBar');
     if(steps)observer.observe(steps);
   }
-  // Los cambios de selección y de página pueden alterar la visibilidad
+  // Los cambios de selección y de página pueden alterar la visibilidad.
   if(typeof MutationObserver!=='undefined'){
     const changes=new MutationObserver(schedule);
     changes.observe(card,{attributes:true,attributeFilter:['style','class','hidden']});
