@@ -2472,6 +2472,8 @@ const LS_WATCHED = "mmhd_watched";
 const LS_PROGRESS = "mmhd_progress";
 const LS_DOWNLOADS = "mmhd_downloads";
 const LS_PROGRESS_TS = "mmhd_progress_ts";
+// Orden independiente y persistente para Continuar viendo (primero = último abierto).
+const LS_CONTINUE_ORDER = "mmhd_continue_order";
 const LS_PROGRESS_SECONDS = "mmhd_progress_seconds";
 const LS_RECENT_SERIES_EPISODES = "mmhd_recent_series_episodes";
 // Fase 7: registro independiente para capítulos finalizados (sin confundirlo
@@ -3650,7 +3652,7 @@ function continueTimeLabel(remaining){
 function continueLogoHTML(movie){
   const logo=getMovieLogo(movie);
   return heroLogoAvailable(logo)
-    ? `<img class="continue-title-logo" src="${esc(logo)}" alt="" loading="lazy" decoding="async">`
+    ? `<img class="continue-title-logo" src="${esc(logo)}" alt="" loading="eager" decoding="async">`
     : "";
 }
 function setupContinueLogos(row){
@@ -3741,9 +3743,10 @@ function updateSeriesContinueCard(series){
   if(action)action.setAttribute("aria-label",`Reanudar ${series.title}, temporada ${ep.season}, episodio ${ep.episode}`);
   return true;
 }
-// Fecha de visualización más reciente, contando capítulos de series.
-// No confundir con fecha de agregado al catálogo ni con porcentaje visto.
-function continueLastViewedAt(movie, timestamps){
+// Los timestamps anteriores solo sirven para migrar el historial previo una vez.
+// Después, el orden se guarda expresamente al abrir cada título: evita que
+// distintos episodios o eventos de progreso reordenen tarjetas arbitrariamente.
+function continueLastViewedAt(movie,timestamps){
   const time=id=>{
     const value=Number(timestamps[id]);
     return Number.isFinite(value)&&value>0?value:0;
@@ -3755,33 +3758,61 @@ function continueLastViewedAt(movie, timestamps){
     for(const season of movie.seasons||[]){
       for(const episode of season.episodes||[]){
         if(!isPlayableEpisode(episode))continue;
-        const epId=playableForSeries(movie,season.number,episode).id;
-        last=Math.max(last,time(epId));
+        const playable=playableForSeries(movie,season.number,episode);
+        if(playable)last=Math.max(last,time(playable.id));
       }
     }
   }
   return last;
 }
-// Mover al primer lugar el contenido que se está reproduciendo sin
-// reconstruir las tarjetas (conserva sus eventos, logos y progreso).
-function promoteContinueCard(movieId){
-  const row=$("continueRow");
+function readContinueOrder(){
+  try{
+    const value=JSON.parse(localStorage.getItem(LS_CONTINUE_ORDER)||"[]");
+    if(!Array.isArray(value))return [];
+    return [...new Set(value.map(Number).filter(Number.isFinite))];
+  }catch(e){return [];}
+}
+// No modifica datos de reproducción, capítulos ni Mi lista.
+function writeContinueOrder(order){
+  const ids=[...new Set(order.map(Number).filter(Number.isFinite))];
+  try{localStorage.setItem(LS_CONTINUE_ORDER,JSON.stringify(ids));}catch(e){}
+  return ids;
+}
+function sortedContinueMovies(){
+  const available=MOVIES.filter(m=>Number(progress[m.id])>0);
+  const byId=new Map(available.map(m=>[Number(m.id),m]));
+  const saved=readContinueOrder().filter(id=>byId.has(id));
+  const known=new Set(saved);
+  const timestamps=loadObj(LS_PROGRESS_TS);
+  // Los títulos antiguos sin orden guardado se incorporan al final por fecha.
+  const missing=available.filter(m=>!known.has(Number(m.id)))
+    .sort((a,b)=>continueLastViewedAt(b,timestamps)-continueLastViewedAt(a,timestamps)
+      || Number(a.id)-Number(b.id));
+  const ids=saved.concat(missing.map(m=>Number(m.id)));
+  // Consolida una sola vez el historial existente, preservando siempre el orden.
+  const stored=readContinueOrder();
+  if(ids.length!==stored.length||ids.some((id,i)=>id!==stored[i]))writeContinueOrder(ids);
+  return ids.map(id=>byId.get(id));
+}
+function markContinueMostRecent(movie){
+  if(!movie)return;
+  const id=Number(movie.parentSeriesId??movie.id);
+  if(!Number.isFinite(id))return;
+  // Incluye otras películas y series ya guardadas antes de mover la actual.
+  const current=sortedContinueMovies();
+  writeContinueOrder([id,...current.map(m=>Number(m.id)).filter(other=>other!==id)]);
+}
+function resetContinueRowToStart(row){
   if(!row)return;
-  const card=Array.from(row.children).find(el=>Number(el.dataset.id)===Number(movieId));
-  if(!card)return;
-  if(row.firstElementChild!==card)row.prepend(card);
-  // Si antes se navegó a la derecha, regresar al contenido más reciente.
-  if(row.scrollLeft!==0)row.scrollLeft=0;
+  // Evita animaciones cuando acabamos de reproducir algo; el primero debe ser visible.
+  row.style.scrollBehavior="auto";
+  row.scrollLeft=0;
+  requestAnimationFrame(()=>{if(row.isConnected)row.style.scrollBehavior="";});
 }
 function renderContinue(){
   if(CATALOG_CONFIG.showContinue===false){$("continueSection").style.display="none";return;}
-  const tsMap=loadObj(LS_PROGRESS_TS);
-  // Mostrar a la izquierda el título cuya reproducción fue más reciente.
-  // Para las series se considera también la actividad de sus episodios,
-  // compatible con el historial ya guardado en navegadores anteriores.
-  const list=MOVIES.filter(m=>Number(progress[m.id])>0)
-    .sort((a,b)=>continueLastViewedAt(b,tsMap)-continueLastViewedAt(a,tsMap))
-    .slice(0,60);
+  // Lista estable: el último título abierto siempre aparece a la izquierda.
+  const list=sortedContinueMovies().slice(0,60);
   state.continueList=list;
   const section=$("continueSection"),row=$("continueRow"),count=$("continueCount");
   if(!list.length){section.style.display="none";return;}
@@ -3790,7 +3821,7 @@ function renderContinue(){
   const previousFirstId=row.firstElementChild?.dataset.id;
   row.innerHTML=list.map(m=>m.kind==="SERIES"?seriesContinueHTML(m):movieContinueHTML(m)).join("");
   // Un nuevo título más reciente comienza a mostrarse desde la izquierda.
-  if(previousFirstId!==String(list[0].id))row.scrollLeft=0;
+  if(previousFirstId!==String(list[0].id))resetContinueRowToStart(row);
   setupContinueLogos(row);
 
   // Un clic en la imagen/tarjeta abre directamente el reproductor.
@@ -3820,6 +3851,7 @@ function renderContinue(){
         const ts=loadObj(LS_PROGRESS_TS);
         delete ts[id];saveObj(LS_PROGRESS_TS,ts);
       }
+      writeContinueOrder(readContinueOrder().filter(value=>value!==id));
       renderContinue();
     });
   });
@@ -5231,7 +5263,9 @@ function openPlayer(movie,autoNext=false){
     localStorage.setItem(LS_PROGRESS_TS, JSON.stringify(ts));
   } catch(e){}
   saveObj(LS_PROGRESS, progress);
+  markContinueMostRecent(movie);
   renderContinue();
+  resetContinueRowToStart($("continueRow"));
 
   $("playerFrame").dataset.blobUrl = url;
 }
@@ -5666,8 +5700,6 @@ window.addEventListener("message", (e) => {
       renderContinue();
     }
     }
-    // Ya se actualizó la fecha de última visualización: primero a la izquierda.
-    promoteContinueCard(parentId!=null?parentId:movieId);
   }
 
   if(data.type==="mmhd-next-dismissed"){
