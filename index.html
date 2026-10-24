@@ -367,188 +367,7 @@ a{color:inherit;text-decoration:none}
   display:grid;place-items:center;font-size:9px;
 }
 
-/* ============ CONTINUAR VIENDO ============ */
-.continue-row{
-  display:flex;gap:14px;overflow-x:auto;align-items:flex-start;
-  padding-bottom:6px;
-  scroll-behavior: smooth;
-  cursor: grab;
-  scrollbar-width: none;
-}
-.continue-row:active{
-  cursor: grabbing;
-}
-.continue-row::-webkit-scrollbar{
-  display: none;
-}
-
-.continue-nav{
-  display: none;
-  gap: 6px;
-  margin-left: auto;
-}
-.continue-nav-btn{
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #181824;
-  border: 1px solid #242434;
-  color: #b8bcc7;
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  cursor: pointer;
-  transition: .18s;
-}
-.continue-nav-btn:hover{
-  background: #20202f;
-  color: #fff;
-  border-color: #3a3a55;
-}
-.continue-nav-btn:active{
-  transform: scale(.94);
-}
-.continue-nav-btn:disabled{
-  opacity: .35;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-@media (min-width: 601px){
-  .continue-nav{
-    display: flex;
-  }
-}
-
-.continue-card{
-  flex:0 0 320px;
-  position:relative;
-  background:#181824;
-  border-radius:14px;overflow:hidden;
-  cursor:pointer;transition:.2s;
-  border:1px solid #242434;
-}
-.continue-card:hover{transform:translateY(-3px);border-color:#3a3a55}
-
-.continue-thumb{
-  position:relative;
-  aspect-ratio:16/9;
-  background-size:cover;background-position:center;
-  background-color:#0f0f1a;
-}
-.continue-thumb::after{
-  content:"";position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(0,0,0,.1) 0%,rgba(0,0,0,.85) 100%);
-}
-.continue-tag{
-  position:absolute;top:10px;left:10px;
-  background:rgba(0,0,0,.7);backdrop-filter:blur(6px);
-  padding:4px 9px;border-radius:6px;
-  font-size:9px;font-weight:800;letter-spacing:.5px;
-  display:flex;align-items:center;gap:5px;
-  z-index:2;
-}
-.continue-tag i{font-size:9px}
-.continue-close{
-  position:absolute;top:10px;right:10px;
-  width:26px;height:26px;border-radius:50%;
-  background:rgba(0,0,0,.6);backdrop-filter:blur(6px);
-  display:grid;place-items:center;
-  color:#fff;font-size:11px;
-  z-index:2;transition:.18s;
-}
-.continue-close:hover{background:rgba(0,0,0,.9)}
-
-.continue-info{
-  position:absolute;left:0;right:0;bottom:0;
-  padding:12px 14px;
-  z-index:2;
-}
-.continue-title{
-  font-size:16px;font-weight:900;
-  letter-spacing:-.3px;text-transform:uppercase;
-  color:#fff;margin:0 0 4px;
-  text-shadow:0 2px 8px rgba(0,0,0,.6);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-.continue-remain{
-  font-size:11px;color:#b8bcc7;font-weight:600;
-}
-.continue-remain b{color:#fff;font-weight:700}
-
-.continue-progress{
-  position:absolute;left:0;right:0;bottom:0;
-  height:3px;background:rgba(255,255,255,.15);
-  z-index:3;
-}
-.continue-progress-fill{
-  height:100%;background:var(--blue);
-  transition:width .3s;
-}
-
-/* ============ FASE 8: CONTINUAR VIENDO SERIES ============ */
-/* La Fase 8.1 comparte las mismas proporciones entre series y películas. */
-.continue-card-series{cursor:default;align-self:flex-start}
-.continue-card-series:hover{transform:none}
-.continue-series-thumb{aspect-ratio:16/8.4;background-position:center}
-.continue-series-thumb::after{background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.25))}
-.continue-series-body{padding:12px 13px 13px;display:flex;flex-direction:column;gap:8px}
-.continue-series-title{color:#fff;font-size:15px;font-weight:850;line-height:1.2;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.continue-series-episode{font-size:11px;font-weight:650;color:#c2d7ff;line-height:1.4;
-  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:15px}
-.continue-series-numbers{display:flex;justify-content:space-between;gap:8px;
-  color:#b6bac8;font-size:10px;font-weight:600}
-.continue-series-numbers span:last-child{text-align:right}
-.continue-series-track{height:4px;width:100%;background:#31354a;border-radius:8px;overflow:hidden}
-.continue-series-fill{height:100%;width:0;background:var(--blue);border-radius:8px;transition:width .2s}
-.continue-series-play{display:flex;align-items:center;justify-content:center;gap:8px;
-  border:1px solid #477bea;border-radius:9px;min-height:35px;width:100%;
-  background:#1c3461;color:#ecf3ff;font-size:11px;font-weight:800;transition:.18s}
-.continue-series-play:hover,.continue-series-play:focus-visible{background:#2d59a9;border-color:#77a4ff}
-.continue-series-play:focus-visible{outline:2px solid #a7c6ff;outline-offset:2px}
-.continue-series-play:disabled{opacity:.4;cursor:not-allowed}
-@media(max-width:600px){
-  .continue-card-series{flex-basis:260px}
-  .continue-series-thumb{aspect-ratio:16/8.5}
-  .continue-series-body{padding:9px 10px 10px;gap:7px}
-  .continue-series-title{font-size:13px}
-  .continue-series-episode{font-size:10px}
-  .continue-series-numbers{font-size:9px;gap:4px}
-  .continue-series-play{min-height:33px;font-size:10px}
-}
-@media(prefers-reduced-motion:reduce){
-  .continue-series-fill,.continue-series-play{transition:none}
-}
-
-/* ============ FASE 8.1: TARJETAS UNIFORMES (SERIES / PELÍCULAS) ============ */
-.continue-row .continue-card-series,.continue-row .continue-card-movie{
-  flex:0 0 320px;display:flex;flex-direction:column;align-self:stretch;
-}
-.continue-row .continue-card-movie{cursor:pointer}
-.continue-card-movie:hover{transform:none}
-.continue-card-movie:focus-within{border-color:#477bea}
-.continue-row .continue-uniform-thumb{flex:none;aspect-ratio:16/8.4}
-.continue-row .continue-series-body{
-  flex:1;min-height:153px;padding:12px 13px 13px;
-  display:flex;flex-direction:column;gap:8px;
-}
-.continue-row .continue-series-title{
-  height:20px;flex:none;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;
-}
-.continue-row .continue-series-episode{
-  height:31px;min-height:31px;flex:none;line-height:1.4;
-}
-.continue-row .continue-series-play{margin-top:auto;flex:none}
-.continue-row .continue-series-track{flex:none}
-.continue-movie-percent{white-space:nowrap}
-@media(max-width:600px){
-  .continue-row .continue-card-series,.continue-row .continue-card-movie{flex:0 0 250px}
-  .continue-row .continue-uniform-thumb{aspect-ratio:16/8.5}
-  .continue-row .continue-series-body{padding:9px 10px 10px;gap:7px;min-height:138px}
-  .continue-row .continue-series-title{height:17px}
-  .continue-row .continue-series-episode{height:28px;min-height:28px}
-}
+/* ============ CONTINUAR VIENDO: ESTILOS ACTUALIZADOS AL FINAL DEL STYLE ============ */
 
 /* ============ GRID PÓSTERS ============ */
 .grid{
@@ -2192,6 +2011,147 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
  #mmhdSearchContextTitle{font-size:14px}
 }
 @media(prefers-reduced-motion:reduce){.mmhd-home-see-more{transition:none!important}}
+/* ============================================================
+   MMHD · CONTINUAR VIENDO: MINI-BANNERS CON REANUDACIÓN DIRECTA
+   Películas y episodios · versión móvil y escritorio
+   ============================================================ */
+#continueSection .section-head .count{
+  background:rgba(52,152,255,.15);color:#7dbbff;
+  border:1px solid rgba(96,164,249,.38);border-radius:999px;
+  padding:3px 10px;margin-left:4px;font-variant-numeric:tabular-nums;
+}
+#continueRow.continue-row{
+  display:flex;align-items:stretch;gap:14px;
+  overflow-x:auto;padding:3px 1px 12px;
+  scroll-behavior:smooth;scroll-snap-type:x proximity;
+  scrollbar-width:none;cursor:grab;
+  -webkit-overflow-scrolling:touch;
+}
+#continueRow.continue-row::-webkit-scrollbar{display:none}
+#continueRow.continue-row:active{cursor:grabbing}
+#continueSection .continue-nav{display:none;gap:6px;margin-left:auto}
+#continueSection .continue-nav-btn{
+  width:32px;height:32px;border-radius:9px;
+  display:grid;place-items:center;cursor:pointer;
+  background:#181824;border:1px solid #2a3040;color:#d3d9e7;
+  transition:background .18s,border-color .18s;
+}
+#continueSection .continue-nav-btn:hover{background:#252d40;border-color:#5676a8}
+#continueSection .continue-nav-btn:disabled{opacity:.32;cursor:not-allowed}
+@media(min-width:601px){#continueSection .continue-nav{display:flex}}
+
+#continueRow .continue-card{
+  position:relative;flex:0 0 320px;align-self:stretch;
+  background:#141925;border:1px solid rgba(255,255,255,.09);
+  border-radius:16px;overflow:hidden;
+  box-shadow:0 10px 22px rgba(0,0,0,.2);
+  transition:transform .18s,border-color .18s;
+  scroll-snap-align:start;
+}
+#continueRow .continue-card:hover{transform:translateY(-2px);border-color:rgba(107,170,255,.5)}
+#continueRow .continue-open{
+  display:block;position:relative;width:100%;height:100%;padding:0;
+  border:0;background:transparent;color:inherit;text-align:left;
+  cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent;
+}
+#continueRow .continue-open:focus-visible{outline:3px solid #80baff;outline-offset:-3px}
+#continueRow .continue-inline-thumb{
+  position:relative;display:block;width:100%;aspect-ratio:16/9;
+  background-size:cover;background-position:center;background-repeat:no-repeat;
+  background-color:#111625;
+}
+#continueRow .continue-inline-thumb::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.14) 0%,rgba(0,0,0,.02) 32%,rgba(0,0,0,.35) 62%,rgba(0,0,0,.88) 100%);
+}
+#continueRow .continue-tag{
+  position:absolute;top:10px;left:10px;z-index:2;
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 10px;border-radius:999px;
+  color:#fff;font-size:10px;font-weight:850;letter-spacing:.5px;
+  border:1px solid rgba(255,255,255,.22);
+  background:rgba(0,0,0,.6);backdrop-filter:blur(5px);
+}
+#continueRow .continue-tag-series{background:rgba(140,49,186,.83)}
+#continueRow .continue-tag i{font-size:10px}
+#continueRow .continue-close{
+  display:grid;place-items:center;position:absolute;top:9px;right:9px;z-index:4;
+  width:27px;height:27px;padding:0;border:1px solid rgba(255,255,255,.24);
+  border-radius:50%;background:rgba(0,0,0,.64);color:#fff;
+  font-size:11px;cursor:pointer;backdrop-filter:blur(5px);
+}
+#continueRow .continue-close:hover{background:rgba(20,25,35,.98)}
+#continueRow .continue-close:focus-visible{outline:2px solid #8cbfff;outline-offset:2px}
+#continueRow .continue-inline-info{
+  position:absolute;z-index:2;bottom:0;left:0;right:0;
+  padding:16px 13px 15px;pointer-events:none;
+}
+#continueRow .continue-series-title{
+  display:block;margin:0 0 6px;color:#fff;
+  font-size:17px;font-weight:850;line-height:1.2;letter-spacing:-.3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-shadow:0 1px 8px rgba(0,0,0,.8);
+}
+/* Logo transparente de cada título, encima de la imagen de fondo.
+   Se muestra únicamente si la descarga fue correcta; si falta o falla,
+   permanece el título en texto sin romper la tarjeta. */
+#continueRow .continue-title-logo{
+  display:none;width:auto;height:auto;
+  max-width:min(86%,230px);max-height:62px;
+  margin:0 auto 9px;object-fit:contain;object-position:center;
+  filter:drop-shadow(0 3px 10px rgba(0,0,0,.75));
+}
+#continueRow .continue-card.has-continue-logo .continue-title-logo{display:block}
+#continueRow .continue-card.has-continue-logo .continue-series-title{
+  position:absolute!important;width:1px!important;height:1px!important;
+  padding:0!important;margin:-1px!important;overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;white-space:nowrap!important;
+  border:0!important;
+}
+#continueRow .continue-inline-meta{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:700;line-height:1.3;
+  color:#e3e8f4;white-space:nowrap;overflow:hidden;
+  text-shadow:0 1px 6px rgba(0,0,0,.9);
+}
+#continueRow .continue-episode-label{
+  flex:0 1 auto;min-width:0;max-width:64%;overflow:hidden;text-overflow:ellipsis;
+}
+#continueRow .continue-series-remaining,
+#continueRow .continue-remain,
+#continueRow .continue-remain b{
+  flex:none;color:#78c0ff;font-size:inherit;font-weight:850;
+}
+#continueRow .continue-series-track{
+  display:block;position:absolute;z-index:3;left:0;bottom:0;
+  width:100%;height:4px;border-radius:0;overflow:hidden;
+  background:rgba(255,255,255,.22);
+}
+#continueRow .continue-series-fill{
+  display:block;height:100%;background:#5baafb;border-radius:0;
+  transition:width .2s ease;
+}
+#continueRow .continue-sr-only{
+  position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+@media(max-width:600px){
+  #continueRow.continue-row{gap:10px;margin:0 -12px;padding:3px 12px 10px}
+  #continueRow .continue-card{flex:0 0 53vw;min-width:174px;max-width:236px;border-radius:13px}
+  #continueRow .continue-inline-thumb{aspect-ratio:16/9.2}
+  #continueRow .continue-tag{top:7px;left:7px;padding:4px 8px;font-size:9px}
+  #continueRow .continue-close{top:7px;right:7px;width:24px;height:24px}
+  #continueRow .continue-inline-info{padding:12px 10px 12px}
+  #continueRow .continue-title-logo{max-width:83%;max-height:43px;margin-bottom:5px}
+  #continueRow .continue-series-title{font-size:14px;margin-bottom:5px}
+  #continueRow .continue-inline-meta{font-size:10px;gap:5px}
+  #continueRow .continue-episode-label{max-width:60%}
+}
+@media(prefers-reduced-motion:reduce){
+  #continueRow .continue-card,#continueRow .continue-series-fill{transition:none}
+  #continueRow.continue-row{scroll-behavior:auto}
+}
+
 </style>
 </head>
 <body>
@@ -2557,6 +2517,8 @@ const LS_WATCHED = "mmhd_watched";
 const LS_PROGRESS = "mmhd_progress";
 const LS_DOWNLOADS = "mmhd_downloads";
 const LS_PROGRESS_TS = "mmhd_progress_ts";
+// Orden independiente y persistente para Continuar viendo (primero = último abierto).
+const LS_CONTINUE_ORDER = "mmhd_continue_order";
 const LS_PROGRESS_SECONDS = "mmhd_progress_seconds";
 const LS_RECENT_SERIES_EPISODES = "mmhd_recent_series_episodes";
 // Fase 7: registro independiente para capítulos finalizados (sin confundirlo
@@ -3722,127 +3684,219 @@ function seriesContinueInfo(series){
   const remaining=duration>0?Math.max(0,seconds>0?duration-seconds:duration*(1-percent/100)):null;
   return {episode:target,playable,percent,remaining};
 }
-function seriesContinueTime(info){
-  if(info.remaining===null)return "Tiempo restante no disponible";
-  if(info.remaining<60)return "Menos de 1 min restante";
-  return `${Math.ceil(info.remaining/60)} min restantes`;
+// Formato compacto para la vista horizontal, sin alterar el guardado de progreso.
+function continueTimeLabel(remaining){
+  if(remaining==null || !Number.isFinite(Number(remaining)))return "En progreso";
+  const minutes=Math.max(1,Math.ceil(Math.max(0,Number(remaining))/60));
+  const hours=Math.floor(minutes/60),rest=minutes%60;
+  if(!hours)return `Quedan ${minutes}m`;
+  return rest?`Quedan ${hours}h ${rest}m`:`Quedan ${hours}h`;
+}
+// Reutiliza los logos PNG/TMDB guardados por el panel; no inventa rutas.
+// El título escrito sigue disponible como respaldo si la imagen no carga.
+function continueLogoHTML(movie){
+  const logo=getMovieLogo(movie);
+  return heroLogoAvailable(logo)
+    ? `<img class="continue-title-logo" src="${esc(logo)}" alt="" loading="eager" decoding="async">`
+    : "";
+}
+function setupContinueLogos(row){
+  row.querySelectorAll(".continue-title-logo").forEach(img=>{
+    const card=img.closest(".continue-card");
+    const show=()=>{
+      if(!img.naturalWidth||!img.naturalHeight)return;
+      card?.classList.add("has-continue-logo");
+    };
+    const fail=()=>{card?.classList.remove("has-continue-logo");};
+    img.addEventListener("load",show);
+    img.addEventListener("error",fail);
+    if(img.complete&&img.naturalWidth>0&&img.naturalHeight>0)show();
+  });
 }
 function seriesContinueHTML(series){
   const info=seriesContinueInfo(series);
   if(!info)return "";
   const ep=info.episode;
   const pct=Math.round(info.percent);
-  const image=ep.data.still || series.backdrop;
-  const subtitle=`Temporada ${ep.season} · Episodio ${ep.episode}${ep.data.name?" — "+ep.data.name:""}`;
+  const image=ep.data.still||series.backdrop;
+  const subtitle=`T${ep.season}E${ep.episode}${ep.data.name?" · "+ep.data.name:""}`;
   return `<div class="continue-card continue-card-series" data-id="${series.id}">
-    <div class="continue-thumb continue-series-thumb continue-uniform-thumb" style="background-image:url('${esc(backdropOptimized(image,true))}')">
-      <div class="continue-tag"><i class="fa-solid fa-tv" aria-hidden="true"></i> SERIE</div>
-      <button type="button" class="continue-close" data-remove="${series.id}" title="Quitar de Continuar viendo" aria-label="Quitar ${esc(series.title)} de Continuar viendo"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="continue-series-body">
-      <div class="continue-series-title" title="${esc(series.title)}">${esc(series.title)}</div>
-      <div class="continue-series-episode">${esc(subtitle)}</div>
-      <div class="continue-series-numbers"><span class="continue-series-percent">${pct}% reproducido</span><span class="continue-series-remaining">${esc(seriesContinueTime(info))}</span></div>
-      <div class="continue-series-track" role="progressbar" aria-label="Progreso del episodio" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><div class="continue-series-fill" style="width:${info.percent}%"></div></div>
-      <button type="button" class="continue-series-play" data-continue-series="${series.id}" aria-label="Continuar ${esc(series.title)} temporada ${ep.season}, episodio ${ep.episode}"><i class="fa-solid fa-play" aria-hidden="true"></i> Continuar episodio</button>
-    </div>
+    <button type="button" class="continue-open" data-continue-series="${series.id}" aria-label="Reanudar ${esc(series.title)}, temporada ${ep.season}, episodio ${ep.episode}">
+      <span class="continue-thumb continue-inline-thumb" style="background-image:url('${esc(backdropOptimized(image,true))}')">
+        <span class="continue-tag continue-tag-series"><i class="fa-solid fa-tv" aria-hidden="true"></i> SERIE</span>
+        <span class="continue-inline-info">
+          ${continueLogoHTML(series)}
+          <span class="continue-series-title" title="${esc(series.title)}">${esc(series.title)}</span>
+          <span class="continue-inline-meta">
+            <span class="continue-episode-label" title="${esc(subtitle)}">${esc(subtitle)}</span>
+            <span class="continue-series-remaining">${esc(continueTimeLabel(info.remaining))}</span>
+            <span class="continue-series-percent continue-sr-only">${pct}% reproducido</span>
+          </span>
+        </span>
+        <span class="continue-series-track" role="progressbar" aria-label="Progreso del episodio" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span class="continue-series-fill" style="width:${info.percent}%"></span></span>
+      </span>
+    </button>
+    <button type="button" class="continue-close" data-remove="${series.id}" title="Quitar de Continuar viendo" aria-label="Quitar ${esc(series.title)} de Continuar viendo"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </div>`;
+}
+function movieContinueHTML(movie){
+  const pct=Math.max(0,Math.min(99,Number(progress[movie.id])||0));
+  const runtimeMinutes=parseInt(String(movie.runtime||""),10);
+  // Para el primer pintado se usa la duración del catálogo; el reproductor
+  // sustituye el dato por segundos restantes reales mientras se reproduce.
+  const remaining=Number.isFinite(runtimeMinutes)&&runtimeMinutes>0
+    ?runtimeMinutes*60*(1-pct/100):null;
+  return `<div class="continue-card continue-card-movie" data-id="${movie.id}">
+    <button type="button" class="continue-open" data-continue-movie="${movie.id}" aria-label="Reanudar película ${esc(movie.title)}">
+      <span class="continue-thumb continue-inline-thumb" style="background-image:url('${esc(backdropOptimized(movie.backdrop,true))}')">
+        <span class="continue-tag continue-tag-movie"><i class="fa-solid fa-film" aria-hidden="true"></i> PELÍCULA</span>
+        <span class="continue-inline-info">
+          ${continueLogoHTML(movie)}
+          <span class="continue-series-title" title="${esc(movie.title)}">${esc(movie.title)}</span>
+          <span class="continue-inline-meta">
+            <span class="continue-episode-label">${esc(movie.year||"Película")}</span>
+            <span class="continue-remain"><b>${esc(continueTimeLabel(remaining))}</b></span>
+            <span class="continue-movie-percent continue-sr-only">${Math.round(pct)}% reproducido</span>
+          </span>
+        </span>
+        <span class="continue-series-track" role="progressbar" aria-label="Progreso de la película" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><span class="continue-series-fill continue-progress-fill" style="width:${pct}%"></span></span>
+      </span>
+    </button>
+    <button type="button" class="continue-close" data-remove="${movie.id}" title="Quitar de Continuar viendo" aria-label="Quitar ${esc(movie.title)} de Continuar viendo"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
   </div>`;
 }
 function updateSeriesContinueCard(series){
   const card=Array.from(document.querySelectorAll("#continueRow .continue-card-series"))
     .find(c=>Number(c.dataset.id)===Number(series.id));
   const info=seriesContinueInfo(series);
-  if(!card || !info)return false;
-  const pct=Math.round(info.percent);
-  const ep=info.episode;
-  const label=card.querySelector(".continue-series-episode");
-  const title=`Temporada ${ep.season} · Episodio ${ep.episode}${ep.data.name?" — "+ep.data.name:""}`;
-  if(label)label.textContent=title;
+  if(!card||!info)return false;
+  const pct=Math.round(info.percent),ep=info.episode;
+  const subtitle=`T${ep.season}E${ep.episode}${ep.data.name?" · "+ep.data.name:""}`;
+  const thumb=card.querySelector(".continue-inline-thumb");
+  if(thumb)thumb.style.backgroundImage=`url('${backdropOptimized(ep.data.still||series.backdrop,true)}')`;
+  const label=card.querySelector(".continue-episode-label");
+  if(label){label.textContent=subtitle;label.title=subtitle;}
   const percent=card.querySelector(".continue-series-percent");
   if(percent)percent.textContent=`${pct}% reproducido`;
   const remaining=card.querySelector(".continue-series-remaining");
-  if(remaining)remaining.textContent=seriesContinueTime(info);
+  if(remaining)remaining.textContent=continueTimeLabel(info.remaining);
   const track=card.querySelector(".continue-series-track");
   if(track)track.setAttribute("aria-valuenow",String(pct));
   const fill=card.querySelector(".continue-series-fill");
   if(fill)fill.style.width=info.percent+"%";
-  const action=card.querySelector(".continue-series-play");
-  if(action)action.setAttribute("aria-label",`Continuar ${series.title} temporada ${ep.season}, episodio ${ep.episode}`);
+  const action=card.querySelector(".continue-open");
+  if(action)action.setAttribute("aria-label",`Reanudar ${series.title}, temporada ${ep.season}, episodio ${ep.episode}`);
   return true;
 }
+// Los timestamps anteriores solo sirven para migrar el historial previo una vez.
+// Después, el orden se guarda expresamente al abrir cada título: evita que
+// distintos episodios o eventos de progreso reordenen tarjetas arbitrariamente.
+function continueLastViewedAt(movie,timestamps){
+  const time=id=>{
+    const value=Number(timestamps[id]);
+    return Number.isFinite(value)&&value>0?value:0;
+  };
+  let last=time(movie.id);
+  if(movie.kind==="SERIES"){
+    const recent=Number(recentSeriesEpisodes[movie.id]?.at);
+    if(Number.isFinite(recent)&&recent>last)last=recent;
+    for(const season of movie.seasons||[]){
+      for(const episode of season.episodes||[]){
+        if(!isPlayableEpisode(episode))continue;
+        const playable=playableForSeries(movie,season.number,episode);
+        if(playable)last=Math.max(last,time(playable.id));
+      }
+    }
+  }
+  return last;
+}
+function readContinueOrder(){
+  try{
+    const value=JSON.parse(localStorage.getItem(LS_CONTINUE_ORDER)||"[]");
+    if(!Array.isArray(value))return [];
+    return [...new Set(value.map(Number).filter(Number.isFinite))];
+  }catch(e){return [];}
+}
+// No modifica datos de reproducción, capítulos ni Mi lista.
+function writeContinueOrder(order){
+  const ids=[...new Set(order.map(Number).filter(Number.isFinite))];
+  try{localStorage.setItem(LS_CONTINUE_ORDER,JSON.stringify(ids));}catch(e){}
+  return ids;
+}
+function sortedContinueMovies(){
+  const available=MOVIES.filter(m=>Number(progress[m.id])>0);
+  const byId=new Map(available.map(m=>[Number(m.id),m]));
+  const saved=readContinueOrder().filter(id=>byId.has(id));
+  const known=new Set(saved);
+  const timestamps=loadObj(LS_PROGRESS_TS);
+  // Los títulos antiguos sin orden guardado se incorporan al final por fecha.
+  const missing=available.filter(m=>!known.has(Number(m.id)))
+    .sort((a,b)=>continueLastViewedAt(b,timestamps)-continueLastViewedAt(a,timestamps)
+      || Number(a.id)-Number(b.id));
+  const ids=saved.concat(missing.map(m=>Number(m.id)));
+  // Consolida una sola vez el historial existente, preservando siempre el orden.
+  const stored=readContinueOrder();
+  if(ids.length!==stored.length||ids.some((id,i)=>id!==stored[i]))writeContinueOrder(ids);
+  return ids.map(id=>byId.get(id));
+}
+function markContinueMostRecent(movie){
+  if(!movie)return;
+  const id=Number(movie.parentSeriesId??movie.id);
+  if(!Number.isFinite(id))return;
+  // Incluye otras películas y series ya guardadas antes de mover la actual.
+  const current=sortedContinueMovies();
+  writeContinueOrder([id,...current.map(m=>Number(m.id)).filter(other=>other!==id)]);
+}
+function resetContinueRowToStart(row){
+  if(!row)return;
+  // Evita animaciones cuando acabamos de reproducir algo; el primero debe ser visible.
+  row.style.scrollBehavior="auto";
+  row.scrollLeft=0;
+  requestAnimationFrame(()=>{if(row.isConnected)row.style.scrollBehavior="";});
+}
 function renderContinue(){
-  if(CATALOG_CONFIG.showContinue === false){$("continueSection").style.display="none";return;}
-  let tsMap={};
-  try{tsMap=JSON.parse(localStorage.getItem(LS_PROGRESS_TS)||"{}");}catch(e){}
-  const ids=Object.keys(progress).map(Number).filter(id=>progress[id]>0);
-  const sortedIds=ids.sort((a,b)=>(tsMap[b]||0)-(tsMap[a]||0));
-  const list=sortedIds.map(id=>MOVIES.find(m=>m.id===id)).filter(Boolean).slice(0,60);
+  if(CATALOG_CONFIG.showContinue===false){$("continueSection").style.display="none";return;}
+  // Lista estable: el último título abierto siempre aparece a la izquierda.
+  const list=sortedContinueMovies().slice(0,60);
   state.continueList=list;
   const section=$("continueSection"),row=$("continueRow"),count=$("continueCount");
   if(!list.length){section.style.display="none";return;}
   section.style.display="block";
   count.textContent=list.length;
+  const previousFirstId=row.firstElementChild?.dataset.id;
+  row.innerHTML=list.map(m=>m.kind==="SERIES"?seriesContinueHTML(m):movieContinueHTML(m)).join("");
+  // Un nuevo título más reciente comienza a mostrarse desde la izquierda.
+  if(previousFirstId!==String(list[0].id))resetContinueRowToStart(row);
+  setupContinueLogos(row);
 
-  row.innerHTML=list.map(m=>{
-    if(m.kind==="SERIES")return seriesContinueHTML(m);
-    // Fase 8.1: las películas usan la misma estructura y altura que las series.
-    // El clic fuera del botón sigue abriendo la ficha; el botón abre el reproductor.
-    const pct=Math.max(0,Math.min(99,Number(progress[m.id])||0));
-    const runtimeMinutes=parseInt(String(m.runtime||""),10);
-    const remaining=Number.isFinite(runtimeMinutes)&&runtimeMinutes>0
-      ? `${Math.max(1,Math.round((100-pct)/100*runtimeMinutes))} min restantes`
-      : "En progreso";
-    return `<div class="continue-card continue-card-movie" data-id="${m.id}">
-      <div class="continue-thumb continue-series-thumb continue-uniform-thumb" style="background-image:url('${esc(backdropOptimized(m.backdrop,true))}')">
-        <div class="continue-tag"><i class="fa-solid fa-film" aria-hidden="true"></i> PELÍCULA</div>
-        <button type="button" class="continue-close" data-remove="${m.id}" title="Quitar de Continuar viendo" aria-label="Quitar ${esc(m.title)} de Continuar viendo"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="continue-series-body">
-        <div class="continue-series-title" title="${esc(m.title)}">${esc(m.title)}</div>
-        <div class="continue-series-episode">Película${m.year?` · ${esc(m.year)}`:""}</div>
-        <div class="continue-series-numbers"><span class="continue-series-percent continue-movie-percent">${Math.round(pct)}% reproducido</span><span class="continue-series-remaining continue-remain"><b>${esc(remaining)}</b></span></div>
-        <div class="continue-series-track" role="progressbar" aria-label="Progreso de la película" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><div class="continue-series-fill continue-progress-fill" style="width:${pct}%"></div></div>
-        <button type="button" class="continue-series-play" data-continue-movie="${m.id}" aria-label="Continuar película ${esc(m.title)}"><i class="fa-solid fa-play" aria-hidden="true"></i> Continuar película</button>
-      </div>
-    </div>`;
-  }).join("");
-  row.querySelectorAll(".continue-card-movie").forEach(card=>{
-    card.addEventListener("click",e=>{
-      if(e.target.closest("[data-remove], [data-continue-movie]"))return;
-      openDetail(Number(card.dataset.id));
-    });
-  });
+  // Un clic en la imagen/tarjeta abre directamente el reproductor.
+  // La X es un botón hermano independiente, por lo que nunca abre el vídeo.
   row.querySelectorAll("[data-continue-movie]").forEach(btn=>{
-    btn.addEventListener("click",e=>{
-      e.stopPropagation();
+    btn.addEventListener("click",()=>{
       const movie=MOVIES.find(m=>m.kind!=="SERIES"&&m.id===Number(btn.dataset.continueMovie));
       if(movie)openPlayer(movie);
     });
   });
   row.querySelectorAll("[data-continue-series]").forEach(btn=>{
-    btn.addEventListener("click",e=>{
-      e.stopPropagation();
+    btn.addEventListener("click",()=>{
       const series=MOVIES.find(m=>m.kind==="SERIES"&&m.id===Number(btn.dataset.continueSeries));
       const info=series&&seriesContinueInfo(series);
       if(info)openPlayer(info.playable);
     });
   });
   row.querySelectorAll("[data-remove]").forEach(btn=>{
-    btn.addEventListener("click",e=>{
-      e.stopPropagation();
+    btn.addEventListener("click",()=>{
       const id=Number(btn.dataset.remove);
       const series=MOVIES.find(movie=>movie.id===id&&movie.kind==="SERIES");
       if(series){
         resetSeriesContinueHistory(series);
       }else{
-        // Las películas mantienen exactamente el borrado de progreso anterior.
         delete progress[id];delete progressSeconds[id];
         saveObj(LS_PROGRESS_SECONDS,progressSeconds);saveObj(LS_PROGRESS,progress);
-        try{
-          const ts=JSON.parse(localStorage.getItem(LS_PROGRESS_TS)||"{}");
-          delete ts[id];localStorage.setItem(LS_PROGRESS_TS,JSON.stringify(ts));
-        }catch(e){}
+        const ts=loadObj(LS_PROGRESS_TS);
+        delete ts[id];saveObj(LS_PROGRESS_TS,ts);
       }
+      writeContinueOrder(readContinueOrder().filter(value=>value!==id));
       renderContinue();
     });
   });
@@ -5254,7 +5308,9 @@ function openPlayer(movie,autoNext=false){
     localStorage.setItem(LS_PROGRESS_TS, JSON.stringify(ts));
   } catch(e){}
   saveObj(LS_PROGRESS, progress);
+  markContinueMostRecent(movie);
   renderContinue();
+  resetContinueRowToStart($("continueRow"));
 
   $("playerFrame").dataset.blobUrl = url;
 }
@@ -5682,9 +5738,8 @@ window.addEventListener("message", (e) => {
       const track=card.querySelector(".continue-series-track");
       if(track)track.setAttribute("aria-valuenow",String(Math.round(pct)));
       const remainEl = card.querySelector(".continue-remain b");
-      if (remainEl && data.duration) {
-        const remainingMin = Math.max(1, Math.round((data.duration - data.currentTime) / 60));
-        remainEl.textContent = `${remainingMin} min restantes`;
+      if(remainEl && Number(data.duration)>0){
+        remainEl.textContent=continueTimeLabel(Math.max(0,Number(data.duration)-Number(data.currentTime||0)));
       }
     } else {
       renderContinue();
