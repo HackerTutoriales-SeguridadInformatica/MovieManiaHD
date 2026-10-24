@@ -2047,6 +2047,22 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   text-shadow:0 1px 8px rgba(0,0,0,.8);
 }
+/* Logo transparente de cada título, encima de la imagen de fondo.
+   Se muestra únicamente si la descarga fue correcta; si falta o falla,
+   permanece el título en texto sin romper la tarjeta. */
+#continueRow .continue-title-logo{
+  display:none;width:auto;height:auto;
+  max-width:min(86%,230px);max-height:62px;
+  margin:0 auto 9px;object-fit:contain;object-position:center;
+  filter:drop-shadow(0 3px 10px rgba(0,0,0,.75));
+}
+#continueRow .continue-card.has-continue-logo .continue-title-logo{display:block}
+#continueRow .continue-card.has-continue-logo .continue-series-title{
+  position:absolute!important;width:1px!important;height:1px!important;
+  padding:0!important;margin:-1px!important;overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;white-space:nowrap!important;
+  border:0!important;
+}
 #continueRow .continue-inline-meta{
   display:flex;align-items:center;gap:8px;
   font-size:11px;font-weight:700;line-height:1.3;
@@ -2081,6 +2097,7 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   #continueRow .continue-tag{top:7px;left:7px;padding:4px 8px;font-size:9px}
   #continueRow .continue-close{top:7px;right:7px;width:24px;height:24px}
   #continueRow .continue-inline-info{padding:12px 10px 12px}
+  #continueRow .continue-title-logo{max-width:83%;max-height:43px;margin-bottom:5px}
   #continueRow .continue-series-title{font-size:14px;margin-bottom:5px}
   #continueRow .continue-inline-meta{font-size:10px;gap:5px}
   #continueRow .continue-episode-label{max-width:60%}
@@ -3628,6 +3645,27 @@ function continueTimeLabel(remaining){
   if(!hours)return `Quedan ${minutes}m`;
   return rest?`Quedan ${hours}h ${rest}m`:`Quedan ${hours}h`;
 }
+// Reutiliza los logos PNG/TMDB guardados por el panel; no inventa rutas.
+// El título escrito sigue disponible como respaldo si la imagen no carga.
+function continueLogoHTML(movie){
+  const logo=getMovieLogo(movie);
+  return heroLogoAvailable(logo)
+    ? `<img class="continue-title-logo" src="${esc(logo)}" alt="" loading="lazy" decoding="async">`
+    : "";
+}
+function setupContinueLogos(row){
+  row.querySelectorAll(".continue-title-logo").forEach(img=>{
+    const card=img.closest(".continue-card");
+    const show=()=>{
+      if(!img.naturalWidth||!img.naturalHeight)return;
+      card?.classList.add("has-continue-logo");
+    };
+    const fail=()=>{card?.classList.remove("has-continue-logo");};
+    img.addEventListener("load",show);
+    img.addEventListener("error",fail);
+    if(img.complete&&img.naturalWidth>0&&img.naturalHeight>0)show();
+  });
+}
 function seriesContinueHTML(series){
   const info=seriesContinueInfo(series);
   if(!info)return "";
@@ -3640,6 +3678,7 @@ function seriesContinueHTML(series){
       <span class="continue-thumb continue-inline-thumb" style="background-image:url('${esc(backdropOptimized(image,true))}')">
         <span class="continue-tag continue-tag-series"><i class="fa-solid fa-tv" aria-hidden="true"></i> SERIE</span>
         <span class="continue-inline-info">
+          ${continueLogoHTML(series)}
           <span class="continue-series-title" title="${esc(series.title)}">${esc(series.title)}</span>
           <span class="continue-inline-meta">
             <span class="continue-episode-label" title="${esc(subtitle)}">${esc(subtitle)}</span>
@@ -3665,6 +3704,7 @@ function movieContinueHTML(movie){
       <span class="continue-thumb continue-inline-thumb" style="background-image:url('${esc(backdropOptimized(movie.backdrop,true))}')">
         <span class="continue-tag continue-tag-movie"><i class="fa-solid fa-film" aria-hidden="true"></i> PELÍCULA</span>
         <span class="continue-inline-info">
+          ${continueLogoHTML(movie)}
           <span class="continue-series-title" title="${esc(movie.title)}">${esc(movie.title)}</span>
           <span class="continue-inline-meta">
             <span class="continue-episode-label">${esc(movie.year||"Película")}</span>
@@ -3713,6 +3753,7 @@ function renderContinue(){
   section.style.display="block";
   count.textContent=list.length;
   row.innerHTML=list.map(m=>m.kind==="SERIES"?seriesContinueHTML(m):movieContinueHTML(m)).join("");
+  setupContinueLogos(row);
 
   // Un clic en la imagen/tarjeta abre directamente el reproductor.
   // La X es un botón hermano independiente, por lo que nunca abre el vídeo.
