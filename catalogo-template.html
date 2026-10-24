@@ -3741,18 +3741,56 @@ function updateSeriesContinueCard(series){
   if(action)action.setAttribute("aria-label",`Reanudar ${series.title}, temporada ${ep.season}, episodio ${ep.episode}`);
   return true;
 }
+// Fecha de visualización más reciente, contando capítulos de series.
+// No confundir con fecha de agregado al catálogo ni con porcentaje visto.
+function continueLastViewedAt(movie, timestamps){
+  const time=id=>{
+    const value=Number(timestamps[id]);
+    return Number.isFinite(value)&&value>0?value:0;
+  };
+  let last=time(movie.id);
+  if(movie.kind==="SERIES"){
+    const recent=Number(recentSeriesEpisodes[movie.id]?.at);
+    if(Number.isFinite(recent)&&recent>last)last=recent;
+    for(const season of movie.seasons||[]){
+      for(const episode of season.episodes||[]){
+        if(!isPlayableEpisode(episode))continue;
+        const epId=playableForSeries(movie,season.number,episode).id;
+        last=Math.max(last,time(epId));
+      }
+    }
+  }
+  return last;
+}
+// Mover al primer lugar el contenido que se está reproduciendo sin
+// reconstruir las tarjetas (conserva sus eventos, logos y progreso).
+function promoteContinueCard(movieId){
+  const row=$("continueRow");
+  if(!row)return;
+  const card=Array.from(row.children).find(el=>Number(el.dataset.id)===Number(movieId));
+  if(!card)return;
+  if(row.firstElementChild!==card)row.prepend(card);
+  // Si antes se navegó a la derecha, regresar al contenido más reciente.
+  if(row.scrollLeft!==0)row.scrollLeft=0;
+}
 function renderContinue(){
   if(CATALOG_CONFIG.showContinue===false){$("continueSection").style.display="none";return;}
   const tsMap=loadObj(LS_PROGRESS_TS);
-  const ids=Object.keys(progress).map(Number).filter(id=>Number(progress[id])>0);
-  const sortedIds=ids.sort((a,b)=>(tsMap[b]||0)-(tsMap[a]||0));
-  const list=sortedIds.map(id=>MOVIES.find(m=>m.id===id)).filter(Boolean).slice(0,60);
+  // Mostrar a la izquierda el título cuya reproducción fue más reciente.
+  // Para las series se considera también la actividad de sus episodios,
+  // compatible con el historial ya guardado en navegadores anteriores.
+  const list=MOVIES.filter(m=>Number(progress[m.id])>0)
+    .sort((a,b)=>continueLastViewedAt(b,tsMap)-continueLastViewedAt(a,tsMap))
+    .slice(0,60);
   state.continueList=list;
   const section=$("continueSection"),row=$("continueRow"),count=$("continueCount");
   if(!list.length){section.style.display="none";return;}
   section.style.display="block";
   count.textContent=list.length;
+  const previousFirstId=row.firstElementChild?.dataset.id;
   row.innerHTML=list.map(m=>m.kind==="SERIES"?seriesContinueHTML(m):movieContinueHTML(m)).join("");
+  // Un nuevo título más reciente comienza a mostrarse desde la izquierda.
+  if(previousFirstId!==String(list[0].id))row.scrollLeft=0;
   setupContinueLogos(row);
 
   // Un clic en la imagen/tarjeta abre directamente el reproductor.
@@ -5628,6 +5666,8 @@ window.addEventListener("message", (e) => {
       renderContinue();
     }
     }
+    // Ya se actualizó la fecha de última visualización: primero a la izquierda.
+    promoteContinueCard(parentId!=null?parentId:movieId);
   }
 
   if(data.type==="mmhd-next-dismissed"){
