@@ -1,6 +1,51 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+
+<script disable-devtool-auto src='https://cdn.jsdelivr.net/npm/disable-devtool'></script>
+
+<script>
+(function(){
+  "use strict";
+  const REDIRECT_URL = "https://www.google.com/";
+  let redirecting = false;
+  document.addEventListener("keydown", function(e){
+    const k = (e.key || "").toLowerCase();
+    const ctrl = e.ctrlKey || e.metaKey;
+    const shift = e.shiftKey;
+    if(e.key === "F12" || e.keyCode === 123){ e.preventDefault(); e.stopPropagation(); return false; }
+    if(ctrl && shift && (k === "c" || k === "i" || k === "j" || k === "k")){ e.preventDefault(); e.stopPropagation(); return false; }
+    if(ctrl && !shift && (k === "u" || k === "s" || k === "p")){ e.preventDefault(); e.stopPropagation(); return false; }
+    if(ctrl && !shift && k === "a" && !e.target.matches("input, textarea")){ e.preventDefault(); e.stopPropagation(); return false; }
+  }, true);
+  document.addEventListener("contextmenu", function(e){ e.preventDefault(); return false; }, true);
+  document.addEventListener("dragstart", function(e){ e.preventDefault(); return false; }, true);
+  function isDevtoolsOpen(){
+    if(window.matchMedia("(pointer: coarse)").matches) return false;
+    if(window.innerWidth < 900) return false;
+    const widthDiff  = window.outerWidth  - window.innerWidth;
+    const heightDiff = window.outerHeight - window.innerHeight;
+    return (widthDiff > 400 || heightDiff > 400);
+  }
+  function redirectAway(){
+    if(redirecting) return;
+    redirecting = true;
+    const delay = 2000 + Math.random() * 1500;
+    setTimeout(function(){
+      try{ window.location.replace(REDIRECT_URL); }
+      catch(_){ window.location.href = REDIRECT_URL; }
+    }, delay);
+  }
+  function check(){
+    if(redirecting) return;
+    try{ if(isDevtoolsOpen()) redirectAway(); }catch(_){}
+  }
+  setInterval(check, 2000);
+  window.addEventListener("focus", function(){ setTimeout(check, 800); });
+  try{ if(window.top !== window.self){ window.top.location = window.self.location; } }catch(_){}
+})();
+</script>
+
 <meta name="referrer" content="no-referrer" />
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -2107,6 +2152,75 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   #continueRow.continue-row{scroll-behavior:auto}
 }
 
+
+/* ============================================================
+   Fase visual — Carruseles de Inicio con tarjetas tipo Catálogo
+   Cambia únicamente portadas, calificaciones, tipografía y tamaños.
+   Los fotogramas de Nuevos episodios permanecen horizontales.
+   ============================================================ */
+.mmhd-home-card{
+  flex:0 0 155px;
+  background:#14141f;
+  border:1px solid #242434;
+  border-radius:12px;
+  box-shadow:none;
+  color:#e8eaf0;
+}
+.mmhd-home-card:hover{
+  transform:translateY(-4px);
+  border-color:#3a3a55;
+  box-shadow:0 12px 28px rgba(0,0,0,.45);
+}
+.mmhd-home-card:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.mmhd-home-poster{aspect-ratio:2/3;background:#0f0f1a}
+.mmhd-home-poster img{object-fit:cover}
+.mmhd-home-caption{flex:1;padding:10px 11px 12px;background:transparent;line-height:1.3}
+.mmhd-home-caption strong{
+  color:#e8eaf0;font-size:13px;font-weight:700;line-height:1.3;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+  overflow:hidden;min-height:34px;
+}
+.mmhd-home-caption small{color:#6f7484;font-size:11px;font-weight:500;margin-top:4px}
+.mmhd-home-rating{
+  position:absolute;z-index:2;top:8px;right:8px;
+  display:flex;align-items:center;gap:4px;
+  padding:4px 8px;border-radius:6px;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.1);
+  color:#fff;font-size:11px;font-weight:800;white-space:nowrap;
+}
+.mmhd-home-rating i{color:var(--orange);font-size:10px}
+.mmhd-home-episode-card{flex-basis:226px}
+.mmhd-home-episode-card .mmhd-home-poster{aspect-ratio:16/9}
+.mmhd-home-see-more{
+  flex-basis:155px;min-height:0;
+  background:#14141f;border-color:#2f2f45;
+}
+@media(max-width:600px){
+  .mmhd-home-card:not(.mmhd-home-episode-card),
+  .mmhd-home-see-more{
+    flex:0 0 calc((100vw - 48px) / 4);
+    border-radius:8px;
+  }
+  .mmhd-home-caption{padding:6px 6px 8px}
+  .mmhd-home-caption strong{font-size:10px;line-height:1.2;min-height:26px}
+  .mmhd-home-caption small{font-size:9px;margin-top:2px}
+  .mmhd-home-rating{top:4px;right:4px;padding:2px 4px;gap:2px;border-radius:4px;font-size:8px}
+  .mmhd-home-rating i{font-size:7px}
+  .mmhd-home-episode-card{flex:0 0 191px;border-radius:9px}
+  .mmhd-home-episode-card .mmhd-home-caption strong{font-size:11px}
+  .mmhd-home-see-more{padding:10px 4px;gap:7px}
+  .mmhd-home-see-more .mmhd-more-icon{width:34px;height:34px;font-size:14px}
+  .mmhd-home-see-more strong{font-size:11px}
+  .mmhd-home-see-more small{font-size:8px}
+}
+@media(max-width:380px){
+  .mmhd-home-caption strong{font-size:9px;min-height:22px}
+  .mmhd-home-caption small{font-size:8px}
+  .mmhd-home-rating{font-size:7px;padding:1px 3px}
+  .mmhd-home-rating i{font-size:6px}
+}
+
 </style>
 </head>
 <body>
@@ -4199,15 +4313,20 @@ function mmhdOpenMore(tag){
 function mmhdHomeCard(item){
   const {m,episode}=item;
   const isEpisode=Boolean(episode);
-  const title=isEpisode?m.title:m.title;
-  const img=isEpisode?(episode.episode.still||m.backdrop||m.poster):m.poster;
-  const name=isEpisode?`T${episode.season}:E${episode.episode.number} · ${episode.episode.name||"Episodio"}`:(m.kind==="SERIES"?"Serie · ":"Película · ")+(m.year||"—");
-  const recent=!isEpisode&&mmhdMovieRecentDate(m)>Date.now()-30*86400000;
-  const badge=isEpisode?"NUEVO EPISODIO":(item.badge|| (recent?"NUEVO":""));
+  // Los pósters de los carruseles utilizan ahora la misma ficha visual del Catálogo.
+  // Los episodios conservan su fotograma horizontal y la indicación T/E.
+  const title=m.title+(m.subtitle&&!isEpisode?" — "+m.subtitle:"");
+  const img=isEpisode?(episode.episode.still||m.backdrop||m.poster):posterSmall(m);
+  const name=isEpisode
+    ? `T${episode.season}:E${episode.episode.number} · ${episode.episode.name||"Episodio"}`
+    : String(m.year||"—");
+  const rating=Number(m.rating);
   return `<button type="button" class="mmhd-home-card ${isEpisode?"mmhd-home-episode-card":""}" data-mmhd-row-id="${esc(m.id)}" ${isEpisode?`data-mmhd-row-season="${episode.season}" data-mmhd-row-episode="${episode.episode.number}"`:""}
     aria-label="${esc(m.title)} ${esc(name)}">
-     <span class="mmhd-home-poster"><img loading="lazy" decoding="async" alt="" src="${esc(isEpisode?tmdbSize(img,"w780"):posterSmall(m))}">
-       ${badge?`<span class="mmhd-home-badge">${esc(badge)}</span>`:""}</span>
+     <span class="mmhd-home-poster">
+       <img loading="lazy" decoding="async" alt="${esc(m.title)}" src="${esc(isEpisode?backdropOptimized(img,true):img)}" data-fallback-title="${esc(m.title)}">
+       ${Number.isFinite(rating)&&rating>0?`<span class="mmhd-home-rating"><i class="fa-solid fa-star" aria-hidden="true"></i> ${rating.toFixed(1)}</span>`:""}
+     </span>
      <span class="mmhd-home-caption"><strong>${esc(title)}</strong><small>${esc(name)}</small></span>
   </button>`;
 }
