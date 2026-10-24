@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-
+  
 <script disable-devtool-auto src='https://cdn.jsdelivr.net/npm/disable-devtool'></script>
 
 <script>
@@ -2221,6 +2221,54 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   .mmhd-home-rating i{font-size:6px}
 }
 
+
+/* Nuevos episodios: logo del título superpuesto y ficha compacta.
+   El resto de carruseles mantiene el diseño anterior. */
+.mmhd-home-row[data-mmhd-row="episodes"] .mmhd-home-track{
+  align-items:flex-start;
+}
+.mmhd-home-episode-card{
+  align-self:flex-start;
+}
+.mmhd-home-episode-card .mmhd-home-poster::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.12) 45%,rgba(0,0,0,.73) 100%);
+}
+.mmhd-home-episode-card .mmhd-episode-brand{
+  position:absolute;z-index:2;left:10px;right:10px;bottom:9px;
+  display:flex;align-items:center;justify-content:center;
+  min-height:22px;pointer-events:none;
+}
+.mmhd-home-episode-card .mmhd-episode-series-logo{
+  display:none;max-width:82%;max-height:56px;width:auto;height:auto;
+  object-fit:contain;object-position:center;
+  filter:drop-shadow(0 2px 7px rgba(0,0,0,.85));
+}
+.mmhd-home-episode-card.has-episode-logo .mmhd-episode-series-logo{display:block}
+.mmhd-home-episode-card.has-episode-logo .mmhd-episode-series-name{display:none}
+.mmhd-home-episode-card .mmhd-episode-series-name{
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+  overflow:hidden;text-align:center;color:#fff;font-size:13px;
+  font-weight:850;line-height:1.2;
+  text-shadow:0 2px 5px #000,0 1px 12px #000;
+}
+.mmhd-home-episode-card .mmhd-episode-caption{
+  display:block;flex:none;padding:7px 9px 8px;
+  min-height:0;background:#14141f;
+}
+.mmhd-home-episode-card .mmhd-episode-caption small{
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+  overflow:hidden;margin:0;min-height:0;line-height:1.25;
+  font-size:10.5px;color:#a9b4c9;
+}
+@media(max-width:600px){
+  .mmhd-home-episode-card .mmhd-episode-brand{bottom:7px;left:7px;right:7px}
+  .mmhd-home-episode-card .mmhd-episode-series-logo{max-width:83%;max-height:43px}
+  .mmhd-home-episode-card .mmhd-episode-series-name{font-size:12px}
+  .mmhd-home-episode-card .mmhd-episode-caption{padding:6px 7px 7px}
+  .mmhd-home-episode-card .mmhd-episode-caption small{font-size:9.5px}
+}
+
 </style>
 </head>
 <body>
@@ -4310,24 +4358,47 @@ function mmhdOpenMore(tag){
   }
   if(mmhdBrowseContext(tag))openMobileSearch(tag);
 }
+// Carga el logo de la SERIE del fotograma del episodio; el texto queda
+// visible hasta confirmar que el PNG se cargó correctamente.
+function setupHomeEpisodeLogos(holder){
+  holder.querySelectorAll(".mmhd-episode-series-logo").forEach(img=>{
+    const card=img.closest(".mmhd-home-episode-card");
+    if(!card)return;
+    const show=()=>{
+      if(img.naturalWidth>0 && img.naturalHeight>0)card.classList.add("has-episode-logo");
+    };
+    const fail=()=>card.classList.remove("has-episode-logo");
+    img.addEventListener("load",show);
+    img.addEventListener("error",fail);
+    if(img.complete){
+      if(img.naturalWidth>0&&img.naturalHeight>0)show();
+      else fail();
+    }
+  });
+}
 function mmhdHomeCard(item){
   const {m,episode}=item;
   const isEpisode=Boolean(episode);
-  // Los pósters de los carruseles utilizan ahora la misma ficha visual del Catálogo.
-  // Los episodios conservan su fotograma horizontal y la indicación T/E.
   const title=m.title+(m.subtitle&&!isEpisode?" — "+m.subtitle:"");
   const img=isEpisode?(episode.episode.still||m.backdrop||m.poster):posterSmall(m);
   const name=isEpisode
     ? `T${episode.season}:E${episode.episode.number} · ${episode.episode.name||"Episodio"}`
     : String(m.year||"—");
+  const logo=isEpisode?getMovieLogo(m):"";
   const rating=Number(m.rating);
   return `<button type="button" class="mmhd-home-card ${isEpisode?"mmhd-home-episode-card":""}" data-mmhd-row-id="${esc(m.id)}" ${isEpisode?`data-mmhd-row-season="${episode.season}" data-mmhd-row-episode="${episode.episode.number}"`:""}
     aria-label="${esc(m.title)} ${esc(name)}">
      <span class="mmhd-home-poster">
        <img loading="lazy" decoding="async" alt="${esc(m.title)}" src="${esc(isEpisode?backdropOptimized(img,true):img)}" data-fallback-title="${esc(m.title)}">
+       ${isEpisode?`<span class="mmhd-episode-brand" aria-hidden="true">
+         ${heroLogoAvailable(logo)?`<img class="mmhd-episode-series-logo" src="${esc(logo)}" alt="" loading="eager" decoding="async">`:""}
+         <span class="mmhd-episode-series-name">${esc(m.title)}</span>
+       </span>`:""}
        ${Number.isFinite(rating)&&rating>0?`<span class="mmhd-home-rating"><i class="fa-solid fa-star" aria-hidden="true"></i> ${rating.toFixed(1)}</span>`:""}
      </span>
-     <span class="mmhd-home-caption"><strong>${esc(title)}</strong><small>${esc(name)}</small></span>
+     ${isEpisode
+       ? `<span class="mmhd-home-caption mmhd-episode-caption"><small title="${esc(name)}">${esc(name)}</small></span>`
+       : `<span class="mmhd-home-caption"><strong>${esc(title)}</strong><small>${esc(name)}</small></span>`}
   </button>`;
 }
 function mmhdRenderHomeRows(){
@@ -4353,6 +4424,7 @@ function mmhdRenderHomeRows(){
       </button>
     </div>
   </section>`).join("");
+  setupHomeEpisodeLogos(holder);
   holder.querySelectorAll(".mmhd-home-row").forEach(row=>{
     const track=row.querySelector(".mmhd-home-track");
     for(const button of row.querySelectorAll("[data-mmhd-scroll]")){
