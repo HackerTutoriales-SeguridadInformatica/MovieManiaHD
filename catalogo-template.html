@@ -2107,30 +2107,6 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   #continueRow.continue-row{scroll-behavior:auto}
 }
 
-
-/* ==============================================================
-   MMHD: CONTRASTE ADAPTATIVO PARA LOGOS OSCUROS DE TMDB
-   Un pequeño borde luminoso ayuda incluso si el navegador bloquea
-   el análisis de la imagen. Si el logo es oscuro, se aclara SOLO
-   el área detrás de sus letras y nunca la fotografía de fondo.
-   =============================================================== */
-#continueRow .continue-title-logo,
-#hero .hero-logo,
-.detail-logo{
-  filter:drop-shadow(0 0 1.5px rgba(255,255,255,.72))
-         drop-shadow(0 5px 13px rgba(0,0,0,.68));
-}
-#continueRow .continue-title-logo.mmhd-dark-logo,
-#hero .hero-logo.mmhd-dark-logo,
-.detail-logo.mmhd-dark-logo{
-  background:radial-gradient(ellipse at center,
-    rgba(255,255,255,.88) 0%,
-    rgba(255,255,255,.64) 40%,
-    rgba(255,255,255,.23) 68%,
-    rgba(255,255,255,0) 95%);
-  filter:drop-shadow(0 0 2px rgba(255,255,255,.86))
-         drop-shadow(0 3px 11px rgba(0,0,0,.42));
-}
 </style>
 </head>
 <body>
@@ -3324,55 +3300,6 @@ function getMovieLogo(movie){
 function heroLogoAvailable(logo){
   return isTmdbLogoUrl(logo);
 }
-
-/* Detecta si el PNG del logo tiene letras mayoritariamente oscuras.
-   Usa una imagen de prueba independiente para que, si TMDB no permite
-   lectura desde canvas (CORS), NUNCA se deje de mostrar el logo real.
-   En ese caso permanece el contorno luminoso de CSS. */
-const mmhdLogoColorCache=new Map();
-function mmhdIsDarkLogo(url){
-  if(mmhdLogoColorCache.has(url))return mmhdLogoColorCache.get(url);
-  const result=new Promise(resolve=>{
-    const probe=new Image();
-    probe.crossOrigin="anonymous";
-    probe.onload=()=>{
-      try{
-        const canvas=document.createElement("canvas");
-        canvas.width=160;canvas.height=80;
-        const ctx=canvas.getContext("2d",{willReadFrequently:true});
-        if(!ctx){resolve(null);return;}
-        ctx.drawImage(probe,0,0,160,80);
-        const pixels=ctx.getImageData(0,0,160,80).data;
-        let alphaTotal=0,weightedLight=0,darkAlpha=0;
-        for(let i=0;i<pixels.length;i+=4){
-          const alpha=pixels[i+3]/255;
-          if(alpha<.25)continue; // ignorar píxeles transparentes
-          const luminance=.2126*pixels[i]+.7152*pixels[i+1]+.0722*pixels[i+2];
-          alphaTotal+=alpha;
-          weightedLight+=luminance*alpha;
-          if(luminance<115)darkAlpha+=alpha;
-        }
-        if(alphaTotal<12){resolve(null);return;}
-        // Ambos criterios evitan modificar logos multicolor o blancos.
-        resolve(weightedLight/alphaTotal<124&&darkAlpha/alphaTotal>.58);
-      }catch(e){resolve(null);} // imagen sin permiso de lectura
-    };
-    probe.onerror=()=>resolve(null);
-    probe.src=url;
-  });
-  mmhdLogoColorCache.set(url,result);
-  return result;
-}
-function mmhdAdjustLogoContrast(img){
-  if(!img||!img.naturalWidth)return;
-  const src=img.currentSrc||img.src;
-  img.classList.remove("mmhd-dark-logo");
-  mmhdIsDarkLogo(src).then(dark=>{
-    // No aplicar resultados atrasados a otra película/serie.
-    if(!img.isConnected||(img.currentSrc||img.src)!==src)return;
-    img.classList.toggle("mmhd-dark-logo",dark===true);
-  });
-}
 function syncHeroListButtons(){
   document.querySelectorAll('#hero [data-action="list"]').forEach(btn=>{
     const id=Number(btn.dataset.id),active=myList.has(id);
@@ -3455,7 +3382,6 @@ function renderHero(){
       img.hidden=false;
       img.classList.add('is-ready');
       slide?.classList.add('has-hero-logo');
-      mmhdAdjustLogoContrast(img);
     };
     const fail=()=>{
       img.hidden=true;
@@ -3733,7 +3659,6 @@ function setupContinueLogos(row){
     const show=()=>{
       if(!img.naturalWidth||!img.naturalHeight)return;
       card?.classList.add("has-continue-logo");
-      mmhdAdjustLogoContrast(img);
     };
     const fail=()=>{card?.classList.remove("has-continue-logo");};
     img.addEventListener("load",show);
@@ -4609,8 +4534,6 @@ function renderMovieLogo(movie){
   const logo=getMovieLogo(movie);
   const hasLogo=isTmdbLogoUrl(logo);
   image.hidden=!hasLogo;
-  image.classList.remove("mmhd-dark-logo");
-  image.onload=()=>mmhdAdjustLogoContrast(image);
   container.classList.toggle("has-logo",hasLogo);
   // Accessible title remains as an H1; text is visually hidden only when logo works.
   image.onerror=()=>{
