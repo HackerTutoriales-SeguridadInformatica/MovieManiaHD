@@ -10,10 +10,12 @@
   gtag('config', 'G-D9XQRX0XNE');
   // Eventos propios del catálogo; no registramos términos de búsqueda ni enlaces de video.
   function mmhdTrackAnalytics(eventName, details){
-    if (typeof gtag !== 'function' || !navigator.onLine) return;
+    // No contar interacciones de la vista previa de panel.html ni estando offline.
+    if (window.self !== window.top || typeof gtag !== 'function' || !navigator.onLine) return;
     gtag('event', eventName, details || {});
   }
 </script>
+
 <meta name="referrer" content="no-referrer" />
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -714,6 +716,30 @@ a{color:inherit;text-decoration:none}
 .player-close:hover{background:#2a2a3e;color:#fff;border-color:#3f3f5a}
 .player-frame{
   flex:1;border:0;width:100%;background:#000;
+}
+/* Modo TV: video HTML5 directo, sin iframe blob ni FWDEVPlayer. */
+.mmhd-player-actions{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.mmhd-player-tv-toggle{
+  min-height:36px;padding:7px 13px;border-radius:9px;
+  border:1px solid #42618a;background:#172c4e;color:#d9eaff;
+  font-size:12px;font-weight:800;cursor:pointer;
+}
+.mmhd-player-tv-toggle:hover,.mmhd-player-tv-toggle:focus-visible{background:#244470;outline-color:#8ebcff}
+.mmhd-tv-player{
+  flex:1;min-height:0;background:#000;display:flex;flex-direction:column;
+  align-items:stretch;justify-content:center;
+}
+.mmhd-tv-player[hidden],.player-frame[hidden]{display:none!important}
+.mmhd-tv-player video{display:block;width:100%;flex:1;min-height:0;background:#000;object-fit:contain}
+.mmhd-tv-feedback{background:#101520;color:#e4ebf8;padding:12px 14px;font-size:12px;text-align:center;flex-shrink:0}
+.mmhd-tv-buttons{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:10px}
+.mmhd-tv-buttons button{border:1px solid #4d668b;border-radius:8px;padding:10px 14px;background:#213958;color:#fff;font-size:13px;font-weight:700}
+.mmhd-tv-buttons button:disabled{opacity:.45;cursor:not-allowed}
+.mmhd-tv-buttons button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+@media(max-width:600px){
+  .mmhd-player-tv-toggle{padding:7px 9px;font-size:11px}
+  .player-head-title{font-size:12px;min-width:0}
+  .mmhd-tv-feedback{font-size:11px}
 }
 /* Aviso superpuesto al iframe cuando se reproduce sin pantalla completa. */
 .player-next-banner{
@@ -2599,9 +2625,22 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
         <i class="fa-solid fa-circle-play"></i>
         <span id="playerTitle">Reproductor</span>
       </div>
-      <button class="player-close" id="btnPlayerClose"><i class="fa-solid fa-xmark"></i></button>
+      <div class="mmhd-player-actions">
+        <button type="button" id="btnPlayerModeTv" class="mmhd-player-tv-toggle" aria-label="Cambiar al reproductor HTML5 para TV">Modo TV</button>
+        <button class="player-close" id="btnPlayerClose" aria-label="Cerrar reproductor"><i class="fa-solid fa-xmark"></i></button>
+      </div>
     </div>
     <iframe class="player-frame" id="playerFrame" allow="autoplay; fullscreen; picture-in-picture"></iframe>
+    <div class="mmhd-tv-player" id="mmhdTvPlayer" hidden>
+      <video id="mmhdTvVideo" controls playsinline preload="metadata" aria-label="Video en modo TV"></video>
+      <div class="mmhd-tv-feedback" role="status" aria-live="polite">
+        <span id="mmhdTvStatus">Modo TV: preparando el video…</span>
+        <div class="mmhd-tv-buttons">
+          <button type="button" id="mmhdTvNextSource">Probar otro enlace</button>
+          <button type="button" id="mmhdTvOriginal">Usar reproductor original</button>
+        </div>
+      </div>
+    </div>
     <div class="player-next-banner" id="playerNextBanner" role="group" aria-label="Saltar al siguiente episodio" hidden>
       <button class="player-next-go" id="playerNextGo" type="button">
         <span aria-hidden="true">▶</span>
@@ -2620,6 +2659,29 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 const MOVIES = __MOVIES_JSON__;
 const SHARED_PLAYER_B64 = __PLAYERS_JSON__;
 const CATALOG_CONFIG = __CATALOG_CONFIG_JSON__;
+
+/* Google Analytics: metadatos consistentes de cada película o serie.
+   Los episodios se agrupan bajo el título de su serie, evitando que cada
+   capítulo aparezca como una película diferente en los rankings.
+   No se envían URL de Google Photos, datos personales ni búsquedas. */
+function mmhdAnalyticsContentDetails(media){
+  if(!media || typeof media !== "object") return {};
+  const parentId=media.parentSeriesId;
+  const series=parentId != null || media.kind === "SERIES";
+  const parent=parentId == null ? null : MOVIES.find(m=>String(m.id)===String(parentId));
+  const record=parent || media;
+  let title=String(record.title || "").trim();
+  if(series && !parent && parentId != null){
+    // Respaldo si no se localiza la ficha de la serie.
+    title=title.split(/\s*·\s*T\d+E\d+/)[0].trim();
+  }
+  return {
+    content_id: String(parentId ?? record.id ?? ""),
+    content_type: series ? "series" : "movie",
+    content_title: title.slice(0, 100)
+  };
+}
+
 
 /* ============================================================
    CONFIGURACIÓN DE PAGINACIÓN (SCROLL INFINITO)
@@ -5184,11 +5246,7 @@ function renderSeriesSeasons(series,chosenSeason){
 function openDetail(id){
   const m = MOVIES.find(x => x.id === id);
   if (!m) return;
-  mmhdTrackAnalytics('mmhd_title_open', {
-    content_id: String(m.id),
-    content_type: m.kind === 'SERIES' ? 'series' : 'movie',
-    content_title: String(m.title || '').slice(0, 100)
-  });
+  mmhdTrackAnalytics('mmhd_title_open', mmhdAnalyticsContentDetails(m));
   const wasDetailOpen=$("detailScreen").classList.contains("show");
   state.currentMovie = m;
   $("detailScreen").classList.toggle("series-detail",m.kind==="SERIES");
@@ -5344,10 +5402,7 @@ async function showDownloadBox(movieOverride){
   hideBrowserVerification();
   const sourceUrl = [m.m37,m.m22,m.m18].map(url=>String(url||"").trim()).find(Boolean) || "";
   if (!sourceUrl){ alert("Esta película o episodio no tiene URLs configuradas."); return; }
-  mmhdTrackAnalytics('mmhd_download_request', {
-    content_id: String(m.parentSeriesId ?? m.id),
-    content_type: m.parentSeriesId != null ? 'episode' : (m.kind === 'SERIES' ? 'series' : 'movie')
-  });
+  mmhdTrackAnalytics('mmhd_download_request', mmhdAnalyticsContentDetails(m));
   // La descarga de Google Photos utiliza el mismo enlace, cambiando la
   // calidad =m37 (o la disponible =m22/=m18) por =dv.
   const downloadUrl = sourceUrl.replace(/=m(?:37|22|18)(?=$|[?#&])/, "=dv");
@@ -5514,78 +5569,247 @@ $("playerNextGo").addEventListener("click",()=>{
   if(!activePlayerMovie || parentNextDismissed)return;
   advanceEpisode(activePlayerMovie,true);
 });
-function openPlayer(movie,autoNext=false){
-  if (!movie) return;
+/* ============================================================
+   MMHD VIDAA · Reproducción nativa HTML5 de las URLs m37/m22/m18.
+   Solo la TV VIDAA la utiliza automáticamente. El botón permite
+   activarla manualmente o regresar a FWDEVPlayer cuando se necesite.
+   ============================================================ */
+const mmhdIsVidaa = /(?:VIDAA|Hisense)/i.test(navigator.userAgent || "")
+  && !/Android/i.test(navigator.userAgent || "");
+let mmhdTvOverride=null; // null = detección automática
+let mmhdTvMode=false;
+let mmhdTvSources=[];
+let mmhdTvIndex=0;
+let mmhdTvLastSaved=0;
+let mmhdTvResumePending=false;
+function mmhdTvPreference(){return mmhdTvOverride===null?mmhdIsVidaa:mmhdTvOverride;}
+function mmhdTvFeedback(message){
+  $("mmhdTvStatus").textContent=message;
+}
+function mmhdTvCleanSources(movie){
+  // Conservar las URLs originales, sin modificar los parámetros de reproducción.
+  // No convertir a =dv: =dv solo se usa para descargas.
+  const values=[movie.m37,movie.m22,movie.m18].map(u=>String(u||"").replace(/[\u0000-\u0020\u007F-\u009F\u00A0\u2000-\u200F\u2028\u2029\u202F\u205F\u3000\uFEFF]/g,""));
+  return values.filter((url,index)=>/^https:\/\//i.test(url)&&values.indexOf(url)===index);
+}
+function mmhdTvStop(){
+  const video=$("mmhdTvVideo");
+  mmhdTvMode=false;
+  try{video.pause();}catch(e){}
+  video.removeAttribute("src");
+  try{video.load();}catch(e){}
+  mmhdTvSources=[];
+  mmhdTvIndex=0;
+  mmhdTvResumePending=false;
+}
+function mmhdTvSetModeButton(){
+  const button=$("btnPlayerModeTv");
+  button.textContent=mmhdTvMode?"Reproductor original":"Modo TV";
+  button.setAttribute("aria-label",mmhdTvMode?"Regresar al reproductor original":"Activar modo TV HTML5");
+}
+function mmhdTvSaveProgress(force=false){
+  if(!mmhdTvMode || !activePlayerMovie) return;
+  const video=$("mmhdTvVideo");
+  const current=Number(video.currentTime), duration=Number(video.duration);
+  if(!Number.isFinite(current)||current<0||!Number.isFinite(duration)||duration<=0)return;
+  if(!force && Date.now()-mmhdTvLastSaved<7500)return;
+  mmhdTvLastSaved=Date.now();
+  const movie=activePlayerMovie, id=movie.id, parentId=movie.parentSeriesId??null;
+  progressSeconds[id]=current;
+  saveObj(LS_PROGRESS_SECONDS,progressSeconds);
+  if(parentId!=null){
+    seriesEpisodeDurations[id]=duration;
+    saveObj(LS_SERIES_DURATIONS,seriesEpisodeDurations);
+  }
+  const pct=Math.max(1,Math.min(99,Math.round(current/duration*100)));
+  progress[id]=pct;
+  if(parentId!=null)progress[parentId]=pct;
+  saveObj(LS_PROGRESS,progress);
+  try{
+    const ts=JSON.parse(localStorage.getItem(LS_PROGRESS_TS)||"{}");
+    ts[id]=Date.now();
+    if(parentId!=null)ts[parentId]=Date.now();
+    localStorage.setItem(LS_PROGRESS_TS,JSON.stringify(ts));
+  }catch(e){}
+  if(parentId!=null){
+    refreshVisibleEpisodeStatuses(parentId);
+    const parent=MOVIES.find(m=>m.id===Number(parentId)&&m.kind==="SERIES");
+    if(parent&&!updateSeriesContinueCard(parent))renderContinue();
+  }else{
+    const card=document.querySelector(`.continue-card[data-id="${id}"]`);
+    if(card){
+      const fill=card.querySelector(".continue-progress-fill");
+      if(fill)fill.style.width=pct+"%";
+      const track=card.querySelector(".continue-series-track");
+      if(track)track.setAttribute("aria-valuenow",String(pct));
+      const remaining=card.querySelector(".continue-remain b");
+      if(remaining)remaining.textContent=continueTimeLabel(Math.max(0,duration-current));
+    }else renderContinue();
+  }
+  lastEpisodeProgress={currentTime:current,duration};
+  refreshPlayerNextBanner(current,duration);
+}
+function mmhdTvLoadSource(index){
+  const video=$("mmhdTvVideo");
+  if(!mmhdTvMode||!activePlayerMovie)return;
+  if(index>=mmhdTvSources.length){
+    mmhdTvFeedback("Este televisor no consiguió reproducir ninguno de los enlaces. Comprueba la conexión y el formato del video, o utiliza el reproductor original.");
+    $("mmhdTvNextSource").disabled=true;
+    return;
+  }
+  mmhdTvIndex=index;
+  mmhdTvResumePending=true;
+  $("mmhdTvNextSource").disabled=index>=mmhdTvSources.length-1;
+  mmhdTvFeedback(`Probando enlace ${index+1} de ${mmhdTvSources.length}… Si se queda cargando, pulsa «Probar otro enlace».`);
+  video.src=mmhdTvSources[index];
+  try{video.load();}catch(e){}
+  try{
+    const playing=video.play();
+    if(playing&&typeof playing.catch==="function")playing.catch(()=>{
+      if(mmhdTvMode && mmhdTvIndex===index)mmhdTvFeedback("Pulsa ▶ en los controles del video para iniciar la reproducción. Si falla, prueba otro enlace.");
+    });
+  }catch(e){mmhdTvFeedback("Pulsa ▶ en los controles del video para reproducir.");}
+}
+function mmhdTvShow(movie){
+  const frame=$("playerFrame");
+  const blobUrl=frame.dataset.blobUrl;
+  frame.removeAttribute("src");
+  frame.src="about:blank";
+  frame.hidden=true;
+  if(blobUrl){setTimeout(()=>URL.revokeObjectURL(blobUrl),500);delete frame.dataset.blobUrl;}
+  mmhdTvMode=true;
+  mmhdTvSources=mmhdTvCleanSources(movie);
+  $("mmhdTvPlayer").hidden=false;
+  hidePlayerNextBanner();
+  mmhdTvSetModeButton();
+  if(!mmhdTvSources.length){
+    mmhdTvFeedback("No hay enlaces HTTPS válidos para reproducir en este televisor.");
+    $("mmhdTvNextSource").disabled=true;
+    return;
+  }
+  mmhdTvLoadSource(0);
+}
+function mmhdShowOriginal(movie,autoNext=false){
+  const playerHtml=getPlayerHtml(movie,autoNext);
+  if(!playerHtml){mmhdTvFeedback("No se encontró el reproductor original para este título.");return false;}
+  if(mmhdTvMode){mmhdTvSaveProgress(true);mmhdTvStop();}
+  $("mmhdTvPlayer").hidden=true;
+  const frame=$("playerFrame");
+  const oldUrl=frame.dataset.blobUrl;
+  if(oldUrl)URL.revokeObjectURL(oldUrl);
+  const url=URL.createObjectURL(new Blob([playerHtml],{type:"text/html;charset=utf-8"}));
+  frame.hidden=false;
+  frame.src=url;
+  frame.dataset.blobUrl=url;
+  mmhdTvSetModeButton();
+  return true;
+}
+$("mmhdTvVideo").addEventListener("error",()=>{
+  if(!mmhdTvMode)return;
+  // El evento 'error' puede indicar fuente rechazada o códec no admitido.
+  if(mmhdTvIndex+1<mmhdTvSources.length)mmhdTvLoadSource(mmhdTvIndex+1);
+  else mmhdTvFeedback("Error de reproducción: ninguno de los enlaces fue aceptado. El formato o el acceso a Google Photos podría ser incompatible con VIDAA.");
+});
+$("mmhdTvVideo").addEventListener("loadedmetadata",()=>{
+  if(!mmhdTvMode||!activePlayerMovie||!mmhdTvResumePending)return;
+  mmhdTvResumePending=false;
+  const video=$("mmhdTvVideo"),saved=Number(progressSeconds[activePlayerMovie.id]);
+  if(Number.isFinite(saved)&&saved>0&&Number.isFinite(video.duration)&&saved<video.duration-10){
+    try{video.currentTime=saved;}catch(e){}
+  }
+});
+$("mmhdTvVideo").addEventListener("playing",()=>{
+  if(mmhdTvMode)mmhdTvFeedback("Reproduciendo en modo TV · Usa los controles de video para pausar o avanzar.");
+});
+$("mmhdTvVideo").addEventListener("timeupdate",()=>mmhdTvSaveProgress(false));
+$("mmhdTvVideo").addEventListener("pause",()=>mmhdTvSaveProgress(true));
+$("mmhdTvVideo").addEventListener("ended",()=>{
+  if(!mmhdTvMode||!activePlayerMovie)return;
+  const finished=activePlayerMovie;
+  if(finished.parentSeriesId!=null)advanceEpisode(finished);
+  else{
+    delete progressSeconds[finished.id];delete progress[finished.id];
+    saveObj(LS_PROGRESS_SECONDS,progressSeconds);
+    saveObj(LS_PROGRESS,progress);
+    renderContinue();
+  }
+});
+$("mmhdTvNextSource").addEventListener("click",()=>{
+  if(mmhdTvMode)mmhdTvLoadSource(mmhdTvIndex+1);
+});
+$("mmhdTvOriginal").addEventListener("click",()=>{
+  if(activePlayerMovie){mmhdTvOverride=false;mmhdShowOriginal(activePlayerMovie);}
+});
+$("btnPlayerModeTv").addEventListener("click",()=>{
+  if(!activePlayerMovie)return;
+  const movie=activePlayerMovie;
+  mmhdTvOverride=!mmhdTvMode;
+  if(mmhdTvMode)mmhdShowOriginal(movie);
+  else mmhdTvShow(movie);
+});
 
-  if (!movie.m37 && !movie.m22 && !movie.m18){
+function openPlayer(movie,autoNext=false){
+  if(!movie)return;
+  if(!movie.m37&&!movie.m22&&!movie.m18){
     alert("Esta película aún no tiene URLs de video configuradas.");
     return;
   }
-
-  const playerHtml = getPlayerHtml(movie,autoNext);
-  if (!playerHtml){
+  // El reproductor web original se mantiene intacto salvo en modo VIDAA.
+  if(!mmhdTvPreference()&&!SHARED_PLAYER_B64){
     alert("No se encontró la plantilla del reproductor para esta película.");
     return;
   }
-  mmhdTrackAnalytics('mmhd_play_request', {
-    content_id: String(movie.parentSeriesId ?? movie.id),
-    content_type: movie.parentSeriesId != null ? 'episode' : (movie.kind === 'SERIES' ? 'series' : 'movie')
-  });
-
-  const prev = $("playerFrame").dataset.blobUrl;
-  if (prev) URL.revokeObjectURL(prev);
-
-  const blob = new Blob([playerHtml], {type:"text/html;charset=utf-8"});
-  const url = URL.createObjectURL(blob);
-
+  if(mmhdTvMode)mmhdTvSaveProgress(true);
+  mmhdTrackAnalytics('mmhd_play_request',mmhdAnalyticsContentDetails(movie));
   activePlayerMovie=movie;
   parentNextDismissed=false;
   iframeEpisodeFullscreen=false;
   lastEpisodeProgress=null;
   hidePlayerNextBanner();
-  $("playerTitle").textContent = movie.title + (movie.subtitle ? " — " + movie.subtitle : "");
-  $("playerFrame").src = url;
+  $("playerTitle").textContent=movie.title+(movie.subtitle?" — "+movie.subtitle:"");
   $("playerModal").classList.add("show");
-  document.body.style.overflow = "hidden";
+  document.body.style.overflow="hidden";
   hideMobileNav();
+  if(mmhdTvPreference())mmhdTvShow(movie);
+  else mmhdShowOriginal(movie,autoNext);
 
-  if (!progress[movie.id]) {
-    progress[movie.id] = 1;
-  }
+  if(!progress[movie.id])progress[movie.id]=1;
   if(movie.parentSeriesId!=null){
     if(!progress[movie.parentSeriesId])progress[movie.parentSeriesId]=1;
     rememberSeriesEpisode(movie);
   }
-  try {
-    const ts = JSON.parse(localStorage.getItem(LS_PROGRESS_TS) || "{}");
-    ts[movie.id] = Date.now();
-    localStorage.setItem(LS_PROGRESS_TS, JSON.stringify(ts));
-  } catch(e){}
-  saveObj(LS_PROGRESS, progress);
+  try{
+    const ts=JSON.parse(localStorage.getItem(LS_PROGRESS_TS)||"{}");
+    ts[movie.id]=Date.now();
+    localStorage.setItem(LS_PROGRESS_TS,JSON.stringify(ts));
+  }catch(e){}
+  saveObj(LS_PROGRESS,progress);
   markContinueMostRecent(movie);
   renderContinue();
   resetContinueRowToStart($("continueRow"));
-
-  $("playerFrame").dataset.blobUrl = url;
 }
 
 function closePlayer(){
+  if(mmhdTvMode)mmhdTvSaveProgress(true);
+  mmhdTvStop();
+  $("mmhdTvPlayer").hidden=true;
   hidePlayerNextBanner();
   iframeEpisodeFullscreen=false;
   lastEpisodeProgress=null;
   parentNextDismissed=false;
   activePlayerMovie=null; // Cerrar manualmente nunca lanza el siguiente capítulo.
-  const frame = $("playerFrame");
-  const url = frame.dataset.blobUrl;
-  frame.src = "about:blank";
-  if (url) setTimeout(() => URL.revokeObjectURL(url), 500);
+  const frame=$("playerFrame");
+  const url=frame.dataset.blobUrl;
+  frame.src="about:blank";
+  frame.hidden=false;
+  if(url){setTimeout(()=>URL.revokeObjectURL(url),500);delete frame.dataset.blobUrl;}
   $("playerModal").classList.remove("show");
-  if (state.currentMovie) {
+  if(state.currentMovie){
     hideMobileNav();
-    document.body.style.overflow = "hidden";
-  } else {
+    document.body.style.overflow="hidden";
+  }else{
     showMobileNav();
-    document.body.style.overflow = "";
+    document.body.style.overflow="";
   }
 }
 
