@@ -1,5 +1,5 @@
 /* Movie Mania HD — shell offline. No intenta descargar/cachar videos de Google Photos. */
-const VERSION='mmhd-web-shell-v3-20261024';
+const VERSION='mmhd-web-shell-v5-analytics-20261025';
 const SHELL=`${VERSION}-shell`;
 const IMAGES=`${VERSION}-images`;
 const ROOT=new URL('./',self.registration.scope);
