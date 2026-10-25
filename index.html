@@ -18,7 +18,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a12">
-<link rel="manifest" href="./manifest.webmanifest">
 <title>Movie Mania HD - Catálogo</title>
 <link rel="icon" href="https://cdn.jsdelivr.net/gh/HackerTutoriales-SeguridadInformatica/ReproductorGooglePhotos@main/GooglePhotosPlayer/start/icono.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -6055,13 +6054,36 @@ syncBackToTop();
 </script>
 
 <script>
-/* MMHD Web: la interfaz se conserva offline; los videos siguen descargándose con el navegador. */
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js', {scope:'./'})
-      .catch(err => console.warn('[Movie Mania HD] Catálogo offline no disponible:', err));
-  }, {once:true});
-}
+/* MMHD Web: retirar el modo sin conexión, incluido el service worker ya instalado.
+   No afecta descargas de video, lista, historial ni progreso guardados en localStorage. */
+(function(){
+  if (location.protocol !== 'https:' && location.protocol !== 'http:') return;
+  const appScope = new URL('./', location.href).href;
+  async function removeOfflineWeb(){
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations
+          .filter(registration => registration.scope === appScope)
+          .map(registration => registration.unregister()));
+      }
+    } catch (error) {
+      console.warn('[Movie Mania HD] No se pudo desactivar el servicio offline:', error);
+    }
+    try {
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames
+          .filter(name => name.startsWith('mmhd-web-'))
+          .map(name => caches.delete(name)));
+      }
+    } catch (error) {
+      console.warn('[Movie Mania HD] No se pudo limpiar la caché offline:', error);
+    }
+  }
+  if (document.readyState === 'complete') removeOfflineWeb();
+  else window.addEventListener('load', removeOfflineWeb, {once:true});
+})();
 </script>
 </body>
 </html>
