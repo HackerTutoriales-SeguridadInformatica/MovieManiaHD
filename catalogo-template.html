@@ -1471,6 +1471,29 @@ a{color:inherit;text-decoration:none}
 .back-to-top{position:fixed;right:22px;bottom:26px;z-index:48;width:44px;height:44px;border-radius:50%;background:#25345c;border:1px solid #5377be;box-shadow:0 6px 25px #0009;opacity:0;visibility:hidden;transition:opacity .15s,visibility .15s;display:grid;place-items:center}
 .back-to-top.show{opacity:1;visibility:visible}
 @media(max-width:750px){.catalog-filterbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.catalog-filterbar select{min-width:0;width:100%}.catalog-filterbar button{grid-column:1/-1}.back-to-top{bottom:85px;right:13px;width:39px;height:39px}}
+/* ===== Historial de descargas: gestión y verificación manual en web ===== */
+.mmhd-download-history-tools[hidden],.mmhd-download-confirm[hidden]{display:none!important}
+.mmhd-download-history-tools{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;margin:0 0 15px;padding:12px 14px;border:1px solid #2b405f;border-radius:11px;background:#111b2e}
+.mmhd-download-history-tools p{margin:0;flex:1;min-width:200px;color:#b7cae6;font-size:11.5px;line-height:1.5}
+.mmhd-download-history-tools p i{color:#7db5ff;margin-right:5px}
+.mmhd-download-history-tools button{min-height:38px;padding:8px 12px;border-radius:9px;white-space:normal;
+  background:#392027;border:1px solid #874451;color:#ffe0e3;font-size:11.5px;font-weight:800}
+.mmhd-download-history-tools button:hover,.mmhd-download-history-tools button:focus-visible{background:#552934;border-color:#f38c98}
+.mmhd-download-history-tools button[data-confirm="1"]{background:#852e3c;color:#fff}
+.card-download-remove{position:absolute;right:8px;bottom:8px;z-index:5;display:grid;place-items:center;
+  height:29px;width:29px;border-radius:50%;background:#151927eb;border:1px solid #7b869c;
+  color:#fff;cursor:pointer;font-size:13px;box-shadow:0 2px 8px #0009}
+.card-download-remove:hover,.card-download-remove:focus-visible{background:#c22f49;border-color:#fff;outline-offset:2px}
+.mmhd-download-confirm{margin-top:13px;padding:10px 12px;border:1px solid #365989;border-radius:10px;background:#111f37}
+.mmhd-download-confirm p{font-size:11.5px;line-height:1.5;color:#c6d7f6;margin:0 0 10px}
+.mmhd-download-confirm button{width:100%;min-height:38px;border-radius:9px;background:#235497;
+  border:1px solid #6b9edc;font-size:12px;color:#fff;font-weight:800}
+.mmhd-download-confirm button:hover,.mmhd-download-confirm button:focus-visible{background:#2d67b0}
+@media(max-width:600px){.mmhd-download-history-tools{padding:10px;gap:9px}
+.mmhd-download-history-tools p{min-width:100%}.mmhd-download-history-tools button{width:100%}
+.card-download-remove{right:5px;bottom:5px;height:29px;width:29px}}
+
 /* ============ FASE 5A: DESCUBRIMIENTO POR GÉNEROS ============ */
 .detail-genres{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-bottom:22px}
 .genre-chip{font:inherit;font-size:12px;font-weight:700;line-height:1.2;padding:9px 12px;
@@ -2344,6 +2367,10 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
         <span><i class="fa-solid fa-filter" aria-hidden="true"></i> Género: <span class="active-genre-name" id="activeGenreName"></span> · <span id="activeGenreCount"></span> títulos</span>
         <button class="active-genre-clear" id="clearActiveGenre" type="button"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Quitar género</button>
       </div>
+      <div class="mmhd-download-history-tools" id="downloadHistoryTools" hidden>
+        <p><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Historial de descargas. Las nuevas entradas se agregan solo cuando el video se recibe completo o eliges su archivo terminado. Eliminar un registro no borra el video de tu dispositivo.</p>
+        <button id="clearAllDownloadHistory" type="button"><i class="fa-solid fa-trash-can" aria-hidden="true"></i> Borrar todo el historial</button>
+      </div>
       <div class="grid" id="catalogGrid"></div>
     </section>
   </main>
@@ -2495,6 +2522,11 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
       </div>
       <div class="detail-download-bar"><div class="detail-download-fill" id="downloadFill"></div></div>
       <div class="detail-download-status" id="downloadStatus">Preparando descarga...</div>
+      <div class="mmhd-download-confirm" id="downloadConfirmArea" hidden>
+        <p>Cuando Chrome indique que la descarga terminó, elige el video desde Descargas para agregarlo al historial. No se copia ni se sube el archivo.</p>
+        <button type="button" id="confirmBrowserDownload"><i class="fa-solid fa-file-circle-check" aria-hidden="true"></i> Confirmar archivo descargado</button>
+        <input type="file" id="confirmBrowserDownloadInput" accept="video/*,.mp4,.mkv,.webm,.avi,.mov,.m4v" hidden aria-label="Elegir un video ya descargado">
+      </div>
     </div>
 
     <div class="detail-synopsis">
@@ -2623,16 +2655,45 @@ const recentSeriesEpisodes = loadObj(LS_RECENT_SERIES_EPISODES);
 const watchedEpisodes = loadSet(LS_WATCHED_EPISODES);
 const seriesEpisodeDurations = loadObj(LS_SERIES_DURATIONS);
 const downloads = loadObj(LS_DOWNLOADS);
-// Registro local del navegador. No equivale a detectar archivos físicos en el dispositivo.
-function recordDownload(movie, status){
-  if (!movie) return;
-  downloads[movie.id] = {status, date: new Date().toISOString()};
-  if(movie.parentSeriesId!=null) downloads[movie.parentSeriesId] = {...downloads[movie.id], partial:true, episodeId:movie.id};
-  saveObj(LS_DOWNLOADS, downloads);
+// Solo se registran nuevas descargas verificadas por lectura completa o
+// elección del archivo terminado. Las entradas antiguas se conservan hasta borrarlas.
+function recordDownload(movie, status, details={}){
+  if(!movie || !["recibida","verificada"].includes(status))return;
+  const entry={status,date:new Date().toISOString(),...details};
+  downloads[movie.id]=entry;
+  if(movie.parentSeriesId!=null)downloads[movie.parentSeriesId]={...entry,partial:true,episodeId:movie.id};
+  saveObj(LS_DOWNLOADS,downloads);
   renderAll();
 }
 function downloadCount(){
-  return MOVIES.filter(m => Boolean(downloads[m.id])).length;
+  return MOVIES.filter(m=>Boolean(downloads[m.id])).length;
+}
+function removeDownloadRecord(id){
+  const key=String(id),entry=downloads[key];
+  if(!entry)return;
+  // Quitar únicamente del historial, nunca archivos del disco.
+  if(entry.episodeId!=null)delete downloads[String(entry.episodeId)];
+  delete downloads[key];
+  const parent=Object.keys(downloads).find(k=>String(downloads[k]?.episodeId)===key);
+  if(parent)delete downloads[parent];
+  saveObj(LS_DOWNLOADS,downloads);
+  renderAll();
+}
+function clearDownloadHistory(){
+  Object.keys(downloads).forEach(key=>delete downloads[key]);
+  saveObj(LS_DOWNLOADS,downloads);
+  renderAll();
+}
+function syncDownloadHistoryTools(){
+  const tools=$("downloadHistoryTools"),btn=$("clearAllDownloadHistory");
+  if(!tools||!btn)return;
+  const count=downloadCount();
+  tools.hidden=state.filter!=="downloads";
+  btn.hidden=!count;
+  if(state.filter!=="downloads"){
+    btn.dataset.confirm="";
+    btn.innerHTML='<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Borrar todo el historial';
+  }
 }
 
 const state = {
@@ -3110,7 +3171,7 @@ function getFiltered(){
     case "movie":list=list.filter(m=>m.kind==="MOVIE");break;
     case "series":list=list.filter(m=>m.kind==="SERIES");break;
     case "mylist":list=list.filter(m=>myList.has(m.id));break;
-    case "downloads":list=list.filter(m=>downloads[m.id]);break;
+    case "downloads":list=list.filter(m=>Boolean(downloads[m.id]));break;
   }
   if(state.genre)list=list.filter(m=>getMovieGenres(m).some(g=>genreKey(g)===genreKey(state.genre)));
   if(state.year)list=list.filter(m=>String(m.year||"")===state.year);
@@ -3141,6 +3202,17 @@ function setupCatalogFilters(){
     state.genre="";state.year="";state.sort="recent";
     $("genreFilter").value="";$("yearFilter").value="";$("catalogSort").value="recent";
     renderAll();
+  });
+  $("clearAllDownloadHistory").addEventListener("click",()=>{
+    const button=$("clearAllDownloadHistory");
+    if(button.dataset.confirm!=="1"){
+      button.dataset.confirm="1";
+      button.textContent="Confirmar: borrar todos los registros";
+      return;
+    }
+    clearDownloadHistory();
+    button.dataset.confirm="";
+    button.innerHTML='<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Borrar todo el historial';
   });
 }
 
@@ -4077,6 +4149,7 @@ function cardHTML(m){
             <i class="fa-solid fa-star"></i> ${m.rating.toFixed(1)}
           </div>` : ""}
         <div class="card-play"><span><i class="fa-solid fa-play"></i></span></div>
+        ${state.filter==="downloads"?`<button type="button" class="card-download-remove" data-download-remove="${esc(m.id)}" title="Quitar del historial" aria-label="Quitar ${esc(m.title)} del historial de descargas"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>`:""}
       </div>
       <div class="card-body">
         <h3 class="card-title">${esc(m.title)}${m.subtitle ? " — " + esc(m.subtitle) : ""}</h3>
@@ -4084,20 +4157,31 @@ function cardHTML(m){
         ${state.search.trim() ? (()=>{const match=matchedSearchTitle(m,state.search);
           return match && normalizeSearchText(match)!==normalizeSearchText(m.title)
             ? `<div class="search-matched-title" title="${esc(match)}">También: ${esc(match)}</div>`:"";})():""}
-        ${state.filter === "downloads" && downloads[m.id] ? `<div class="card-year" style="margin-top:5px;color:#a1a7b8">${downloads[m.id]?.partial ? "Descarga de episodio registrada" : downloads[m.id]?.status === "recibida" ? "Archivo recibido por el navegador" : "Descarga solicitada (sin confirmar)"}</div>` : ""}
+        ${state.filter==="downloads"&&downloads[m.id]?`<div class="card-year" style="margin-top:5px;color:#a1a7b8">${downloads[m.id].status==="verificada"?"Archivo confirmado · "+esc(downloads[m.id].filename||"video"):downloads[m.id].status==="recibida"?"Video recibido al 100%":"Registro anterior · sin verificar"}</div>`:""}
       </div>
     </article>
   `;
 }
 
 function bindCardEvents(container){
-  container.querySelectorAll(".card:not([data-bound])").forEach(card => {
-    card.dataset.bound = "1";
-    card.addEventListener("click", () => openDetail(Number(card.dataset.id)));
-    card.addEventListener("keydown", e => {
-      if (e.key === "Enter" || e.key === " "){
-        e.preventDefault();
-        openDetail(Number(card.dataset.id));
+  container.querySelectorAll(".card:not([data-bound])").forEach(card=>{
+    card.dataset.bound="1";
+    const removeBtn=card.querySelector("[data-download-remove]");
+    if(removeBtn){
+      removeBtn.addEventListener("click",e=>{
+        e.stopPropagation();e.preventDefault();
+        removeDownloadRecord(removeBtn.dataset.downloadRemove);
+      });
+      removeBtn.addEventListener("keydown",e=>e.stopPropagation());
+    }
+    card.addEventListener("click",e=>{
+      if(e.target.closest("[data-download-remove]"))return;
+      openDetail(Number(card.dataset.id));
+    });
+    card.addEventListener("keydown",e=>{
+      if(e.target.closest("[data-download-remove]"))return;
+      if(e.key==="Enter"||e.key===" "){
+        e.preventDefault();openDetail(Number(card.dataset.id));
       }
     });
   });
@@ -4148,8 +4232,8 @@ function renderGrid(reset = false){
     grid.innerHTML = `
       <div class="empty-state">
         <i class="fa-solid fa-film"></i>
-        <h3>${state.filter === "downloads" ? "Todavía no hay descargas registradas" : "No hay películas para mostrar"}</h3>
-        <p>${state.filter === "downloads" ? "Aquí aparece el historial de descargas iniciadas desde este navegador; el archivo se guarda en Descargas de tu dispositivo." : "Prueba con otro filtro o término de búsqueda."}</p>
+        <h3>${state.filter === "downloads" ? "Todavía no hay descargas confirmadas" : "No hay películas para mostrar"}</h3>
+        <p>${state.filter === "downloads" ? "Para agregar una película, descárgala y luego elige el archivo terminado desde la ficha. No se guarda otra copia." : "Prueba con otro filtro o término de búsqueda."}</p>
       </div>`;
     return;
   }
@@ -4437,6 +4521,7 @@ function renderAll(){
   mmhdSyncViewMode();
   mmhdRenderHomeRows();
   renderGrid(true);
+  syncDownloadHistoryTools();
   renderContinue();
   mmhdSyncViewMode();
   syncActiveGenre();
@@ -5121,6 +5206,7 @@ function openDetail(id){
 
   const box = $("downloadBox");
   box.classList.remove("show", "done", "error");
+  hideBrowserVerification();
 
   const playBtn = $("btnPlay");
   if (progress[m.id] && progress[m.id] > 1 && progress[m.id] < 99) {
@@ -5203,6 +5289,17 @@ function toggleMyList(id, fromHero = false){
    Sin proxy: si el origen bloquea fetch, descarga directa.
    ============================================================ */
 let activeDownload = false;
+let pendingBrowserVerification=null;
+function showBrowserVerification(movie){
+  pendingBrowserVerification=movie;
+  const area=$("downloadConfirmArea");
+  if(area)area.hidden=false;
+}
+function hideBrowserVerification(){
+  pendingBrowserVerification=null;
+  const area=$("downloadConfirmArea");
+  if(area)area.hidden=true;
+}
 function startBrowserDownload(url, filename){
   const a = document.createElement("a");
   a.href = url;
@@ -5226,6 +5323,7 @@ async function showDownloadBox(movieOverride){
     ("m37" in movieOverride || "m22" in movieOverride || "m18" in movieOverride);
   const m = isMedia ? movieOverride : selectedPlayable();
   if (!m || activeDownload) return;
+  hideBrowserVerification();
   const sourceUrl = [m.m37,m.m22,m.m18].map(url=>String(url||"").trim()).find(Boolean) || "";
   if (!sourceUrl){ alert("Esta película o episodio no tiene URLs configuradas."); return; }
   // La descarga de Google Photos utiliza el mismo enlace, cambiando la
@@ -5292,17 +5390,45 @@ async function showDownloadBox(movieOverride){
       status.textContent = "No se pudo completar la descarga medida. Presiona Descargar para intentarlo de nuevo.";
       box.classList.add("error");
     } else {
-      label.textContent = "Descarga solicitada en Chrome";
+      label.textContent = "Descarga abierta en Chrome";
       pctEl.textContent = "—";
       fill.style.width = "0%";
-      status.textContent = "No se puede confirmar la finalización desde esta página. Consulta las descargas del navegador.";
+      status.textContent = "No se agregará al historial hasta confirmar que Chrome descargó el archivo completo.";
       startBrowserDownload(downloadUrl, filename);
-      recordDownload(m, "solicitada");
+      showBrowserVerification(m);
     }
   } finally {
     activeDownload = false;
   }
 }
+
+// Confirmación de la descarga normal de Chrome: el usuario elige el archivo
+// existente, sin importarlo/copiárselo al sitio. Chrome no expone su % de descarga.
+$("confirmBrowserDownload").addEventListener("click",()=>{
+  if(!pendingBrowserVerification)return;
+  $("confirmBrowserDownloadInput").value="";
+  $("confirmBrowserDownloadInput").click();
+});
+$("confirmBrowserDownloadInput").addEventListener("change",event=>{
+  const file=event.target.files?.[0];
+  const movie=pendingBrowserVerification;
+  if(!file||!movie)return;
+  if(file.size<=0){
+    $("downloadStatus").textContent="Ese archivo está vacío. Elige el video una vez que haya terminado de descargarse.";
+    return;
+  }
+  if(!/\.(mp4|m4v|mkv|mov|avi|webm|ts)$/i.test(file.name) && !String(file.type).startsWith("video/")){
+    $("downloadStatus").textContent="Selecciona un archivo de video descargado.";
+    return;
+  }
+  recordDownload(movie,"verificada",{filename:file.name,size:file.size});
+  $("downloadBox").classList.remove("error");
+  $("downloadBox").classList.add("done");
+  $("downloadLabel").textContent="Archivo confirmado";
+  $("downloadPct").textContent="✓";
+  $("downloadStatus").textContent="Agregado al historial. El archivo permanece en las Descargas de tu dispositivo.";
+  hideBrowserVerification();
+});
 
 /* ============================================================
    REPRODUCTOR
