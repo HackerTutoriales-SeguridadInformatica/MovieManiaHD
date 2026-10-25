@@ -3086,11 +3086,20 @@ function mmhdSubtitleLoader(){
   }
   function normalizeVtt(input){
     var text=String(input||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
-    if(/^WEBVTT(?:\s|$)/.test(text))return text;
-    // SRT usa coma decimal; WebVTT usa punto.
-    text=text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g,'$1.$2');
-    if(!/\d{2}:\d{2}:\d{2}\.\d{3}\s*-->/.test(text))throw Error('Formato de subtítulos no reconocido');
-    return 'WEBVTT\n\n'+text.trim()+'\n';
+    if(!/^WEBVTT(?:\s|$)/.test(text)){
+      // SRT usa coma decimal; WebVTT usa punto.
+      text=text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g,'$1.$2');
+      if(!/\d{2}:\d{2}:\d{2}\.\d{3}\s*-->/.test(text))throw Error('Formato de subtítulos no reconocido');
+      text='WEBVTT\n\n'+text.trim()+'\n';
+    }
+    // Mantener los subtítulos sobre la barra del reproductor, también a pantalla completa.
+    // line:72% es una posición relativa a la altura del video (no al tamaño de la ventana).
+    // Reemplazar cualquier line: previo sin alterar tiempos, texto ni otros ajustes de cada cue.
+    return text.replace(/^([ \t]*(?:\d{2,}:)?\d{2}:\d{2}\.\d{3}[ \t]*-->[ \t]*(?:\d{2,}:)?\d{2}:\d{2}\.\d{3})([^\n]*)$/gm,
+      function(all,timing,settings){
+        var other=String(settings||'').replace(/(?:^|[ \t])line:[^ \t]+/g,'').replace(/[ \t]+$/,'');
+        return timing+other+' line:72%';
+      });
   }
   function attachTracks(){
     if(!trackUrl)return;
