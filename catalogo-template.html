@@ -1,6 +1,70 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<!-- Google Analytics 4 - Movie Mania HD Web -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-D9XQRX0XNE"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-D9XQRX0XNE');
+  // Eventos propios del catálogo; no registramos términos de búsqueda ni enlaces de video.
+  function mmhdTrackAnalytics(eventName, details){
+    if (typeof gtag !== 'function' || !navigator.onLine) return;
+    gtag('event', eventName, details || {});
+  }
+</script>
+<!-- Movie Mania HD · Protección de interfaz (no se aplica a la vista previa del panel) -->
+<script>
+(function(){
+  "use strict";
+  // La vista previa de panel.html utiliza un iframe aislado. No alterarla.
+  if(window.self !== window.top) return;
+
+  // Cargar el proveedor solicitado solo fuera de la vista previa.
+  const disableDevtoolScript = document.createElement("script");
+  disableDevtoolScript.setAttribute("disable-devtool-auto", "");
+  disableDevtoolScript.src = "https://cdn.jsdelivr.net/npm/disable-devtool";
+  document.head.appendChild(disableDevtoolScript);
+
+  const REDIRECT_URL = "https://www.google.com/";
+  let redirecting = false;
+  document.addEventListener("keydown", function(e){
+    const k = (e.key || "").toLowerCase();
+    const ctrl = e.ctrlKey || e.metaKey;
+    const shift = e.shiftKey;
+    if(e.key === "F12" || e.keyCode === 123){ e.preventDefault(); e.stopPropagation(); return false; }
+    if(ctrl && shift && (k === "c" || k === "i" || k === "j" || k === "k")){ e.preventDefault(); e.stopPropagation(); return false; }
+    if(ctrl && !shift && (k === "u" || k === "s" || k === "p")){ e.preventDefault(); e.stopPropagation(); return false; }
+    if(ctrl && !shift && k === "a" && !(e.target instanceof Element && e.target.matches("input, textarea"))){ e.preventDefault(); e.stopPropagation(); return false; }
+  }, true);
+  document.addEventListener("contextmenu", function(e){ e.preventDefault(); return false; }, true);
+  document.addEventListener("dragstart", function(e){ e.preventDefault(); return false; }, true);
+  function isDevtoolsOpen(){
+    if(window.matchMedia("(pointer: coarse)").matches) return false;
+    if(window.innerWidth < 900) return false;
+    const widthDiff  = window.outerWidth  - window.innerWidth;
+    const heightDiff = window.outerHeight - window.innerHeight;
+    return (widthDiff > 400 || heightDiff > 400);
+  }
+  function redirectAway(){
+    if(redirecting) return;
+    redirecting = true;
+    const delay = 2000 + Math.random() * 1500;
+    setTimeout(function(){
+      try{ window.location.replace(REDIRECT_URL); }
+      catch(_){ window.location.href = REDIRECT_URL; }
+    }, delay);
+  }
+  function check(){
+    if(redirecting) return;
+    try{ if(isDevtoolsOpen()) redirectAway(); }catch(_){ }
+  }
+  setInterval(check, 2000);
+  window.addEventListener("focus", function(){ setTimeout(check, 800); });
+  try{ if(window.top !== window.self){ window.top.location = window.self.location; } }catch(_){ }
+})();
+</script>
 <meta name="referrer" content="no-referrer" />
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -5171,6 +5235,11 @@ function renderSeriesSeasons(series,chosenSeason){
 function openDetail(id){
   const m = MOVIES.find(x => x.id === id);
   if (!m) return;
+  mmhdTrackAnalytics('mmhd_title_open', {
+    content_id: String(m.id),
+    content_type: m.kind === 'SERIES' ? 'series' : 'movie',
+    content_title: String(m.title || '').slice(0, 100)
+  });
   const wasDetailOpen=$("detailScreen").classList.contains("show");
   state.currentMovie = m;
   $("detailScreen").classList.toggle("series-detail",m.kind==="SERIES");
@@ -5326,6 +5395,10 @@ async function showDownloadBox(movieOverride){
   hideBrowserVerification();
   const sourceUrl = [m.m37,m.m22,m.m18].map(url=>String(url||"").trim()).find(Boolean) || "";
   if (!sourceUrl){ alert("Esta película o episodio no tiene URLs configuradas."); return; }
+  mmhdTrackAnalytics('mmhd_download_request', {
+    content_id: String(m.parentSeriesId ?? m.id),
+    content_type: m.parentSeriesId != null ? 'episode' : (m.kind === 'SERIES' ? 'series' : 'movie')
+  });
   // La descarga de Google Photos utiliza el mismo enlace, cambiando la
   // calidad =m37 (o la disponible =m22/=m18) por =dv.
   const downloadUrl = sourceUrl.replace(/=m(?:37|22|18)(?=$|[?#&])/, "=dv");
@@ -5505,6 +5578,10 @@ function openPlayer(movie,autoNext=false){
     alert("No se encontró la plantilla del reproductor para esta película.");
     return;
   }
+  mmhdTrackAnalytics('mmhd_play_request', {
+    content_id: String(movie.parentSeriesId ?? movie.id),
+    content_type: movie.parentSeriesId != null ? 'episode' : (movie.kind === 'SERIES' ? 'series' : 'movie')
+  });
 
   const prev = $("playerFrame").dataset.blobUrl;
   if (prev) URL.revokeObjectURL(prev);
@@ -5586,6 +5663,7 @@ function mmhdScrollToTopOnSectionChange(){
 document.querySelectorAll(".nav-item[data-filter]").forEach(el => {
   el.addEventListener("click", () => {
     state.filter = el.dataset.filter;
+    mmhdTrackAnalytics('mmhd_section_view', {section: state.filter});
     state.genre = "";
     $("genreFilter").value = "";
     state.search = "";
@@ -5598,6 +5676,7 @@ document.querySelectorAll(".nav-item[data-filter]").forEach(el => {
 document.querySelectorAll(".mobile-nav-item[data-filter]").forEach(el => {
   el.addEventListener("click", () => {
     state.filter = el.dataset.filter;
+    mmhdTrackAnalytics('mmhd_section_view', {section: state.filter});
     state.genre = "";
     $("genreFilter").value = "";
     state.search = "";
@@ -5610,6 +5689,7 @@ document.querySelectorAll(".mobile-nav-item[data-filter]").forEach(el => {
 document.querySelectorAll(".tab[data-tab]").forEach(el => {
   el.addEventListener("click", () => {
     state.filter = el.dataset.tab;
+    mmhdTrackAnalytics('mmhd_section_view', {section: state.filter});
     state.genre = "";
     $("genreFilter").value = "";
     state.search = "";
