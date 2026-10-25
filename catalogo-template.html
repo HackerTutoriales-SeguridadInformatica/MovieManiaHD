@@ -3068,6 +3068,62 @@ function buildNextEpisodeBannerScript(movie,next){
 `;
 }
 
+/* Subtítulos opcionales: archivos SRT/VTT por título o episodio. */
+/* Subtítulos SRT/VTT opcionales de Movie Mania HD.
+   No modifica las fuentes de video de FWDEVPlayer. */
+function mmhdSubtitleLoader(){
+  "use strict";
+  var source=String(window.__MMHD_SUBTITLE_SOURCE__||"").trim();
+  if(!/^https:\/\//i.test(source))return;
+  var trackUrl="";
+  function warn(){
+    if(document.getElementById('mmhdSubtitleWarning'))return;
+    var el=document.createElement('div');el.id='mmhdSubtitleWarning';
+    el.textContent='No se pudieron cargar los subtítulos. Revisa que el enlace sea directo y permita CORS.';
+    el.style.cssText='position:fixed;left:12px;right:12px;top:12px;z-index:2147483646;padding:10px 12px;border-radius:8px;background:#391a21;color:#fff;font:12px Arial,sans-serif;text-align:center;pointer-events:none';
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove();},9000);
+  }
+  function normalizeVtt(input){
+    var text=String(input||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
+    if(/^WEBVTT(?:\s|$)/.test(text))return text;
+    // SRT usa coma decimal; WebVTT usa punto.
+    text=text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g,'$1.$2');
+    if(!/\d{2}:\d{2}:\d{2}\.\d{3}\s*-->/.test(text))throw Error('Formato de subtítulos no reconocido');
+    return 'WEBVTT\n\n'+text.trim()+'\n';
+  }
+  function attachTracks(){
+    if(!trackUrl)return;
+    document.querySelectorAll('video').forEach(function(video){
+      if(video.querySelector('track[data-mmhd-subtitles=\"1\"]'))return;
+      var track=document.createElement('track');
+      track.dataset.mmhdSubtitles='1';
+      track.kind='subtitles';track.label='Español';track.srclang='es';track.default=true;
+      track.src=trackUrl;
+      track.addEventListener('load',function(){try{track.track.mode='showing';}catch(_){}});
+      video.appendChild(track);
+      try{track.track.mode='showing';}catch(_){}
+      video.addEventListener('loadedmetadata',function(){try{track.track.mode='showing';}catch(_){}});
+    });
+  }
+  fetch(source,{mode:'cors',credentials:'omit'}).then(function(response){
+    if(!response.ok)throw Error('HTTP '+response.status);
+    return response.text();
+  }).then(function(content){
+    trackUrl=URL.createObjectURL(new Blob([normalizeVtt(content)],{type:'text/vtt;charset=utf-8'}));
+    attachTracks();
+    var observer=new MutationObserver(attachTracks);
+    observer.observe(document.documentElement,{subtree:true,childList:true});
+    window.addEventListener('pagehide',function(){observer.disconnect();if(trackUrl)URL.revokeObjectURL(trackUrl);},{once:true});
+  }).catch(function(err){console.warn('Movie Mania HD: subtítulos no disponibles',err);warn();});
+}
+function mmhdMakeSubtitleScript(subtitlesUrl){
+  var url=String(subtitlesUrl||'').trim();
+  if(!url)return '';
+  var safe=JSON.stringify(url).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026');
+  return '<script>window.__MMHD_SUBTITLE_SOURCE__='+safe+';('+mmhdSubtitleLoader.toString()+')();</'+'script>';
+}
+
 function getPlayerHtml(movie, autoNext=false){
   if (!movie || !SHARED_PLAYER_B64) return "";
   // Decodificar la plantilla solo al abrir un título, no 358 veces al cargar.
@@ -3108,6 +3164,7 @@ function getPlayerHtml(movie, autoNext=false){
   }
   const nextEpisode=movie.parentSeriesId!=null ? getNextSeriesEpisode(movie) : null;
   const scriptTag=buildProgressScript(movie.id)
+    + mmhdMakeSubtitleScript(movie.subtitlesUrl)
     + (autoNext && movie.parentSeriesId!=null ? buildNextEpisodeAutostartScript() : "")
     + (nextEpisode?.status==="ready" ? buildNextEpisodeBannerScript(movie,nextEpisode) : "");
   return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"</body>") : html+scriptTag;
@@ -4999,6 +5056,7 @@ function playableForSeries(series,season,episode){
     overview:episode.overview||series.overview,runtime:episode.runtime?episode.runtime+" min":series.runtime,
     backdrop:episodeBackdrop||series.backdrop||series.poster||"",
     m37:episode.m37||"",m22:episode.m22||"",m18:episode.m18||"",
+    subtitlesUrl:episode.subtitlesUrl||"",
     preferredQuality:episode.preferredQuality||""};
 }
 function isPlayableEpisode(ep){
