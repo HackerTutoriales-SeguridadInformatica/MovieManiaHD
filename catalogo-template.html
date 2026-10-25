@@ -3092,13 +3092,13 @@ function mmhdSubtitleLoader(){
       if(!/\d{2}:\d{2}:\d{2}\.\d{3}\s*-->/.test(text))throw Error('Formato de subtítulos no reconocido');
       text='WEBVTT\n\n'+text.trim()+'\n';
     }
-    // Mantener los subtítulos sobre la barra del reproductor, también a pantalla completa.
-    // line:72% es una posición relativa a la altura del video (no al tamaño de la ventana).
+    // Mantener los subtítulos cerca del borde inferior sin taparlos con la barra del reproductor, incluso en pantalla completa.
+    // line:79% baja los subtítulos respecto al anterior 72%; posición relativa a la altura del video.
     // Reemplazar cualquier line: previo sin alterar tiempos, texto ni otros ajustes de cada cue.
     return text.replace(/^([ \t]*(?:\d{2,}:)?\d{2}:\d{2}\.\d{3}[ \t]*-->[ \t]*(?:\d{2,}:)?\d{2}:\d{2}\.\d{3})([^\n]*)$/gm,
       function(all,timing,settings){
         var other=String(settings||'').replace(/(?:^|[ \t])line:[^ \t]+/g,'').replace(/[ \t]+$/,'');
-        return timing+other+' line:72%';
+        return timing+other+' line:79%';
       });
   }
   function attachTracks(){
