@@ -5776,24 +5776,60 @@ if(typeof IntersectionObserver!=="undefined"){
 mmhdSearchScroller.addEventListener("scroll",mmhdSearchNearBottom,{passive:true});
 
 /* ============================================================
-   REFRESCAR
+   REFRESCAR: misma comprobación manual y al abrir la página
    ============================================================ */
-$("btnRefresh").addEventListener("click", async () => {
+let mmhdRefreshRunning = false;
+const MMHD_SKIP_AUTO_REFRESH_ONCE = "mmhd_skip_auto_refresh_once";
+const MMHD_PENDING_ETAG = "mmhd_pending_etag";
+
+async function mmhdRefreshCatalog(automatic = false) {
+  // Evitar dos consultas simultáneas si el usuario pulsa Refrescar al entrar.
+  if (mmhdRefreshRunning) return;
+  mmhdRefreshRunning = true;
   const icon = $("btnRefresh").querySelector("i");
-  icon.style.transition = "transform .8s";
-  icon.style.transform = "rotate(720deg)";
+  if (!automatic) {
+    icon.style.transition = "transform .8s";
+    icon.style.transform = "rotate(720deg)";
+  }
 
   const hasUpdate = await checkForUpdate();
+  if (hasUpdate) {
+    // La siguiente carga es consecuencia de Refrescar; no iniciar otra recarga.
+    try { sessionStorage.setItem(MMHD_SKIP_AUTO_REFRESH_ONCE, "1"); } catch (_) {}
+    if (automatic) reloadWithState();
+    else setTimeout(reloadWithState, 800);
+    return;
+  }
 
-  setTimeout(() => {
-    if (hasUpdate) {
-      reloadWithState();
-    } else {
+  if (automatic) {
+    // Comprobar silenciosamente: no molestar con un aviso en cada visita.
+    renderAll();
+    mmhdRefreshRunning = false;
+  } else {
+    setTimeout(() => {
       icon.style.transform = "rotate(0deg)";
       renderAll();
       showToast("Ya tienes la última versión");
+      mmhdRefreshRunning = false;
+    }, 800);
+  }
+}
+
+$("btnRefresh").addEventListener("click", () => { void mmhdRefreshCatalog(false); });
+
+function mmhdAutoRefreshOnOpen() {
+  try {
+    if (sessionStorage.getItem(MMHD_SKIP_AUTO_REFRESH_ONCE) === "1") {
+      sessionStorage.removeItem(MMHD_SKIP_AUTO_REFRESH_ONCE);
+      return;
     }
-  }, 800);
+  } catch (_) {}
+  void mmhdRefreshCatalog(true);
+}
+// Al entrar desde cero y al recuperar la pestaña desde el historial del navegador.
+window.addEventListener("load", mmhdAutoRefreshOnOpen, { once: true });
+window.addEventListener("pageshow", event => {
+  if (event.persisted) mmhdAutoRefreshOnOpen();
 });
 
 $("btnExit").addEventListener("click", () => {
@@ -5871,7 +5907,12 @@ async function checkForUpdate() {
       localStorage.setItem(LS_ETAG, serverETag);
       return false;
     }
-    return serverETag !== localETag;
+    if (serverETag !== localETag) {
+      // Actualizar el ETag guardado solo después de iniciar la nueva versión.
+      try { sessionStorage.setItem(MMHD_PENDING_ETAG, serverETag); } catch (_) {}
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }
@@ -6007,14 +6048,18 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /* ============================================================
-   GUARDAR ETAG INICIAL
+   CONFIRMAR ETAG TRAS RECARGA
    ============================================================ */
-(async () => {
+// Antes había otra petición HEAD aquí que sobrescribía el ETag anterior
+// antes de que pudiera detectarse una actualización al abrir la página.
+(function mmhdCommitRefreshedETag() {
   try {
-    const res = await fetch(location.pathname, { method: "HEAD", cache: "no-store" });
-    const etag = res.headers.get("etag");
-    if (etag) localStorage.setItem(LS_ETAG, etag);
-  } catch {}
+    const pending = sessionStorage.getItem(MMHD_PENDING_ETAG);
+    if (pending) {
+      localStorage.setItem(LS_ETAG, pending);
+      sessionStorage.removeItem(MMHD_PENDING_ETAG);
+    }
+  } catch (_) {}
 })();
 
 /* ============================================================
