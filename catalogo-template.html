@@ -1468,6 +1468,10 @@ a{color:inherit;text-decoration:none}
 .mmhd-cast-area{max-width:620px;margin:0 auto 20px;background:#14141f;border:1px solid #2f2f45;border-radius:12px;padding:12px 15px;color:#b8bcc7;font-size:12px}
 #mmhdCastStatus{overflow-wrap:anywhere;line-height:1.5}
 #mmhdCastPanel[hidden]{display:none!important}
+.mmhd-cast-subtitles[hidden]{display:none!important}
+.mmhd-cast-subtitles{margin-top:10px}
+.mmhd-cast-subtitles button{width:100%;background:#1b2941;border:1px solid #45699d;border-radius:8px;padding:10px 12px;font-size:12px;font-weight:700;color:#e3efff}
+.mmhd-cast-subtitles button:hover,.mmhd-cast-subtitles button:focus-visible{background:#25456a;outline:2px solid #729bff;outline-offset:2px}
 .mmhd-cast-label{color:#fff;font-weight:800;margin:12px 0 10px}
 .mmhd-cast-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .mmhd-cast-buttons button{background:#242434;border:1px solid #3a3a50;border-radius:8px;padding:11px 6px;font-size:12px;color:#fff}
@@ -2523,6 +2527,9 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
           <button id="mmhdCastVolDown" type="button"><i class="fa-solid fa-volume-low"></i> Vol -</button>
           <button id="mmhdCastVolUp" type="button"><i class="fa-solid fa-volume-high"></i> Vol +</button>
           <button id="mmhdCastStop" type="button"><i class="fa-solid fa-stop"></i> Detener</button>
+        </div>
+        <div class="mmhd-cast-subtitles" id="mmhdCastSubtitlesRow" hidden>
+          <button id="mmhdCastSubtitlesToggle" type="button" aria-pressed="true">CC · Subtítulos: Activados</button>
         </div>
       </div>
     </div>
@@ -4676,6 +4683,7 @@ function showMobileNav() {
 let castReady = false;
 let castMediaObserved = null;
 let castTimeout = null;
+let castSubtitleNotice = '';
 const castStatus = () => document.getElementById('mmhdCastStatus');
 const castPanel = () => document.getElementById('mmhdCastPanel');
 function castMessage(message) { if (castStatus()) castStatus().textContent = message; }
@@ -4683,15 +4691,35 @@ function castSession() {
   return castReady ? cast.framework.CastContext.getInstance().getCurrentSession() : null;
 }
 function castMedia() { return castSession()?.getMediaSession() || null; }
+function castSubtitleTrack(media) {
+  const tracks = media?.media?.tracks;
+  return Array.isArray(tracks) ? tracks.find(track =>
+    track && track.type === chrome.cast.media.TrackType.TEXT &&
+    track.subtype === chrome.cast.media.TextTrackType.SUBTITLES) : null;
+}
 function castSync() {
   const m = castMedia();
-  if (!m) { if (castPanel()) castPanel().hidden = true; return; }
+  const row = document.getElementById('mmhdCastSubtitlesRow');
+  const toggle = document.getElementById('mmhdCastSubtitlesToggle');
+  if (!m) {
+    if (castPanel()) castPanel().hidden = true;
+    if (row) row.hidden = true;
+    return;
+  }
   const active = m.playerState !== 'IDLE';
   if (castPanel()) castPanel().hidden = !active;
-  if (m.playerState === 'PLAYING') castMessage('✅ Reproduciendo en la TV');
-  else if (m.playerState === 'PAUSED') castMessage('⏸ Video pausado');
+  const track = active ? castSubtitleTrack(m) : null;
+  if (row) row.hidden = !track;
+  if (toggle && track) {
+    const enabled = Array.isArray(m.activeTrackIds) && m.activeTrackIds.includes(track.trackId);
+    toggle.textContent = enabled ? 'CC · Subtítulos: Activados' : 'CC · Subtítulos: Desactivados';
+    toggle.setAttribute('aria-pressed', String(enabled));
+  }
+  const notice = castSubtitleNotice ? ' · ' + castSubtitleNotice : '';
+  if (m.playerState === 'PLAYING') castMessage('✅ Reproduciendo en la TV' + notice);
+  else if (m.playerState === 'PAUSED') castMessage('⏸ Video pausado' + notice);
   else if (m.playerState === 'IDLE') castMessage('Transmisión detenida');
-  else castMessage('Estado: ' + m.playerState);
+  else castMessage('Estado: ' + m.playerState + notice);
   const pauseBtn = document.getElementById('mmhdCastPause');
   if (pauseBtn) pauseBtn.innerHTML = m.playerState === 'PAUSED' ? '<i class="fa-solid fa-play"></i> Reanudar' : '<i class="fa-solid fa-pause"></i> Pausar';
 }
@@ -4731,6 +4759,47 @@ function updateCastButton() {
   btn.disabled = !castReady;
   btn.title = castReady ? 'Transmitir a Chromecast' : 'Esperando Google Cast';
 }
+/* Chromecast necesita una URL HTTPS pública para cada pista; los blob: del navegador no sirven.
+   /api/cast-subtitles descarga SRT/VTT permitido y responde en formato text/vtt. */
+async function mmhdCastSubtitleTrack(movie) {
+  const subtitleSource = String(movie?.subtitlesUrl || '').trim();
+  if (!subtitleSource) return null;
+  const subtitleUrl = new URL(subtitleSource);
+  if (subtitleUrl.protocol !== 'https:') throw Error('El enlace SRT/VTT debe comenzar con HTTPS.');
+  const endpoint = new URL('/api/cast-subtitles', location.origin);
+  endpoint.searchParams.set('url', subtitleUrl.href);
+  // Comprobar de antemano si Vercel puede leer y convertir los subtítulos;
+  // si falla, reproducimos el video sin incluir una pista rota.
+  const aborter = new AbortController();
+  const timer = setTimeout(() => aborter.abort(), 13000);
+  try {
+    const response = await fetch(endpoint.href, { signal: aborter.signal, credentials: 'omit' });
+    if (!response.ok) {
+      let message = 'HTTP ' + response.status;
+      try { message = (await response.json()).error || message; } catch (_) {}
+      throw Error(message);
+    }
+    const text = await response.text();
+    if (!text.startsWith('WEBVTT')) throw Error('La API no devolvió una pista WebVTT válida.');
+  } finally { clearTimeout(timer); }
+  const track = new chrome.cast.media.Track(1, chrome.cast.media.TrackType.TEXT);
+  track.trackContentId = endpoint.href;
+  track.trackContentType = 'text/vtt';
+  track.subtype = chrome.cast.media.TextTrackType.SUBTITLES;
+  track.name = 'Español';
+  track.language = 'es';
+  return track;
+}
+function castToggleSubtitles() {
+  const media = castMedia();
+  const track = castSubtitleTrack(media);
+  if (!media || !track) { castMessage('No hay subtítulos disponibles en esta transmisión.'); return; }
+  const enabled = Array.isArray(media.activeTrackIds) && media.activeTrackIds.includes(track.trackId);
+  const activeIds = Array.isArray(media.activeTrackIds) ? media.activeTrackIds.filter(id => id !== track.trackId) : [];
+  if (!enabled) activeIds.push(track.trackId);
+  const request = new chrome.cast.media.EditTracksInfoRequest(activeIds);
+  media.editTracksInfo(request, castSync, error => castMessage('No se pudo cambiar los subtítulos: ' + (error.description || error.code || String(error))));
+}
 async function handleCast(movie) {
   if (!movie) return;
   if (!castReady) { castMessage('Google Cast todavía no está disponible. Abre la web desde Chrome por HTTP o HTTPS.'); return; }
@@ -4752,9 +4821,25 @@ async function handleCast(movie) {
     info.metadata = new chrome.cast.media.GenericMediaMetadata();
     info.metadata.title = movie.title || 'Movie Mania HD';
     if (movie.poster) info.metadata.images = [new chrome.cast.Image(movie.poster)];
+    castSubtitleNotice = '';
+    if (movie.subtitlesUrl) {
+      castMessage('Preparando los subtítulos para Chromecast…');
+      try {
+        const track = await mmhdCastSubtitleTrack(movie);
+        if (track) {
+          info.tracks = [track];
+          info.textTrackStyle = new chrome.cast.media.TextTrackStyle();
+        }
+      } catch (error) {
+        console.warn('Movie Mania HD: subtítulos Cast no disponibles', error);
+        castSubtitleNotice = '⚠️ Subtítulos no disponibles: ' + (error.name === 'AbortError' ? 'se agotó el tiempo' : error.message);
+      }
+    }
     const request = new chrome.cast.media.LoadRequest(info);
     request.autoplay = true;
-    castMessage('Enviando película a la TV…');
+    if (info.tracks?.length) request.activeTrackIds = [info.tracks[0].trackId];
+    castMessage('Enviando película a la TV…' + (castSubtitleNotice ? ' ' + castSubtitleNotice : ''));
+
     await session.loadMedia(request);
     if(movie.parentSeriesId!=null)rememberSeriesEpisode(movie);
     castObserve();
@@ -5849,6 +5934,7 @@ $("mmhdCastPause").addEventListener("click", castPause);
 $("mmhdCastVolDown").addEventListener("click", () => castVolume(-0.1));
 $("mmhdCastVolUp").addEventListener("click", () => castVolume(0.1));
 $("mmhdCastStop").addEventListener("click", castStop);
+$("mmhdCastSubtitlesToggle").addEventListener("click", castToggleSubtitles);
 
 $("btnDownload").addEventListener("click", () => showDownloadBox());
 $("detailSeason").addEventListener("change",()=>{
