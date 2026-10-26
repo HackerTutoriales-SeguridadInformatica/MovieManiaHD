@@ -3165,6 +3165,9 @@ function getPlayerHtml(movie, autoNext=false){
     "__M37_URL__":jsValue(m37),
     "__M22_URL__":jsValue(m22),
     "__M18_URL__":jsValue(m18),
+    "__M37_EN_URL__":jsValue(cleanUrl(movie.m37En)),
+    "__M22_EN_URL__":jsValue(cleanUrl(movie.m22En)),
+    "__M18_EN_URL__":jsValue(cleanUrl(movie.m18En)),
     "__DOWNLOAD_URL__":jsValue(downloadSource.replace(/=m\d+$/, "=dv")),
     "__DV_URL__":jsValue(downloadSource.replace(/=m\d+$/, "=dv"))
   };
@@ -5287,6 +5290,7 @@ function playableForSeries(series,season,episode){
     overview:episode.overview||series.overview,runtime:episode.runtime?episode.runtime+" min":series.runtime,
     backdrop:episodeBackdrop||series.backdrop||series.poster||"",
     m37:episode.m37||"",m22:episode.m22||"",m18:episode.m18||"",
+    m37En:episode.m37En||"",m22En:episode.m22En||"",m18En:episode.m18En||"",
     subtitlesUrl:episode.subtitlesUrl||"",
     preferredQuality:episode.preferredQuality||""};
 }
