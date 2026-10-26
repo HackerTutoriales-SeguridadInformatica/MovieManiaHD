@@ -2670,6 +2670,8 @@ const LS_PROGRESS_TS = "mmhd_progress_ts";
 // Orden independiente y persistente para Continuar viendo (primero = último abierto).
 const LS_CONTINUE_ORDER = "mmhd_continue_order";
 const LS_PROGRESS_SECONDS = "mmhd_progress_seconds";
+// Último idioma seleccionado por película o episodio. Se guarda en este navegador.
+const LS_PLAYBACK_LANGUAGE = "mmhd_playback_language";
 const LS_RECENT_SERIES_EPISODES = "mmhd_recent_series_episodes";
 // Fase 7: registro independiente para capítulos finalizados (sin confundirlo
 // con el botón general Marcar visto de una serie o de una película).
@@ -2696,6 +2698,15 @@ const myList = loadSet(LS_MYLIST);
 const watched = loadSet(LS_WATCHED);
 const progress = loadObj(LS_PROGRESS);
 const progressSeconds = loadObj(LS_PROGRESS_SECONDS);
+const playbackLanguages = loadObj(LS_PLAYBACK_LANGUAGE);
+function rememberPlaybackLanguage(movie,language){
+  if(!movie || ![movie.m37En,movie.m22En,movie.m18En].some(Boolean))return;
+  if(language!=="Latino" && language!=="Inglés")return;
+  const key=String(movie.id);
+  if(playbackLanguages[key]===language)return;
+  playbackLanguages[key]=language;
+  saveObj(LS_PLAYBACK_LANGUAGE,playbackLanguages);
+}
 const recentSeriesEpisodes = loadObj(LS_RECENT_SERIES_EPISODES);
 const watchedEpisodes = loadSet(LS_WATCHED_EPISODES);
 const seriesEpisodeDurations = loadObj(LS_SERIES_DURATIONS);
@@ -2869,9 +2880,16 @@ function buildProgressScript(movieId){
   }
   function report(){
     if(!video || !Number.isFinite(video.currentTime)) return;
+    // No reemplazar el minuto guardado por cero antes de terminar la restauración.
+    if(savedSeconds>0 && !restored)return;
     var duration=Number.isFinite(video.duration)?video.duration:0;
     var pct=duration>0?Math.min(99,Math.round(video.currentTime/duration*100)):0;
-    send('mmhd-progress',{currentTime:video.currentTime,duration:duration,percent:pct});
+    var language='';
+    try {
+      var languageState=window.MMHD_BILINGUAL_QUALITY && window.MMHD_BILINGUAL_QUALITY.state();
+      language=languageState && languageState.language || '';
+    }catch(e){}
+    send('mmhd-progress',{currentTime:video.currentTime,duration:duration,percent:pct,language:language});
   }
   var tries=0;
   var timer=setInterval(function(){
@@ -3199,6 +3217,21 @@ function getPlayerHtml(movie, autoNext=false){
   };
   let html=b64ToUtf8(SHARED_PLAYER_B64);
   for(const [marker,value] of Object.entries(reps))html=html.split(marker).join(value);
+  // Restaurar el idioma ANTES de que FWDEVPlayer cree el video.
+  // Si fue Inglés, se coloca primero su fuente de mayor calidad (1080p si existe).
+  // De esta forma, el seek del progreso se efectúa en el video correcto.
+  if(playbackLanguages[String(movie.id)]==="Inglés" && [movie.m37En,movie.m22En,movie.m18En].some(Boolean)){
+    const preferenceScript='<script>(function(){'
+      +'var menu=window.MMHD_LANGUAGE_MENU;'
+      +'if(!window.MMHD_HAS_ENGLISH || !Array.isArray(menu))return;'
+      +'var i=menu.findIndex(function(option){return option.language==="Inglés";});'
+      +'if(i>0)menu.unshift(menu.splice(i,1)[0]);'
+      +'})()</'+'script>\n';
+    // El script del menú ya está calculado; insertamos la preferencia justo antes
+    // de la inicialización del reproductor. Nunca se cambia panel.html.
+    html=html.replace(/<script\s+type=["']text\/javascript["']>\s*FWDEVPUtils\.onReady\(/i,
+      match=>preferenceScript+match);
+  }
   // Solo para el paso automático entre capítulos: el reproductor FWDEV
   // normalmente inicia en pausa; el siguiente episodio intenta iniciar al abrirse.
   // Los navegadores pueden bloquear autoplay con sonido, incluso en este caso.
@@ -6341,6 +6374,7 @@ window.addEventListener("message", (e) => {
   }
 
   if (data.type === "mmhd-progress") {
+    rememberPlaybackLanguage(activePlayerMovie,data.language);
     if (Number.isFinite(Number(data.currentTime)) && Number(data.currentTime) >= 0) {
       progressSeconds[movieId] = Number(data.currentTime);
       saveObj(LS_PROGRESS_SECONDS, progressSeconds);
@@ -6481,6 +6515,10 @@ syncBackToTop();
   window.addEventListener('message',function(event){
     if(event.source!==frame.contentWindow || !event.data || event.data.type!=='mmhd-bilingual-quality-state')return;
     var d=event.data;
+    // Guardar el idioma incluso aunque el usuario cierre antes del próximo progreso.
+    if(activePlayerMovie && document.getElementById('playerModal')?.classList.contains('show')){
+      rememberPlaybackLanguage(activePlayerMovie,d.language);
+    }
     if(typeof d.language==='string')activeLanguage=d.language;
     if(names[d.quality])currentQuality=d.quality;
     var available=Array.isArray(d.available)?d.available.filter(function(q){return Boolean(names[q]);}):[];
