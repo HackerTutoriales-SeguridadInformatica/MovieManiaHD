@@ -3533,6 +3533,97 @@ function mmhdMakeSubtitleScript(subtitleTracks,legacyUrl){
 }
 
 
+
+/* Protección del reproductor FWDEV durante saltos de tiempo.
+   La recuperación antigua cambiaba video.src directamente ante un error
+   transitorio de Google Photos. Esto desincronizaba el controlador de FWDEV,
+   especialmente al usar la barra para adelantar o retroceder.
+   Sustituimos exclusivamente esa recuperación por un aviso pasivo;
+   ningún evento automático modifica src, idioma, calidad, tiempo ni play(). */
+function mmhdProtectSeekQuality(html){
+  const oldRecovery=/<script>\s*\/\* Fase 11\.5\.5: recuperación solo ante error real; la espera lenta NO cambia la calidad\. \*\/[\s\S]*?<\/script>(?=\s*<style>\s*\/\* Bilingüe:)/;
+  const passiveRecovery=`<script>
+/* MMHD: recuperación pasiva para preservar la línea de tiempo y los controles FWDEV.
+   No cambia la URL del video en error / seeking / waiting / stalled. */
+(function(){
+  'use strict';
+  var currentVideo=null, notice=null, errorTimer=0, checkTimer=null, lastError=0;
+  var status={source:'',lastError:'',position:0};
+  function label(){
+    var options=window.MMHD_QUALITY_OPTIONS||[];
+    var src=currentVideo && (currentVideo.getAttribute('src')||currentVideo.currentSrc||'');
+    var item=options.find(function(o){return o && o.source===src;});
+    return item && item.label || '';
+  }
+  function hide(){
+    if(notice)notice.hidden=true;
+    clearTimeout(errorTimer);
+  }
+  function show(message){
+    if(!document.body)return;
+    if(!notice){
+      notice=document.createElement('div');
+      notice.id='mmhd-safe-seek-error';
+      notice.setAttribute('role','status');
+      notice.style.cssText='position:fixed;left:50%;bottom:65px;transform:translateX(-50%);'
+        +'z-index:2147482600;max-width:min(90vw,550px);padding:10px 14px;'
+        +'border:1px solid #64748b;border-radius:9px;background:#142037ed;'
+        +'color:#fff;box-shadow:0 7px 22px #000a;text-align:center;'
+        +'font:600 12px/1.5 Arial,sans-serif;pointer-events:none';
+      document.body.appendChild(notice);
+    }
+    notice.textContent=message;
+    notice.hidden=false;
+  }
+  function onError(){
+    var v=currentVideo;
+    if(!v || !v.error || (v.remote && v.remote.state && v.remote.state!=='disconnected'))return;
+    clearTimeout(errorTimer);
+    var code=v.error.code;
+    lastError=Date.now();
+    status.lastError='MediaError '+code;
+    // No se intenta ninguna otra calidad automáticamente. Un fallo temporal
+    // durante un seek debe permanecer bajo el control de FWDEVPlayer.
+    errorTimer=setTimeout(function(){
+      if(currentVideo!==v || !v.error)return;
+      var q=label();
+      show('No se pudo cargar el video'+(q?' ('+q+')':'')
+        +'. Puedes seleccionar otra calidad manualmente o reabrir la película.');
+    },1100);
+  }
+  function attach(){
+    var v=document.querySelector('#myDiv video')||document.querySelector('video');
+    if(!v || v===currentVideo)return;
+    hide();currentVideo=v;
+    v.addEventListener('error',onError);
+    v.addEventListener('loadstart',hide);
+    v.addEventListener('playing',hide);
+    v.addEventListener('seeking',hide);
+    v.addEventListener('timeupdate',function(){
+      if(currentVideo===v && Number.isFinite(v.currentTime))status.position=v.currentTime;
+    });
+    if(v.error)onError();
+  }
+  window.MMHD_QUALITY_RECOVERY={status:function(){return {
+    active:label(),failed:status.lastError?[status.lastError]:[],position:status.position,
+    automaticSwitching:false
+  };}};
+  attach();checkTimer=setInterval(attach,750);
+  window.addEventListener('pagehide',function(){
+    clearInterval(checkTimer);clearTimeout(errorTimer);
+  },{once:true});
+})();
+<\/script>`;
+  // El panel antiguo y el corregido conservan el mismo bloque FWDEV codificado.
+  // Si cambia la estructura en otra versión, devolvemos html intacto para no
+  // eliminar accidentalmente un fragmento distinto del reproductor.
+  if(!oldRecovery.test(html)){
+    console.warn('[MMHD] No se encontró el bloque de recuperación; no se alteró el reproductor.');
+    return html;
+  }
+  return html.replace(oldRecovery,function(){return passiveRecovery;});
+}
+
 function getPlayerHtml(movie, autoNext=false){
   if (!movie || !SHARED_PLAYER_B64) return "";
   // Decodificar la plantilla solo al abrir un título, no 358 veces al cargar.
@@ -3566,6 +3657,7 @@ function getPlayerHtml(movie, autoNext=false){
   };
   let html=b64ToUtf8(SHARED_PLAYER_B64);
   for(const [marker,value] of Object.entries(reps))html=html.split(marker).join(value);
+  html=mmhdProtectSeekQuality(html);
   // Calidad e idioma se controlan desde nuestros botones superiores.
   // Ocultar la tuerca nativa FWDEV incluso cuando solo hay audio Latino.
   html=html.replace(/showQualityButton\s*:\s*["']yes["']/i,'showQualityButton:"no"');
