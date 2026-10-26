@@ -5102,6 +5102,13 @@ function showMobileNav() {
    ============================================================ */
 let castReady = false;
 let castMediaObserved = null;
+// La primera solicitud LOAD puede terminar antes de que el receptor publique
+// su MediaSession: mantener el panel visible y escuchar el evento MEDIA_SESSION.
+let castSessionObserved = null;
+let castEventMedia = null;
+let castAwaitingMedia = false;
+let castMediaReadyTimeout = null;
+let castMediaReadyPoll = null;
 let castTimeout = null;
 let castSubtitleNotice = '';
 // Estado local de los controles; evita mandatos duplicados mientras la TV responde.
@@ -5158,7 +5165,56 @@ function castMessage(message) { if (castStatus()) castStatus().textContent = mes
 function castSession() {
   return castReady ? cast.framework.CastContext.getInstance().getCurrentSession() : null;
 }
-function castMedia() { return castSession()?.getMediaSession() || null; }
+function castMedia() {
+  const session = castSession();
+  if (!session) return null;
+  // MEDIA_SESSION lleva la sesión nueva aunque getMediaSession tarde un instante.
+  return (castEventMedia && castSessionObserved === session ? castEventMedia : null)
+    || session.getMediaSession() || null;
+}
+function castMediaSessionChanged(event) {
+  if (!castSession()) return;
+  const updated = event && event.mediaSession;
+  if (updated) castEventMedia = updated;
+  const media = castMedia();
+  if (media) {
+    castAwaitingMedia = false;
+    clearTimeout(castMediaReadyTimeout);
+    clearInterval(castMediaReadyPoll);
+    castMediaReadyTimeout = null;
+    castMediaReadyPoll = null;
+  }
+  castObserve();
+}
+function castMediaLoadPending() {
+  castAwaitingMedia = true;
+  castEventMedia = null;
+  clearTimeout(castMediaReadyTimeout);
+  clearInterval(castMediaReadyPoll);
+  // Mostrar los cuatro controles desde la primera transmisión. Pausa y Stop
+  // esperan a que el receptor confirme una MediaSession válida.
+  castSync();
+  // Fallback acotado: si el navegador demora MEDIA_SESSION, revisar la sesión
+  // real cada 400 ms hasta que se confirme o expire la espera.
+  castMediaReadyPoll = setInterval(() => {
+    if (!castAwaitingMedia) return;
+    const media = castSession()?.getMediaSession();
+    if (media && media.playerState !== 'IDLE') castMediaSessionChanged({mediaSession: media});
+  }, 400);
+  castMediaReadyTimeout = setTimeout(() => {
+    if (!castAwaitingMedia) return;
+    const media = castSession()?.getMediaSession();
+    if (media && media.playerState !== 'IDLE') {
+      castMediaSessionChanged({mediaSession: media});
+    } else {
+      castAwaitingMedia = false;
+      clearInterval(castMediaReadyPoll);
+      castMediaReadyPoll = null;
+      castObserve();
+      castMessage('⚠️ Chromecast no confirmó la sesión de reproducción. Comprueba el estado de la TV.');
+    }
+  }, 12000);
+}
 function castSubtitleTrack(media) {
   const tracks = media?.media?.tracks;
   return Array.isArray(tracks) ? tracks.find(track =>
@@ -5170,6 +5226,15 @@ function castSync() {
   const row = document.getElementById('mmhdCastSubtitlesRow');
   const toggle = document.getElementById('mmhdCastSubtitlesToggle');
   const pauseBtn = document.getElementById('mmhdCastPause');
+  const stopBtn = document.getElementById('mmhdCastStop');
+  if (castAwaitingMedia) {
+    if (castPanel()) castPanel().hidden = false;
+    if (row) row.hidden = true;
+    if (pauseBtn) pauseBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = true;
+    return;
+  }
+  if (stopBtn) stopBtn.disabled = !m || m.playerState === 'IDLE';
   if (!m) {
     if (castPanel()) castPanel().hidden = true;
     if (row) row.hidden = true;
@@ -5235,6 +5300,24 @@ function castSync() {
   if (state === 'IDLE' && m.idleReason) console.info('[MMHD Cast] Fin de reproducción:', m.idleReason);
 }
 function castObserve() {
+  const session = castSession();
+  // SESSION_STATE_CHANGED no avisa necesariamente que una película comenzó;
+  // MEDIA_SESSION sí. Registrar el listener incluso antes del primer LOAD.
+  if (session !== castSessionObserved) {
+    if (castSessionObserved?.removeEventListener) {
+      try { castSessionObserved.removeEventListener(cast.framework.SessionEventType.MEDIA_SESSION, castMediaSessionChanged); } catch (_) {}
+    }
+    castSessionObserved = session;
+    castEventMedia = null;
+    if (session) session.addEventListener(cast.framework.SessionEventType.MEDIA_SESSION, castMediaSessionChanged);
+    else {
+      castAwaitingMedia = false;
+      clearTimeout(castMediaReadyTimeout);
+      clearInterval(castMediaReadyPoll);
+      castMediaReadyTimeout = null;
+      castMediaReadyPoll = null;
+    }
+  }
   const m = castMedia();
   if (m !== castMediaObserved) {
     if (castMediaObserved?.removeUpdateListener) {
@@ -5426,6 +5509,8 @@ async function handleCast(movie, requestedLanguage) {
     let session = castSession();
     if (!session) { await ctx.requestSession(); session = castSession(); }
     if (!session) throw new Error('No se pudo conectar con la TV.');
+    // Vincular MEDIA_SESSION antes del LOAD para no perder el primer evento.
+    castObserve();
     const info = new chrome.cast.media.MediaInfo(url, 'video/mp4');
     info.streamType = chrome.cast.media.StreamType.BUFFERED;
     info.metadata = new chrome.cast.media.GenericMediaMetadata();
@@ -5449,15 +5534,27 @@ async function handleCast(movie, requestedLanguage) {
     request.autoplay = true;
     if (info.tracks?.length) request.activeTrackIds = [info.tracks[0].trackId];
     castMessage('Enviando video en ' + castAudioLanguage + ' a la TV…' + (castSubtitleNotice ? ' ' + castSubtitleNotice : ''));
-
+    castMediaLoadPending();
     await session.loadMedia(request);
     if(movie.parentSeriesId!=null)rememberSeriesEpisode(movie);
+    // Fallback: si llegó el estado multimedia antes de resolver el Promise,
+    // dejar listos los controles sin necesitar un segundo click.
+    if (castAwaitingMedia) {
+      const readyMedia = session.getMediaSession();
+      if (readyMedia && readyMedia.playerState !== 'IDLE') castMediaSessionChanged({mediaSession: readyMedia});
+    }
     castObserve();
     clearTimeout(castTimeout);
     castTimeout = setTimeout(() => {
       if (castMedia()?.playerState !== 'PLAYING') castMessage('⚠️ La TV no inició el video. Comprueba acceso al enlace, códecs y permisos del servidor.');
     }, 20000);
   } catch(e) {
+    castAwaitingMedia = false;
+    clearTimeout(castMediaReadyTimeout);
+    clearInterval(castMediaReadyPoll);
+    castMediaReadyTimeout = null;
+    castMediaReadyPoll = null;
+    castObserve();
     castMessage('❌ ' + (e.description || e.message || e.code || String(e)));
   }
 }
@@ -5519,6 +5616,11 @@ async function castVolume(delta) {
 }
 function castStop() {
   const m = castMedia(); if (!m) return;
+  castAwaitingMedia = false;
+  clearTimeout(castMediaReadyTimeout);
+  clearInterval(castMediaReadyPoll);
+  castMediaReadyTimeout = null;
+  castMediaReadyPoll = null;
   castCommandClear();
   castResumeRecovery = null;
   castHadMedia = false;
