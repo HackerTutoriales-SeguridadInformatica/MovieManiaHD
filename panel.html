@@ -1733,6 +1733,14 @@ function mmhdMakeSubtitleScript(subtitleTracks,legacyUrl){
 }
 
 
+/* ============================================================
+   ESTADO GLOBAL + localStorage
+   ============================================================ */
+const COLLECTION_STORAGE_KEY = "movieManiaCollection";
+const COLLECTION_RECOVERY_KEY = "movieManiaCollectionRecovery";
+const CATALOG_SETTINGS_KEY = "movieManiaCatalogSettings";
+const MAX_FEATURED = 6;
+const DEFAULT_CATALOG_SETTINGS = {showHero:true, showContinue:true, title:"Catálogo", defaultSort:"recent"};
 function normalizeCatalogSettings(value){
   const s = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   return {
