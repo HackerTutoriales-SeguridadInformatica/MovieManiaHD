@@ -2550,6 +2550,8 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
         </div>
         <div class="mmhd-cast-subtitles" id="mmhdCastSubtitlesRow" hidden>
           <button id="mmhdCastSubtitlesToggle" type="button" aria-pressed="true">CC · Subtítulos: Activados</button>
+          <label for="mmhdCastSubtitleSelect" style="display:block;margin-top:9px;color:#d9e9ff">Idioma de subtítulos</label>
+          <select id="mmhdCastSubtitleSelect" style="width:100%;padding:10px;background:#171f31;color:#fff;border:1px solid #45699d;border-radius:8px"><option value="off">Sin subtítulos</option></select>
         </div>
       </div>
     </div>
@@ -3122,67 +3124,141 @@ function buildNextEpisodeBannerScript(movie,next){
 /* Subtítulos opcionales: archivos SRT/VTT por título o episodio. */
 /* Subtítulos SRT/VTT opcionales de Movie Mania HD.
    No modifica las fuentes de video de FWDEVPlayer. */
+/* Subtítulos multidioma: WebVTT por pista, con selector CC en ventana y fullscreen. */
 function mmhdSubtitleLoader(){
-  "use strict";
-  var source=String(window.__MMHD_SUBTITLE_SOURCE__||"").trim();
-  if(!/^https:\/\//i.test(source))return;
-  var trackUrl="";
-  function warn(){
-    if(document.getElementById('mmhdSubtitleWarning'))return;
-    var el=document.createElement('div');el.id='mmhdSubtitleWarning';
-    el.textContent='No se pudieron cargar los subtítulos. Revisa que el enlace sea directo y permita CORS.';
-    el.style.cssText='position:fixed;left:12px;right:12px;top:12px;z-index:2147483646;padding:10px 12px;border-radius:8px;background:#391a21;color:#fff;font:12px Arial,sans-serif;text-align:center;pointer-events:none';
-    document.body.appendChild(el);
-    setTimeout(function(){el.remove();},9000);
-  }
+  'use strict';
+  var sources=Array.isArray(window.__MMHD_SUBTITLE_TRACKS__)?window.__MMHD_SUBTITLE_TRACKS__:[];
+  sources=sources.filter(function(s){return s && /^https:\/\//i.test(String(s.url||''));}).slice(0,12);
+  if(!sources.length)return;
+  var selected=sources[0].language;
+  var entries=[];
+  var menu,button,host;
+  var observer;
+  var createdUrls=[];
   function normalizeVtt(input){
-    var text=String(input||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
-    if(!/^WEBVTT(?:\s|$)/.test(text)){
-      // SRT usa coma decimal; WebVTT usa punto.
-      text=text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g,'$1.$2');
-      if(!/\d{2}:\d{2}:\d{2}\.\d{3}\s*-->/.test(text))throw Error('Formato de subtítulos no reconocido');
-      text='WEBVTT\n\n'+text.trim()+'\n';
+    var txt=String(input||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
+    if(!/^WEBVTT(?:\s|$)/.test(txt)){
+      txt=txt.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g,'$1.$2');
+      if(!/\d{2}:\d{2}:\d{2}\.\d{3}\s*-->/.test(txt))throw Error('No es SRT ni VTT');
+      txt='WEBVTT\n\n'+txt.trim()+'\n';
     }
-    // Mantener los subtítulos cerca del borde inferior sin taparlos con la barra del reproductor, incluso en pantalla completa.
-    // line:79% baja los subtítulos respecto al anterior 72%; posición relativa a la altura del video.
-    // Reemplazar cualquier line: previo sin alterar tiempos, texto ni otros ajustes de cada cue.
-    return text.replace(/^([ \t]*(?:\d{2,}:)?\d{2}:\d{2}\.\d{3}[ \t]*-->[ \t]*(?:\d{2,}:)?\d{2}:\d{2}\.\d{3})([^\n]*)$/gm,
+    return txt.replace(/^([ \t]*(?:\d{2,}:)?\d{2}:\d{2}\.\d{3}[ \t]*-->[ \t]*(?:\d{2,}:)?\d{2}:\d{2}\.\d{3})([^\n]*)$/gm,
       function(all,timing,settings){
-        var other=String(settings||'').replace(/(?:^|[ \t])line:[^ \t]+/g,'').replace(/[ \t]+$/,'');
-        return timing+other+' line:79%';
+        var more=String(settings||'').replace(/(?:^|[ \t])line:[^ \t]+/g,'').replace(/[ \t]+$/,'');
+        return timing+more+' line:79%';
       });
   }
-  function attachTracks(){
-    if(!trackUrl)return;
+  function applySelection(){
     document.querySelectorAll('video').forEach(function(video){
-      if(video.querySelector('track[data-mmhd-subtitles=\"1\"]'))return;
-      var track=document.createElement('track');
-      track.dataset.mmhdSubtitles='1';
-      track.kind='subtitles';track.label='Español';track.srclang='es';track.default=true;
-      track.src=trackUrl;
-      track.addEventListener('load',function(){try{track.track.mode='showing';}catch(_){}});
-      video.appendChild(track);
-      try{track.track.mode='showing';}catch(_){}
-      video.addEventListener('loadedmetadata',function(){try{track.track.mode='showing';}catch(_){}});
+      video.querySelectorAll('track[data-mmhd-subtitles]').forEach(function(track){
+        try{track.track.mode=(selected!=='off' && track.dataset.mmhdLanguage===selected)?'showing':'disabled';}catch(_){}
+      });
     });
+    if(button){var caption='CC · '+(selected==='off'?'Desactivados':(sources.find(function(s){return s.language===selected;})||{}).name||'Subtítulos')+' ▾';if(button.textContent!==caption)button.textContent=caption;}
+    if(menu){menu.querySelectorAll('button').forEach(function(item){
+      var on=item.dataset.mmhdLanguage===selected;
+      item.setAttribute('aria-checked',String(on));
+      item.style.background=on?'#244879':'transparent';
+    });}
   }
-  fetch(source,{mode:'cors',credentials:'omit'}).then(function(response){
-    if(!response.ok)throw Error('HTTP '+response.status);
-    return response.text();
-  }).then(function(content){
-    trackUrl=URL.createObjectURL(new Blob([normalizeVtt(content)],{type:'text/vtt;charset=utf-8'}));
-    attachTracks();
-    var observer=new MutationObserver(attachTracks);
-    observer.observe(document.documentElement,{subtree:true,childList:true});
-    window.addEventListener('pagehide',function(){observer.disconnect();if(trackUrl)URL.revokeObjectURL(trackUrl);},{once:true});
-  }).catch(function(err){console.warn('Movie Mania HD: subtítulos no disponibles',err);warn();});
+  function createControls(){
+    if(!document.body || host)return;
+    host=document.createElement('div');host.id='mmhdSubtitleChoice';
+    host.style.cssText='position:fixed;right:18px;top:65px;z-index:2147483645;color:white;font:12px Arial,sans-serif;text-align:right;pointer-events:auto';
+    button=document.createElement('button');button.type='button';button.setAttribute('aria-label','Elegir subtítulos');
+    button.setAttribute('aria-haspopup','menu');button.setAttribute('aria-expanded','false');
+    button.style.cssText='border:1px solid #8091b2;border-radius:8px;background:#1b2740ed;color:white;padding:8px 12px;font:600 12px Arial;cursor:pointer;max-width:230px';
+    menu=document.createElement('div');menu.hidden=true;menu.setAttribute('role','menu');
+    menu.style.cssText='margin-top:5px;max-height:260px;overflow:auto;min-width:175px;padding:5px;border:1px solid #566d99;border-radius:9px;background:#101825f5;box-shadow:0 9px 25px #0009';
+    [{language:'off',name:'Sin subtítulos'}].concat(sources).forEach(function(s){
+      var item=document.createElement('button');item.type='button';item.dataset.mmhdLanguage=s.language;
+      item.textContent=s.name;item.setAttribute('role','menuitemradio');
+      item.style.cssText='display:block;width:100%;padding:10px 12px;text-align:left;border:0;border-radius:6px;color:white;background:transparent;cursor:pointer;font:12px Arial';
+      item.addEventListener('click',function(){selected=s.language;menu.hidden=true;button.setAttribute('aria-expanded','false');applySelection();});
+      menu.appendChild(item);
+    });
+    button.addEventListener('click',function(){menu.hidden=!menu.hidden;button.setAttribute('aria-expanded',String(!menu.hidden));});
+    host.appendChild(button);host.appendChild(menu);document.body.appendChild(host);applySelection();
+  }
+  function syncFullscreen(){
+    if(!host)return;
+    var root=document.fullscreenElement||document.webkitFullscreenElement;
+    // La interfaz debe permanecer en el elemento que entró en pantalla completa.
+    if(root && root.tagName!=='VIDEO' && root.appendChild){
+      if(host.parentNode!==root)root.appendChild(host);
+    }else if(document.body && host.parentNode!==document.body){document.body.appendChild(host);}
+    host.style.top=root?'104px':'65px';
+  }
+  function attachTracks(){
+    document.querySelectorAll('video').forEach(function(video){
+      entries.forEach(function(item){
+        if(video.querySelector('track[data-mmhd-subtitles="'+item.language+'"]'))return;
+        var track=document.createElement('track');
+        track.dataset.mmhdSubtitles=item.language;
+        track.dataset.mmhdLanguage=item.language;
+        track.kind='subtitles';track.label=item.name;track.srclang=item.language;
+        track.src=item.trackUrl;
+        track.addEventListener('load',applySelection);
+        video.appendChild(track);
+      });
+    });
+    applySelection();
+  }
+  function warn(message){
+    console.warn('[Movie Mania HD] Subtítulos:',message);
+    if(host && button && !entries.length)button.textContent='CC · Subtítulos no disponibles';
+  }
+  function begin(){
+    createControls();
+    document.addEventListener('fullscreenchange',syncFullscreen);
+    document.addEventListener('webkitfullscreenchange',syncFullscreen);
+    Promise.allSettled(sources.map(function(item){
+      return fetch(item.url,{mode:'cors',credentials:'omit'}).then(function(response){
+        if(!response.ok)throw Error('HTTP '+response.status);
+        return response.text();
+      }).then(function(body){
+        var uri=URL.createObjectURL(new Blob([normalizeVtt(body)],{type:'text/vtt;charset=utf-8'}));
+        createdUrls.push(uri);
+        return {language:item.language,name:item.name,trackUrl:uri};
+      });
+    })).then(function(results){
+      entries=results.filter(function(r){return r.status==='fulfilled';}).map(function(r){return r.value;});
+      results.forEach(function(r,i){if(r.status==='rejected')warn(sources[i].name+': '+r.reason);});
+      if(!entries.length){warn('Ningún archivo pudo cargarse');if(button)button.disabled=true;return;}
+      if(menu){menu.querySelectorAll('button').forEach(function(item){if(item.dataset.mmhdLanguage!=='off'&&!entries.some(function(e){return e.language===item.dataset.mmhdLanguage;}))item.remove();});}
+      if(selected!=='off' && !entries.some(function(e){return e.language===selected;}))selected=entries[0].language;
+      attachTracks();
+      observer=new MutationObserver(attachTracks);
+      observer.observe(document.documentElement,{subtree:true,childList:true});
+      syncFullscreen();
+    });
+    window.addEventListener('pagehide',function(){if(observer)observer.disconnect();createdUrls.forEach(URL.revokeObjectURL);},{once:true});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',begin,{once:true});else begin();
 }
-function mmhdMakeSubtitleScript(subtitlesUrl){
-  var url=String(subtitlesUrl||'').trim();
-  if(!url)return '';
-  var safe=JSON.stringify(url).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026');
-  return '<script>window.__MMHD_SUBTITLE_SOURCE__='+safe+';('+mmhdSubtitleLoader.toString()+')();</'+'script>';
+function mmhdNormalizeSubtitleTracks(tracks,legacy){
+  var a=Array.isArray(tracks)?tracks:[];
+  var result=[],seen=new Set();
+  a.forEach(function(t){
+    var url=String(t&&t.url||'').trim(),language=String(t&&(t.language||t.lang)||'').trim();
+    var name=String(t&&(t.name||t.label)||language).trim().slice(0,65);
+    if(!/^https:\/\//i.test(url)||!/^[-a-zA-Z0-9]{2,15}$/.test(language)||seen.has(language.toLowerCase())||result.length>=12)return;
+    seen.add(language.toLowerCase());result.push({language:language,name:name||language,url:url});
+  });
+  var old=String(legacy||'').trim();
+  if(/^https:\/\//i.test(old)){
+    var spanish=result.find(function(t){return t.language.toLowerCase()==='es-419';});
+    if(spanish)spanish.url=old;else result.unshift({language:'es-419',name:'Español (Latino)',url:old});
+  }
+  return result.slice(0,12);
 }
+function mmhdMakeSubtitleScript(subtitleTracks,legacyUrl){
+  var tracks=mmhdNormalizeSubtitleTracks(subtitleTracks,legacyUrl);
+  if(!tracks.length)return '';
+  var safe=JSON.stringify(tracks).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026');
+  return '<script>window.__MMHD_SUBTITLE_TRACKS__='+safe+';('+mmhdSubtitleLoader.toString()+')();</'+'script>';
+}
+
 
 function getPlayerHtml(movie, autoNext=false){
   if (!movie || !SHARED_PLAYER_B64) return "";
@@ -3242,7 +3318,7 @@ function getPlayerHtml(movie, autoNext=false){
   }
   const nextEpisode=movie.parentSeriesId!=null ? getNextSeriesEpisode(movie) : null;
   const scriptTag=buildProgressScript(movie.id)
-    + mmhdMakeSubtitleScript(movie.subtitlesUrl)
+    + mmhdMakeSubtitleScript(movie.subtitleTracks,movie.subtitlesUrl)
     + (autoNext && movie.parentSeriesId!=null ? buildNextEpisodeAutostartScript() : "")
     + (nextEpisode?.status==="ready" ? buildNextEpisodeBannerScript(movie,nextEpisode) : "");
   return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"</body>") : html+scriptTag;
@@ -4825,12 +4901,21 @@ function castSync() {
   const active = state !== 'IDLE';
   if (active) castHadMedia = true;
   if (castPanel()) castPanel().hidden = !active;
-  const track = active ? castSubtitleTrack(m) : null;
-  if (row) row.hidden = !track;
-  if (toggle && track) {
-    const enabled = Array.isArray(m.activeTrackIds) && m.activeTrackIds.includes(track.trackId);
-    toggle.textContent = enabled ? 'CC · Subtítulos: Activados' : 'CC · Subtítulos: Desactivados';
-    toggle.setAttribute('aria-pressed', String(enabled));
+  const tracks=active ? (m.media?.tracks||[]).filter(t=>t.type===chrome.cast.media.TrackType.TEXT) : [];
+  if(row)row.hidden=!tracks.length;
+  const selected=document.getElementById('mmhdCastSubtitleSelect');
+  if(selected && tracks.length){
+    const key=tracks.map(t=>t.trackId+':'+t.name).join('|');
+    if(selected.dataset.trackSet!==key){
+      selected.replaceChildren();
+      const off=document.createElement('option');off.value='off';off.textContent='Sin subtítulos';selected.appendChild(off);
+      tracks.forEach(t=>{const option=document.createElement('option');option.value=String(t.trackId);option.textContent=t.name||t.language||'Subtítulos';selected.appendChild(option);});
+      selected.dataset.trackSet=key;
+    }
+    const activeTrack=tracks.find(t=>(m.activeTrackIds||[]).includes(t.trackId));
+    // No modificar la opción que el usuario está eligiendo hasta que Cast responda.
+    if(document.activeElement!==selected)selected.value=activeTrack?String(activeTrack.trackId):'off';
+    if(toggle){toggle.textContent=activeTrack?'CC · Subtítulos: Activados':'CC · Subtítulos: Desactivados';toggle.setAttribute('aria-pressed',String(!!activeTrack));}
   }
   if (castCommandPending === 'pause' && state === 'PAUSED') castCommandClear();
   if (castCommandPending === 'play' && state === 'PLAYING') castCommandClear();
@@ -4908,44 +4993,51 @@ function updateCastButton() {
 }
 /* Chromecast necesita una URL HTTPS pública para cada pista; los blob: del navegador no sirven.
    /api/cast-subtitles descarga SRT/VTT permitido y responde en formato text/vtt. */
-async function mmhdCastSubtitleTrack(movie) {
-  const subtitleSource = String(movie?.subtitlesUrl || '').trim();
-  if (!subtitleSource) return null;
-  const subtitleUrl = new URL(subtitleSource);
-  if (subtitleUrl.protocol !== 'https:') throw Error('El enlace SRT/VTT debe comenzar con HTTPS.');
-  const endpoint = new URL('/api/cast-subtitles', location.origin);
-  endpoint.searchParams.set('url', subtitleUrl.href);
-  // Comprobar de antemano si Vercel puede leer y convertir los subtítulos;
-  // si falla, reproducimos el video sin incluir una pista rota.
-  const aborter = new AbortController();
-  const timer = setTimeout(() => aborter.abort(), 13000);
-  try {
-    const response = await fetch(endpoint.href, { signal: aborter.signal, credentials: 'omit' });
-    if (!response.ok) {
-      let message = 'HTTP ' + response.status;
-      try { message = (await response.json()).error || message; } catch (_) {}
-      throw Error(message);
-    }
-    const text = await response.text();
-    if (!text.startsWith('WEBVTT')) throw Error('La API no devolvió una pista WebVTT válida.');
-  } finally { clearTimeout(timer); }
-  const track = new chrome.cast.media.Track(1, chrome.cast.media.TrackType.TEXT);
-  track.trackContentId = endpoint.href;
-  track.trackContentType = 'text/vtt';
-  track.subtype = chrome.cast.media.TextTrackType.SUBTITLES;
-  track.name = 'Español';
-  track.language = 'es';
-  return track;
+async function mmhdCastSubtitleTracks(movie){
+  const sources=mmhdNormalizeSubtitleTracks(movie&&movie.subtitleTracks,movie&&movie.subtitlesUrl);
+  if(!sources.length)return [];
+  const validated=await Promise.allSettled(sources.map(async function(source,index){
+    const subtitleUrl=new URL(source.url);
+    if(subtitleUrl.protocol!=='https:')throw Error('Los subtítulos requieren HTTPS');
+    const endpoint=new URL('/api/cast-subtitles',location.origin);
+    endpoint.searchParams.set('url',subtitleUrl.href);
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),13000);
+    try{
+      const response=await fetch(endpoint.href,{signal:controller.signal,credentials:'omit'});
+      if(!response.ok){let msg='HTTP '+response.status;try{msg=(await response.json()).error||msg;}catch(_){}throw Error(msg);}
+      const text=await response.text();if(!text.startsWith('WEBVTT'))throw Error('Subtítulos VTT no válidos');
+    }finally{clearTimeout(timer);}
+    const track=new chrome.cast.media.Track(index+1,chrome.cast.media.TrackType.TEXT);
+    track.trackContentId=endpoint.href;track.trackContentType='text/vtt';
+    track.subtype=chrome.cast.media.TextTrackType.SUBTITLES;
+    track.name=source.name;track.language=source.language;
+    return track;
+  }));
+  const tracks=[];
+  validated.forEach((r,i)=>{if(r.status==='fulfilled')tracks.push(r.value);
+    else console.warn('[MMHD Cast] Subtítulos no disponibles:',sources[i].name,r.reason);});
+  if(!tracks.length)throw Error('No fue posible preparar ninguna pista SRT/VTT');
+  if(tracks.length<sources.length)castSubtitleNotice='⚠️ Algunas pistas no están disponibles';
+  return tracks;
 }
-function castToggleSubtitles() {
-  const media = castMedia();
-  const track = castSubtitleTrack(media);
-  if (!media || !track) { castMessage('No hay subtítulos disponibles en esta transmisión.'); return; }
-  const enabled = Array.isArray(media.activeTrackIds) && media.activeTrackIds.includes(track.trackId);
-  const activeIds = Array.isArray(media.activeTrackIds) ? media.activeTrackIds.filter(id => id !== track.trackId) : [];
-  if (!enabled) activeIds.push(track.trackId);
-  const request = new chrome.cast.media.EditTracksInfoRequest(activeIds);
-  media.editTracksInfo(request, castSync, error => castMessage('No se pudo cambiar los subtítulos: ' + (error.description || error.code || String(error))));
+function mmhdCastSetSubtitles(ids){
+  const media=castMedia();if(!media)return;
+  media.editTracksInfo(new chrome.cast.media.EditTracksInfoRequest(ids),castSync,
+    err=>castMessage('No se pudo cambiar los subtítulos: '+(err.description||err.code||String(err))));
+}
+function castToggleSubtitles(){
+  const media=castMedia();const tracks=media?.media?.tracks?.filter(t=>t.type===chrome.cast.media.TrackType.TEXT)||[];
+  if(!media||!tracks.length){castMessage('No hay subtítulos disponibles en esta transmisión.');return;}
+  const current=Array.isArray(media.activeTrackIds)?media.activeTrackIds:[];
+  const active=tracks.find(t=>current.includes(t.trackId));
+  const selected=document.getElementById('mmhdCastSubtitleSelect');
+  const preferred=tracks.find(t=>t.trackId===Number(selected?.value))||tracks[0];
+  mmhdCastSetSubtitles(active?[]:[preferred.trackId]);
+}
+function castSelectSubtitleLanguage(){
+  const sel=document.getElementById('mmhdCastSubtitleSelect');
+  if(!sel || !castMedia())return;
+  mmhdCastSetSubtitles(sel.value==='off'?[]:[Number(sel.value)]);
 }
 async function handleCast(movie) {
   if (!movie) return;
@@ -4973,12 +5065,12 @@ async function handleCast(movie) {
     info.metadata.title = movie.title || 'Movie Mania HD';
     if (movie.poster) info.metadata.images = [new chrome.cast.Image(movie.poster)];
     castSubtitleNotice = '';
-    if (movie.subtitlesUrl) {
+    if (mmhdNormalizeSubtitleTracks(movie.subtitleTracks,movie.subtitlesUrl).length) {
       castMessage('Preparando los subtítulos para Chromecast…');
       try {
-        const track = await mmhdCastSubtitleTrack(movie);
-        if (track) {
-          info.tracks = [track];
+        const tracks = await mmhdCastSubtitleTracks(movie);
+        if (tracks.length) {
+          info.tracks = tracks;
           info.textTrackStyle = new chrome.cast.media.TextTrackStyle();
         }
       } catch (error) {
@@ -5351,6 +5443,7 @@ function playableForSeries(series,season,episode){
     m37:episode.m37||"",m22:episode.m22||"",m18:episode.m18||"",
     m37En:episode.m37En||"",m22En:episode.m22En||"",m18En:episode.m18En||"",
     subtitlesUrl:episode.subtitlesUrl||"",
+    subtitleTracks:episode.subtitleTracks||[],
     preferredQuality:episode.preferredQuality||""};
 }
 function isPlayableEpisode(ep){
@@ -6135,6 +6228,7 @@ $("mmhdCastVolDown").addEventListener("click", () => castVolume(-0.1));
 $("mmhdCastVolUp").addEventListener("click", () => castVolume(0.1));
 $("mmhdCastStop").addEventListener("click", castStop);
 $("mmhdCastSubtitlesToggle").addEventListener("click", castToggleSubtitles);
+$("mmhdCastSubtitleSelect").addEventListener("change", castSelectSubtitleLanguage);
 
 $("btnDownload").addEventListener("click", () => showDownloadBox());
 $("detailSeason").addEventListener("change",()=>{
