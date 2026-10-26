@@ -1542,7 +1542,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   <label>Al restaurar un respaldo:</label>
   <div class="mmhd-backup-info" role="note"><strong>Sincronizar títulos existentes (enlaces y metadatos) y añadir los nuevos</strong></div>
   <input type="hidden" id="backupRestoreMode" value="sync-links"/>
-  <div class="mmhd-backup-info" id="backupRestoreModeHelp">Sincroniza el enlace corto y las calidades m37, m22 y m18 de cada película y de los episodios coincidentes. Mantiene tus otras modificaciones locales y no elimina episodios.</div>
+  <div class="mmhd-backup-info" id="backupRestoreModeHelp">Sincroniza enlaces, subtítulos y metadatos; en series incorpora temporadas y capítulos ausentes del navegador de destino sin eliminar los demás episodios. Respeta capítulos excluidos expresamente.</div>
   <div id="backupPreview" class="mmhd-backup-preview" hidden></div>
   <button type="button" class="secondary" id="btnConfirmRestore" hidden>Confirmar restauración</button>
 </div>
@@ -4217,10 +4217,20 @@ function mmhdBackupEqual(a,b){
   return JSON.stringify(a)===JSON.stringify(b);
 }
 function mmhdPlanRestore(data,mode,current=state.collection){
-  const stats={added:0,matched:0,updatedTitles:0,updatedEpisodes:0,changedFields:0,
-    changedMetaFields:0,blankedFields:0,examples:[]};
+  const stats={added:0,matched:0,updatedTitles:0,updatedEpisodes:0,
+    addedSeasons:0,addedEpisodes:0,skippedExcludedEpisodes:0,
+    changedFields:0,changedMetaFields:0,blankedFields:0,examples:[]};
   const result=structuredClone(current);
   const existing=new Map(result.map((item,index)=>[mmhdBackupTitleKey(item),index]));
+  // Permite identificar la misma serie aunque un respaldo antiguo use otro ID local.
+  // Nunca fusionamos series por el nombre: solamente por un TMDB ID válido.
+  const existingSeriesTmdb=new Map();
+  result.forEach((item,index)=>{
+    if(item?.kind!=='SERIES')return;
+    const tmdbId=Number(item.tmdbId)||Math.abs(Number(item.id));
+    if(Number.isSafeInteger(tmdbId)&&tmdbId>0&&!existingSeriesTmdb.has(tmdbId))
+      existingSeriesTmdb.set(tmdbId,index);
+  });
   const syncPart=(target,source,statsRef)=>{
     let changed=false;
     for(const field of MMHD_BACKUP_LINK_FIELDS){
@@ -4247,10 +4257,108 @@ function mmhdPlanRestore(data,mode,current=state.collection){
     }
     return changed;
   };
+  const validSeasonNumber=value=>Number.isSafeInteger(Number(value))&&Number(value)>=0&&value!==''&&value!=null;
+  const validEpisodeNumber=value=>Number.isSafeInteger(Number(value))&&Number(value)>0&&value!==''&&value!=null;
+  const syncSeriesSeasons=(target,source)=>{
+    const incomingSeasons=Array.isArray(source.seasons)?source.seasons:[];
+    if(!incomingSeasons.length)return false;
+    if(!Array.isArray(target.seasons))target.seasons=[];
+    if(!Array.isArray(target.seasonSummaries))target.seasonSummaries=[];
+    let changed=false;
+    const seasonByNumber=new Map(target.seasons.filter(s=>s&&validSeasonNumber(s.number))
+      .map(season=>[Number(season.number),season]));
+    const sourceSummaries=Array.isArray(source.seasonSummaries)?source.seasonSummaries:[];
+    const summaryByNumber=new Map(target.seasonSummaries.filter(s=>s&&validSeasonNumber(s.number))
+      .map(summary=>[Number(summary.number),summary]));
+    const touched=new Set();
+    for(const sourceSeason of incomingSeasons){
+      if(!sourceSeason||!validSeasonNumber(sourceSeason.number))continue;
+      const seasonNum=Number(sourceSeason.number);
+      if(touched.has(seasonNum))continue;
+      touched.add(seasonNum);
+      let targetSeason=seasonByNumber.get(seasonNum);
+      if(!targetSeason){
+        // Antes se ignoraba toda esta temporada, con TODOS sus videos.
+        targetSeason=structuredClone(sourceSeason);
+        targetSeason.episodes=Array.isArray(sourceSeason.episodes)
+          ? sourceSeason.episodes.filter(ep=>ep&&validEpisodeNumber(ep.number)).map(ep=>structuredClone(ep)) : [];
+        target.seasons.push(targetSeason);
+        seasonByNumber.set(seasonNum,targetSeason);
+        stats.addedSeasons++;
+        stats.addedEpisodes+=targetSeason.episodes.length;
+        changed=true;
+      }else{
+        if(!Array.isArray(targetSeason.episodes))targetSeason.episodes=[];
+        const episodeByNumber=new Map(targetSeason.episodes.filter(ep=>ep&&validEpisodeNumber(ep.number))
+          .map(ep=>[Number(ep.number),ep]));
+        const excluded=new Set((Array.isArray(targetSeason.excludedEpisodes)?targetSeason.excludedEpisodes:[]).map(Number));
+        const seenEpisodes=new Set();
+        for(const sourceEpisode of (Array.isArray(sourceSeason.episodes)?sourceSeason.episodes:[])){
+          if(!sourceEpisode||!validEpisodeNumber(sourceEpisode.number))continue;
+          const episodeNum=Number(sourceEpisode.number);
+          if(seenEpisodes.has(episodeNum))continue;
+          seenEpisodes.add(episodeNum);
+          const targetEpisode=episodeByNumber.get(episodeNum);
+          if(targetEpisode){
+            // El respaldo tiene prioridad sobre los enlaces de capítulos coincidentes.
+            if(syncPart(targetEpisode,sourceEpisode,stats)){
+              stats.updatedEpisodes++;changed=true;
+            }
+          }else if(excluded.has(episodeNum)){
+            // No restablecer capítulos que el usuario borró expresamente en este navegador.
+            stats.skippedExcludedEpisodes++;
+          }else{
+            targetSeason.episodes.push(structuredClone(sourceEpisode));
+            episodeByNumber.set(episodeNum,targetSeason.episodes[targetSeason.episodes.length-1]);
+            stats.addedEpisodes++;
+            changed=true;
+          }
+        }
+        if(stats.addedEpisodes||stats.updatedEpisodes)
+          targetSeason.episodes.sort((a,b)=>Number(a.number)-Number(b.number));
+      }
+      // También registrar la temporada en el listado que utiliza el editor.
+      const backupSummary=sourceSummaries.find(s=>s&&Number(s.number)===seasonNum);
+      const localSummary=summaryByNumber.get(seasonNum);
+      if(!localSummary){
+        const summary=backupSummary?structuredClone(backupSummary):{
+          number:seasonNum,name:targetSeason.name||`Temporada ${seasonNum}`,
+          episode_count:targetSeason.episodes.length
+        };
+        summary.number=seasonNum;
+        summary.episode_count=Math.max(Number(summary.episode_count)||0,targetSeason.episodes.length);
+        target.seasonSummaries.push(summary);
+        summaryByNumber.set(seasonNum,summary);
+        changed=true;
+      }else{
+        // Un conteo antiguo nunca debe ocultar los episodios recién agregados.
+        const expected=Math.max(Number(localSummary.episode_count)||0,
+          Number(backupSummary?.episode_count)||0,targetSeason.episodes.length);
+        if(Number(localSummary.episode_count)!==expected){localSummary.episode_count=expected;changed=true;}
+      }
+    }
+    if(changed){
+      target.seasons.sort((a,b)=>Number(a.number)-Number(b.number));
+      target.seasonSummaries.sort((a,b)=>Number(a.number)-Number(b.number));
+    }
+    return changed;
+  };
   for(const incoming of data.collection){
-    const key=mmhdBackupTitleKey(incoming),index=existing.get(key);
+    const key=mmhdBackupTitleKey(incoming);
+    let index=existing.get(key);
+    if(index===undefined&&incoming?.kind==='SERIES'){
+      const tmdbId=Number(incoming.tmdbId)||Math.abs(Number(incoming.id));
+      if(Number.isSafeInteger(tmdbId)&&tmdbId>0)index=existingSeriesTmdb.get(tmdbId);
+    }
     if(index===undefined){
-      result.push(structuredClone(incoming));existing.set(key,result.length-1);stats.added++;
+      result.push(structuredClone(incoming));
+      const newIndex=result.length-1;
+      existing.set(key,newIndex);
+      if(incoming?.kind==='SERIES'){
+        const tmdbId=Number(incoming.tmdbId)||Math.abs(Number(incoming.id));
+        if(Number.isSafeInteger(tmdbId)&&tmdbId>0)existingSeriesTmdb.set(tmdbId,newIndex);
+      }
+      stats.added++;
       continue;
     }
     stats.matched++;
@@ -4258,17 +4366,8 @@ function mmhdPlanRestore(data,mode,current=state.collection){
     let changedTitle=false;
     if(syncPart(original,incoming,stats))changedTitle=true;
     if(syncMeta(original,incoming,stats))changedTitle=true;
-    if(original.kind==='SERIES'){
-      const sourceSeasons=Array.isArray(incoming.seasons)?incoming.seasons:[];
-      for(const season of (Array.isArray(original.seasons)?original.seasons:[])){
-        const sourceSeason=sourceSeasons.find(s=>Number(s.number)===Number(season.number));
-        if(!sourceSeason)continue;
-        for(const ep of (Array.isArray(season.episodes)?season.episodes:[])){
-          const sourceEp=(Array.isArray(sourceSeason.episodes)?sourceSeason.episodes:[])
-            .find(e=>Number(e.number)===Number(ep.number));
-          if(sourceEp&&syncPart(ep,sourceEp,stats)){stats.updatedEpisodes++;changedTitle=true;}
-        }
-      }
+    if(original.kind==='SERIES'&&incoming.kind==='SERIES'){
+      if(syncSeriesSeasons(original,incoming))changedTitle=true;
     }
     if(changedTitle){
       stats.updatedTitles++;
@@ -4283,21 +4382,22 @@ function mmhdRestorePreview(){
   const data=mmhdPendingRestore,mode='sync-links';
   const plan=mmhdPlanRestore(data,mode),n=plan.stats;
   const timestamp=data.createdAt?new Date(data.createdAt).toLocaleString('es'):'fecha desconocida';
-  const summary=`Se agregarán ${n.added} títulos nuevos. Coinciden ${n.matched} títulos: ${n.updatedTitles} tendrán cambios (${n.updatedEpisodes} episodios; ${n.changedFields} campos de enlace y ${n.changedMetaFields} metadatos). Se actualizarán título, póster, logo, descripción, géneros, calificación, fecha de estreno y plataformas cuando existan en el respaldo.`;
+  const summary=`Se agregarán ${n.added} títulos nuevos. Coinciden ${n.matched} títulos: ${n.updatedTitles} tendrán cambios (${n.updatedEpisodes} episodios actualizados, ${n.addedEpisodes} episodios y ${n.addedSeasons} temporadas incorporadas; ${n.changedFields} campos de enlace y ${n.changedMetaFields} metadatos). Se actualizarán título, póster, logo, descripción, géneros, calificación, fecha de estreno y plataformas cuando existan en el respaldo.`;
   let extra='';
   if(mode==='sync-links'&&n.blankedFields)extra=` Atención: ${n.blankedFields} URL(s) del respaldo están vacías y sustituirán URLs anteriores al confirmar.`;
+  if(n.skippedExcludedEpisodes)extra+=` Se respetan ${n.skippedExcludedEpisodes} capítulos excluidos manualmente en este navegador.`;
   if(n.examples.length)extra+=` Ejemplos de títulos modificados: ${n.examples.join(' · ')}.`;
   $('backupPreview').textContent=`Respaldo versión ${data.version} · ${data.collection.length} títulos · ${timestamp}. ${summary}${extra} ${data.version>=5?'Integridad SHA-256 verificada.':'Respaldo anterior: sin comprobación criptográfica.'} ${data.version>=6?((data.txtReviews?.length||0)+' revisiones TXT incluidas.'):''}`;
   $('backupPreview').hidden=false;$('btnConfirmRestore').hidden=false;
   $('btnConfirmRestore').textContent='Confirmar sincronización';
   const help=$('backupRestoreModeHelp');
-  if(help)help.textContent='El respaldo tiene prioridad para enlaces y metadatos de títulos coincidentes. También se actualizan plataformas MX y diagnósticos. Las URLs vacías del respaldo también se copiarán. No se eliminan capítulos ausentes del archivo.';
+  if(help)help.textContent='El respaldo tiene prioridad para enlaces y metadatos de títulos coincidentes. También se actualizan plataformas MX y diagnósticos. Las URLs vacías del respaldo también se copiarán. No se eliminan capítulos ausentes del archivo; se agregan los episodios y temporadas faltantes, salvo episodios eliminados expresamente en este navegador.';
 }
 function mmhdFinishRestore(){
   const data=mmhdPendingRestore;if(!data)return;
   const mode='sync-links';
   const plan=mmhdPlanRestore(data,mode),n=plan.stats;
-  if((n.changedFields||n.changedMetaFields)&&!confirm(`Se actualizarán ${n.changedFields} campos de enlace y ${n.changedMetaFields} metadatos en ${n.updatedTitles} títulos (${n.updatedEpisodes} episodios). ${n.blankedFields?`ATENCIÓN: ${n.blankedFields} URLs se dejarán vacías según el respaldo. `:''}También se actualizarán diagnósticos coincidentes. ¿Confirmar la sincronización?`))return;
+  if((n.changedFields||n.changedMetaFields)&&!confirm(`Se actualizarán ${n.changedFields} campos de enlace y ${n.changedMetaFields} metadatos en ${n.updatedTitles} títulos (${n.updatedEpisodes} episodios actualizados, ${n.addedEpisodes} capítulos y ${n.addedSeasons} temporadas nuevos). ${n.blankedFields?`ATENCIÓN: ${n.blankedFields} URLs se dejarán vacías según el respaldo. `:''}También se actualizarán diagnósticos coincidentes. ¿Confirmar la sincronización?`))return;
   if(!commitCollection(plan.collection)){alert('No se pudo guardar la biblioteca. Revisa el almacenamiento disponible.');return;}
   if(mode==='replace'&&data.version>=3&&data.catalogSettings){
     const s=normalizeCatalogSettings(data.catalogSettings);
@@ -4322,7 +4422,7 @@ function mmhdFinishRestore(){
   }
   mmhdPendingRestore=null;$('backupPreview').hidden=true;$('btnConfirmRestore').hidden=true;
   resetSelection();mmhdRenderHealth();mmhdReviewRender();
-  alert(`Restauración completada: ${state.collection.length} títulos. ${n.added} añadidos y ${n.updatedTitles} títulos actualizados desde el respaldo (${n.changedFields} enlaces, ${n.changedMetaFields} metadatos).`);
+  alert(`Restauración completada: ${state.collection.length} títulos. ${n.added} añadidos y ${n.updatedTitles} títulos actualizados desde el respaldo (${n.changedFields} enlaces, ${n.changedMetaFields} metadatos, ${n.addedEpisodes} episodios y ${n.addedSeasons} temporadas incorporados).`);
 }
 $('btnBackupCollection').addEventListener('click',mmhdCreateBackup);
 $('btnConfirmRestore').addEventListener('click',mmhdFinishRestore);
