@@ -5106,6 +5106,11 @@ let castMediaObserved = null;
 // su MediaSession: mantener el panel visible y escuchar el evento MEDIA_SESSION.
 let castSessionObserved = null;
 let castEventMedia = null;
+// La TV puede conservar un Media IDLE anterior cuando llega una nueva orden LOAD.
+// Asociamos los controles al video solicitado, no a una sesión multimedia antigua.
+let castExpectedVideoUrl = '';
+let castPreviousMediaId = null;
+let castConfirmedMediaId = null;
 let castAwaitingMedia = false;
 let castMediaReadyTimeout = null;
 let castMediaReadyPoll = null;
@@ -5165,19 +5170,61 @@ function castMessage(message) { if (castStatus()) castStatus().textContent = mes
 function castSession() {
   return castReady ? cast.framework.CastContext.getInstance().getCurrentSession() : null;
 }
+function castMatchesVideoRequest(media) {
+  if (!media) return false;
+  const contentId = String(media.media?.contentId || '');
+  // El contentId identifica el enlace real cargado en Chromecast.
+  if (castExpectedVideoUrl && contentId && contentId !== castExpectedVideoUrl) return false;
+  // Durante LOAD no tomar por nueva la sesión que ya existía en el receptor.
+  if (castAwaitingMedia && castPreviousMediaId != null &&
+      media.mediaSessionId === castPreviousMediaId) return false;
+  return true;
+}
 function castMedia() {
   const session = castSession();
   if (!session) return null;
-  // MEDIA_SESSION lleva la sesión nueva aunque getMediaSession tarde un instante.
-  return (castEventMedia && castSessionObserved === session ? castEventMedia : null)
-    || session.getMediaSession() || null;
+  const fromSession = session.getMediaSession();
+  const fromEvent = castSessionObserved === session ? castEventMedia : null;
+  // Si ya confirmamos la sesión multimedia de este LOAD, darle prioridad:
+  // getMediaSession puede quedar apuntando a otra sesión con el mismo enlace.
+  if (castConfirmedMediaId != null) {
+    for (const candidate of [fromSession, fromEvent]) {
+      if (candidate && candidate.playerState !== 'IDLE' &&
+          candidate.mediaSessionId === castConfirmedMediaId &&
+          castMatchesVideoRequest(candidate)) return candidate;
+    }
+  }
+  // En una primera conexión getMediaSession todavía puede devolver IDLE
+  // del video anterior cuando MEDIA_SESSION ya incluye el video nuevo.
+  for (const candidate of [fromSession, fromEvent]) {
+    if (candidate && candidate.playerState !== 'IDLE' && castMatchesVideoRequest(candidate)) return candidate;
+  }
+  // IDLE solo significa que la transmisión actual terminó si YA habíamos
+  // confirmado ese mismo mediaSessionId. Un IDLE previo no cierra el panel.
+  for (const candidate of [fromSession, fromEvent]) {
+    if (candidate && candidate.playerState === 'IDLE' &&
+        castConfirmedMediaId != null &&
+        candidate.mediaSessionId === castConfirmedMediaId &&
+        castMatchesVideoRequest(candidate)) return candidate;
+  }
+  return null;
 }
 function castMediaSessionChanged(event) {
   if (!castSession()) return;
   const updated = event && event.mediaSession;
-  if (updated) castEventMedia = updated;
+  // No permitir que una notificación tardía de un video anterior sustituya
+  // la sesión correcta; pueden llegar eventos IDLE durante el cambio de video.
+  if (updated && castMatchesVideoRequest(updated)) {
+    if (updated.playerState !== 'IDLE') {
+      castEventMedia = updated;
+      castConfirmedMediaId = updated.mediaSessionId;
+    } else if (castConfirmedMediaId != null && updated.mediaSessionId === castConfirmedMediaId) {
+      castEventMedia = updated;
+    }
+  }
   const media = castMedia();
-  if (media) {
+  if (media && media.playerState !== 'IDLE') {
+    castConfirmedMediaId = media.mediaSessionId;
     castAwaitingMedia = false;
     clearTimeout(castMediaReadyTimeout);
     clearInterval(castMediaReadyPoll);
@@ -5189,31 +5236,31 @@ function castMediaSessionChanged(event) {
 function castMediaLoadPending() {
   castAwaitingMedia = true;
   castEventMedia = null;
+  castConfirmedMediaId = null;
   clearTimeout(castMediaReadyTimeout);
   clearInterval(castMediaReadyPoll);
-  // Mostrar los cuatro controles desde la primera transmisión. Pausa y Stop
-  // esperan a que el receptor confirme una MediaSession válida.
-  castSync();
-  // Fallback acotado: si el navegador demora MEDIA_SESSION, revisar la sesión
-  // real cada 400 ms hasta que se confirme o expire la espera.
+  castSync(); // Los 4 controles se muestran mientras se conecta el receptor.
+  // Consultar la sesión actual y también los eventos del SDK. Nunca interpretar
+  // como finalizado un estado IDLE anterior a esta solicitud de LOAD.
   castMediaReadyPoll = setInterval(() => {
     if (!castAwaitingMedia) return;
-    const media = castSession()?.getMediaSession();
+    const media = castMedia();
     if (media && media.playerState !== 'IDLE') castMediaSessionChanged({mediaSession: media});
-  }, 400);
+  }, 500);
   castMediaReadyTimeout = setTimeout(() => {
     if (!castAwaitingMedia) return;
-    const media = castSession()?.getMediaSession();
+    const media = castMedia();
     if (media && media.playerState !== 'IDLE') {
       castMediaSessionChanged({mediaSession: media});
     } else {
-      castAwaitingMedia = false;
+      // La TV puede estar reproduciendo aunque el emisor aún no reciba estado.
+      // Mantener visible el panel en vez de afirmar «Transmisión detenida».
+      castMessage('⏳ Se solicitó la reproducción, pero Chromecast aún no confirma los controles.');
       clearInterval(castMediaReadyPoll);
       castMediaReadyPoll = null;
-      castObserve();
-      castMessage('⚠️ Chromecast no confirmó la sesión de reproducción. Comprueba el estado de la TV.');
+      castMediaReadyTimeout = null;
     }
-  }, 12000);
+  }, 20000);
 }
 function castSubtitleTrack(media) {
   const tracks = media?.media?.tracks;
@@ -5246,7 +5293,10 @@ function castSync() {
   }
   const state = m.playerState;
   const active = state !== 'IDLE';
-  if (active) castHadMedia = true;
+  if (active) {
+    castHadMedia = true;
+    castConfirmedMediaId = m.mediaSessionId;
+  }
   if (castPanel()) castPanel().hidden = !active;
   const tracks=active ? (m.media?.tracks||[]).filter(t=>t.type===chrome.cast.media.TrackType.TEXT) : [];
   if(row)row.hidden=!tracks.length;
@@ -5309,6 +5359,11 @@ function castObserve() {
     }
     castSessionObserved = session;
     castEventMedia = null;
+    castConfirmedMediaId = null;
+    if (!castAwaitingMedia) {
+      castExpectedVideoUrl = '';
+      castPreviousMediaId = null;
+    }
     if (session) session.addEventListener(cast.framework.SessionEventType.MEDIA_SESSION, castMediaSessionChanged);
     else {
       castAwaitingMedia = false;
@@ -5534,13 +5589,17 @@ async function handleCast(movie, requestedLanguage) {
     request.autoplay = true;
     if (info.tracks?.length) request.activeTrackIds = [info.tracks[0].trackId];
     castMessage('Enviando video en ' + castAudioLanguage + ' a la TV…' + (castSubtitleNotice ? ' ' + castSubtitleNotice : ''));
+    // Marcar el enlace esperado y la MediaSession previa justo antes del LOAD.
+    // Así un estado IDLE antiguo no oculta los controles del video nuevo.
+    castExpectedVideoUrl = url;
+    castPreviousMediaId = session.getMediaSession()?.mediaSessionId ?? null;
     castMediaLoadPending();
     await session.loadMedia(request);
     if(movie.parentSeriesId!=null)rememberSeriesEpisode(movie);
     // Fallback: si llegó el estado multimedia antes de resolver el Promise,
     // dejar listos los controles sin necesitar un segundo click.
     if (castAwaitingMedia) {
-      const readyMedia = session.getMediaSession();
+      const readyMedia = castMedia();
       if (readyMedia && readyMedia.playerState !== 'IDLE') castMediaSessionChanged({mediaSession: readyMedia});
     }
     castObserve();
@@ -5550,6 +5609,9 @@ async function handleCast(movie, requestedLanguage) {
     }, 20000);
   } catch(e) {
     castAwaitingMedia = false;
+    castExpectedVideoUrl = '';
+    castPreviousMediaId = null;
+    castConfirmedMediaId = null;
     clearTimeout(castMediaReadyTimeout);
     clearInterval(castMediaReadyPoll);
     castMediaReadyTimeout = null;
@@ -5617,6 +5679,10 @@ async function castVolume(delta) {
 function castStop() {
   const m = castMedia(); if (!m) return;
   castAwaitingMedia = false;
+  castExpectedVideoUrl = '';
+  castPreviousMediaId = null;
+  castConfirmedMediaId = null;
+  castEventMedia = null;
   clearTimeout(castMediaReadyTimeout);
   clearInterval(castMediaReadyPoll);
   castMediaReadyTimeout = null;
