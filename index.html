@@ -745,6 +745,19 @@ a{color:inherit;text-decoration:none}
   #mmhdWindowQualityButton{padding:8px;font-size:10.5px}
   .player-head-title{max-width:calc(100vw - 170px)}}
 
+
+/* Selector de idioma en la cabecera, junto a Calidad y CC. */
+#mmhdWindowLanguageButton{border:1px solid #68728d;border-radius:8px;color:#f3f6ff;
+  background:#1b2740;padding:9px 11px;font:600 12px Inter,Arial,sans-serif;white-space:nowrap}
+#mmhdWindowLanguageButton:hover,#mmhdWindowLanguageButton:focus-visible{background:#273a60;outline:2px solid #8bb8ff;outline-offset:1px}
+@media(max-width:600px){#mmhdWindowLanguageButton{padding:8px 6px;font-size:10.5px}
+  #mmhdWindowQualityButton,#mmhdWindowSubtitlesButton{padding:8px 6px;font-size:10.5px}
+  .mmhd-player-header-controls{gap:4px}
+  .player-head-title{max-width:none;min-width:0}
+  .player-head-title span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+@media(max-width:455px){#mmhdWindowLanguageButton,#mmhdWindowQualityButton,#mmhdWindowSubtitlesButton{font-size:10px;padding:8px 5px}
+  .player-head-title span{max-width:65px}}
+
 /* Aviso superpuesto al iframe cuando se reproduce sin pantalla completa. */
 .player-next-banner{
   position:absolute;z-index:15;right:clamp(12px,3vw,28px);bottom:clamp(84px,14vh,116px);
@@ -2639,13 +2652,17 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
         <span id="playerTitle">Reproductor</span>
       </div>
       <div class="mmhd-player-header-controls">
-        <div class="mmhd-window-quality mmhd-window-cc" id="mmhdWindowSubtitles" hidden>
-          <button type="button" id="mmhdWindowSubtitlesButton" aria-haspopup="menu" aria-expanded="false" aria-label="Elegir subtítulos">CC · Subtítulos <span aria-hidden="true">▾</span></button>
-          <div class="mmhd-window-quality-menu" id="mmhdWindowSubtitlesMenu" role="menu" hidden></div>
+        <div class="mmhd-window-quality" id="mmhdWindowLanguage" hidden>
+          <button type="button" id="mmhdWindowLanguageButton" aria-haspopup="menu" aria-expanded="false" aria-label="Seleccionar idioma del audio">Idioma · Latino <span aria-hidden="true">▾</span></button>
+          <div class="mmhd-window-quality-menu" id="mmhdWindowLanguageMenu" role="menu" hidden></div>
         </div>
         <div class="mmhd-window-quality" id="mmhdWindowQuality" hidden>
           <button type="button" id="mmhdWindowQualityButton" aria-haspopup="menu" aria-expanded="false">Calidad · 1080p <span aria-hidden="true">▾</span></button>
           <div class="mmhd-window-quality-menu" id="mmhdWindowQualityMenu" role="menu" hidden></div>
+        </div>
+        <div class="mmhd-window-quality mmhd-window-cc" id="mmhdWindowSubtitles" hidden>
+          <button type="button" id="mmhdWindowSubtitlesButton" aria-haspopup="menu" aria-expanded="false" aria-label="Elegir subtítulos">CC · Subtítulos <span aria-hidden="true">▾</span></button>
+          <div class="mmhd-window-quality-menu" id="mmhdWindowSubtitlesMenu" role="menu" hidden></div>
         </div>
         <button class="player-close" id="btnPlayerClose" aria-label="Cerrar reproductor"><i class="fa-solid fa-xmark"></i></button>
       </div>
@@ -3278,6 +3295,69 @@ function mmhdSubtitleLoader(){
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',begin,{once:true});else begin();
 }
+
+/* Idioma del audio: Latino/Inglés, arriba a la derecha en pantalla completa.
+   En ventana normal se usa el selector de la cabecera del catálogo. */
+function mmhdFullscreenLanguageControls(){
+  'use strict';
+  var sources=Array.isArray(window.MMHD_QUALITY_OPTIONS)?window.MMHD_QUALITY_OPTIONS:[];
+  var available=['Latino','Inglés'].filter(function(lang){return sources.some(function(s){return s.language===lang;});});
+  if(available.length<2)return;
+  var root=document.createElement('div');root.id='mmhdFullscreenLanguage';
+  root.style.cssText='position:fixed;top:20px;right:14px;z-index:2147482501;color:white;font:600 12px Arial,sans-serif;text-align:right';
+  var button=document.createElement('button');button.type='button';
+  button.setAttribute('aria-haspopup','menu');button.setAttribute('aria-expanded','false');
+  button.style.cssText='border:1px solid #8091b2;border-radius:8px;background:#1b2740ed;color:#fff;padding:8px 12px;font:600 12px Arial;cursor:pointer';
+  var menu=document.createElement('div');menu.id='mmhdFullscreenLanguageMenu';menu.hidden=true;
+  menu.style.cssText='margin-top:6px;padding:5px;min-width:140px;border:1px solid #566d99;border-radius:9px;background:#101825f5;box-shadow:0 9px 25px #0009';
+  function state(){try{return window.MMHD_BILINGUAL_QUALITY&&window.MMHD_BILINGUAL_QUALITY.state();}catch(_){return null;}}
+  function update(){
+    var active=(state()||{}).language||'Latino';
+    button.textContent='Idioma · '+active+' ▾';
+    menu.querySelectorAll('button').forEach(function(el){el.setAttribute('aria-checked',String(el.dataset.language===active));
+      el.style.background=el.dataset.language===active?'#244879':'transparent';});
+  }
+  function close(){menu.hidden=true;button.setAttribute('aria-expanded','false');}
+  function setLanguage(lang){
+    if(available.indexOf(lang)<0)return;
+    var controller=window.MMHD_BILINGUAL_QUALITY;
+    if(!controller)return;
+    var preferred=['m37','m22','m18'].find(function(q){return sources.some(function(s){return s.language===lang && new RegExp('='+q+'(?:$|[?#&])','i').test(s.source);});});
+    if(preferred)controller.change(lang,preferred);
+    close();update();setTimeout(update,750);
+  }
+  available.forEach(function(lang){
+    var option=document.createElement('button');option.type='button';option.dataset.language=lang;
+    option.textContent=lang;option.setAttribute('role','menuitemradio');
+    option.style.cssText='display:block;width:100%;padding:10px 12px;border:0;border-radius:6px;text-align:left;color:white;background:transparent;cursor:pointer;font:600 12px Arial';
+    option.addEventListener('click',function(){setLanguage(lang);});menu.appendChild(option);
+  });
+  button.addEventListener('click',function(){menu.hidden=!menu.hidden;button.setAttribute('aria-expanded',String(!menu.hidden));update();});
+  document.addEventListener('pointerdown',function(event){if(!root.contains(event.target))close();},true);
+  document.addEventListener('keydown',function(event){if(event.key==='Escape')close();});
+  root.appendChild(button);root.appendChild(menu);document.body.appendChild(root);
+  function fullscreenChanged(){
+    var fs=document.fullscreenElement||document.webkitFullscreenElement;
+    var isFs=Boolean(fs&&fs.tagName!=='VIDEO');
+    var dest=isFs?fs:document.body;
+    if(root.parentNode!==dest)dest.appendChild(root);
+    root.hidden=!isFs;
+    if(!isFs)close();
+    update();
+  }
+  document.addEventListener('fullscreenchange',fullscreenChanged);
+  document.addEventListener('webkitfullscreenchange',fullscreenChanged);
+  setInterval(update,900);
+  fullscreenChanged();
+  window.addEventListener('message',function(event){
+    if(event.source!==window.parent||!event.data||event.data.type!=='mmhd-bilingual-language-set')return;
+    setLanguage(String(event.data.language||''));
+  });
+}
+function mmhdMakeFullscreenLanguageScript(){
+  return '<script>('+mmhdFullscreenLanguageControls.toString()+')();</'+'script>';
+}
+
 /* Pantalla completa: Calidad y CC aparecen al interactuar y se ocultan tras inactividad.
    No interviene en los controles nativos de FWDEV ni en la reproducción. */
 function mmhdAutoHideFullscreenControls(){
@@ -3289,12 +3369,14 @@ function mmhdAutoHideFullscreenControls(){
   }
   function controls(){
     return [document.getElementById('mmhd-bilingual-quality'),
-            document.getElementById('mmhdSubtitleChoice')].filter(Boolean);
+            document.getElementById('mmhdSubtitleChoice'),
+            document.getElementById('mmhdFullscreenLanguage')].filter(Boolean);
   }
   function menuOpen(){
     var quality=document.getElementById('mmhd-bilingual-choices');
     var subs=document.querySelector('#mmhdSubtitleChoice [role="menu"]');
-    return Boolean((quality && !quality.hidden) || (subs && !subs.hidden));
+    var language=document.getElementById('mmhdFullscreenLanguageMenu');
+    return Boolean((quality && !quality.hidden) || (subs && !subs.hidden) || (language && !language.hidden));
   }
   function reveal(){
     clearTimeout(idleTimer);
@@ -3390,6 +3472,12 @@ function getPlayerHtml(movie, autoNext=false){
   };
   let html=b64ToUtf8(SHARED_PLAYER_B64);
   for(const [marker,value] of Object.entries(reps))html=html.split(marker).join(value);
+  // Calidad e idioma se controlan desde nuestros botones superiores.
+  // Ocultar la tuerca nativa FWDEV incluso cuando solo hay audio Latino.
+  html=html.replace(/showQualityButton\s*:\s*["']yes["']/i,'showQualityButton:"no"');
+  // Conservar las calidades en títulos de un solo idioma mediante el mismo
+  // selector auxiliar que utilizan los títulos bilingües.
+  html=html.replace('if(!window.MMHD_HAS_ENGLISH)return;','if(!window.MMHD_QUALITY_OPTIONS || !window.MMHD_QUALITY_OPTIONS.length)return;');
   // Restaurar el idioma ANTES de que FWDEVPlayer cree el video.
   // Si fue Inglés, se coloca primero su fuente de mayor calidad (1080p si existe).
   // De esta forma, el seek del progreso se efectúa en el video correcto.
@@ -3416,6 +3504,7 @@ function getPlayerHtml(movie, autoNext=false){
   const nextEpisode=movie.parentSeriesId!=null ? getNextSeriesEpisode(movie) : null;
   const scriptTag=buildProgressScript(movie.id)
     + mmhdMakeSubtitleScript(movie.subtitleTracks,movie.subtitlesUrl)
+    + mmhdMakeFullscreenLanguageScript()
     + mmhdMakeFullscreenAutoHideScript()
     + (autoNext && movie.parentSeriesId!=null ? buildNextEpisodeAutostartScript() : "")
     + (nextEpisode?.status==="ready" ? buildNextEpisodeBannerScript(movie,nextEpisode) : "");
@@ -6724,6 +6813,49 @@ syncBackToTop();
   });
   document.addEventListener('click',function(event){if(!box.contains(event.target))close();});
   document.addEventListener('keydown',function(event){if(event.key==='Escape')close();});
+  new MutationObserver(reset).observe(frame,{attributes:true,attributeFilter:['src']});
+  reset();
+})();
+</script>
+<script>
+/* Idioma de audio en ventana normal; sincronizado con la selección fullscreen. */
+(function(){
+  'use strict';
+  var frame=document.getElementById('playerFrame');
+  var box=document.getElementById('mmhdWindowLanguage');
+  var button=document.getElementById('mmhdWindowLanguageButton');
+  var menu=document.getElementById('mmhdWindowLanguageMenu');
+  if(!frame||!box||!button||!menu)return;
+  var current='Latino';
+  function close(){menu.hidden=true;button.setAttribute('aria-expanded','false');}
+  function reset(){close();box.hidden=true;menu.replaceChildren();current='Latino';}
+  function draw(){
+    var m=typeof activePlayerMovie!=='undefined'?activePlayerMovie:null;
+    var hasEnglish=Boolean(m && [m.m37En,m.m22En,m.m18En].some(Boolean));
+    box.hidden=!hasEnglish;
+    menu.replaceChildren();
+    if(!hasEnglish)return;
+    ['Latino','Inglés'].forEach(function(lang){
+      var item=document.createElement('button');item.type='button';item.textContent=lang;
+      item.setAttribute('role','menuitemradio');item.setAttribute('aria-checked',String(current===lang));
+      item.addEventListener('click',function(){
+        close();
+        try{frame.contentWindow.postMessage({type:'mmhd-bilingual-language-set',language:lang},'*');}catch(_){}
+      });
+      menu.appendChild(item);
+    });
+    button.textContent='Idioma · '+current+' ▾';
+  }
+  window.addEventListener('message',function(event){
+    if(event.source!==frame.contentWindow || !event.data || event.data.type!=='mmhd-bilingual-quality-state')return;
+    if(!document.getElementById('playerModal')?.classList.contains('show'))return;
+    if(event.data.language==='Latino'||event.data.language==='Inglés')current=event.data.language;
+    draw();
+  });
+  button.addEventListener('click',function(){if(box.hidden)return;menu.hidden=!menu.hidden;
+    button.setAttribute('aria-expanded',String(!menu.hidden));});
+  document.addEventListener('click',function(e){if(!box.contains(e.target))close();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
   new MutationObserver(reset).observe(frame,{attributes:true,attributeFilter:['src']});
   reset();
 })();
