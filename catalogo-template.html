@@ -1525,6 +1525,27 @@ a{color:inherit;text-decoration:none}
 .mmhd-cast-buttons button:hover{background:#2563eb}
 @media(max-width:380px){.mmhd-cast-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
+
+/* Selector de idioma del video ANTES de transmitir a Chromecast. */
+.mmhd-cast-language-dialog[hidden]{display:none!important}
+.mmhd-cast-language-dialog{position:fixed;inset:0;z-index:10010;display:flex;align-items:center;
+  justify-content:center;padding:20px;background:rgba(0,0,0,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.mmhd-cast-language-box{width:min(430px,100%);padding:22px;border-radius:16px;background:#151725;
+  border:1px solid #435574;box-shadow:0 20px 65px #000c;color:#f7f9ff;font-family:Inter,Arial,sans-serif}
+.mmhd-cast-language-box h3{font-size:19px;font-weight:800;margin:0 0 8px}
+.mmhd-cast-language-box p{font-size:12px;color:#b5bfd4;margin:0 0 17px;line-height:1.55;overflow-wrap:anywhere}
+.mmhd-cast-language-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mmhd-cast-language-buttons button{min-height:62px;border:1px solid #45618e;background:#202d48;
+  color:#fff;border-radius:11px;padding:10px;font-size:14px;font-weight:800;cursor:pointer}
+.mmhd-cast-language-buttons button:hover,.mmhd-cast-language-buttons button:focus-visible{
+  background:#294775;border-color:#83aaff;outline:2px solid #8eb5ff;outline-offset:2px}
+.mmhd-cast-language-buttons button[data-preferred="true"]{border-color:#74a4fb;background:#284775}
+.mmhd-cast-language-buttons button small{display:block;font-weight:500;font-size:10px;color:#bfd5ff;margin-top:4px}
+#mmhdCastLanguageCancel{display:block;margin:15px auto 0;padding:10px 20px;color:#bec9de;
+  font-size:12px;border:1px solid #4a5269;border-radius:8px;background:#202432}
+#mmhdCastLanguageCancel:hover,#mmhdCastLanguageCancel:focus-visible{color:#fff;background:#343e54}
+@media(max-width:420px){.mmhd-cast-language-box{padding:17px}.mmhd-cast-language-buttons button{font-size:13px}}
+
 /* Fase 3: controles de descubrimiento y navegación */
 .catalog-filterbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 16px}
 .catalog-filterbar select{background:#171724;color:#e6e9f3;border:1px solid #2d2d43;border-radius:9px;padding:10px 30px 10px 11px;min-height:40px;min-width:145px;font-family:inherit;font-size:12px;max-width:100%}
@@ -2645,6 +2666,21 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   <span>Hay una versión nueva del catálogo</span>
   <button id="btnUpdateNow">Actualizar</button>
   <button id="btnUpdateDismiss" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+</div>
+
+
+<!-- Idioma del VIDEO que se enviará a Chromecast (independiente de subtítulos). -->
+<div id="mmhdCastLanguageDialog" class="mmhd-cast-language-dialog" role="dialog" aria-modal="true"
+     aria-labelledby="mmhdCastLanguageHeading" aria-describedby="mmhdCastLanguageDescription" hidden>
+  <div class="mmhd-cast-language-box">
+    <h3 id="mmhdCastLanguageHeading">Transmitir a la TV</h3>
+    <p id="mmhdCastLanguageDescription">Elige el idioma del video. Se enviará el video del idioma elegido. Los subtítulos se seleccionan por separado.</p>
+    <div class="mmhd-cast-language-buttons">
+      <button type="button" id="mmhdCastLanguageLatino" data-cast-language="Latino">Latino<small id="mmhdCastLatinoResolution">1080p</small></button>
+      <button type="button" id="mmhdCastLanguageEnglish" data-cast-language="Inglés">Inglés<small id="mmhdCastEnglishResolution">1080p</small></button>
+    </div>
+    <button id="mmhdCastLanguageCancel" type="button">Cancelar</button>
+  </div>
 </div>
 
 <div class="player-modal" id="playerModal">
@@ -5285,14 +5321,99 @@ function castSelectSubtitleLanguage(){
   if(!sel || !castMedia())return;
   mmhdCastSetSubtitles(sel.value==='off'?[]:[Number(sel.value)]);
 }
-async function handleCast(movie) {
+
+/* Chromecast: elegir idioma del VIDEO antes de iniciar una nueva carga.
+   No usar prompt/confirm: la selección debe continuar dentro de un click del usuario
+   para que CastContext.requestSession conserve la activación requerida por el navegador. */
+let mmhdCastPendingMovie = null;
+let mmhdCastLanguagePreviousFocus = null;
+function mmhdCastAvailableSource(movie, language){
+  if(!movie)return '';
+  const english=language==='Inglés';
+  return String((english ? (movie.m37En||movie.m22En||movie.m18En)
+    : (movie.m37||movie.m22||movie.m18)) || '').trim();
+}
+function mmhdCastBestResolution(movie,language){
+  if(!movie)return '';
+  const english=language==='Inglés';
+  return (english?movie.m37En:movie.m37)?'1080p':
+    ((english?movie.m22En:movie.m22)?'720p':
+    ((english?movie.m18En:movie.m18)?'420p':''));
+}
+function mmhdCastDismissLanguageDialog(){
+  const dialog=document.getElementById('mmhdCastLanguageDialog');
+  if(dialog)dialog.hidden=true;
+  mmhdCastPendingMovie=null;
+  const oldFocus=mmhdCastLanguagePreviousFocus;
+  mmhdCastLanguagePreviousFocus=null;
+  try{if(oldFocus&&oldFocus.isConnected)oldFocus.focus();}catch(_){}
+}
+function mmhdCastChooseLanguage(movie){
+  const dialog=document.getElementById('mmhdCastLanguageDialog');
+  if(!dialog)return;
+  const latino=mmhdCastAvailableSource(movie,'Latino');
+  const english=mmhdCastAvailableSource(movie,'Inglés');
+  if(!english||!latino){void handleCast(movie,english?'Inglés':'Latino');return;}
+  mmhdCastPendingMovie=movie;
+  mmhdCastLanguagePreviousFocus=document.activeElement;
+  const title=document.getElementById('mmhdCastLanguageHeading');
+  title.textContent='Transmitir a la TV';
+  document.getElementById('mmhdCastLanguageDescription').textContent=
+    (movie.title||'Película')+' · Elige el idioma del video. Los subtítulos se controlan independientemente.';
+  document.getElementById('mmhdCastLatinoResolution').textContent=mmhdCastBestResolution(movie,'Latino');
+  document.getElementById('mmhdCastEnglishResolution').textContent=mmhdCastBestResolution(movie,'Inglés');
+  const preferred=(playbackLanguages[String(movie.id)]==='Inglés')?'Inglés':'Latino';
+  const latinoButton=document.getElementById('mmhdCastLanguageLatino');
+  const englishButton=document.getElementById('mmhdCastLanguageEnglish');
+  latinoButton.dataset.preferred=String(preferred==='Latino');
+  englishButton.dataset.preferred=String(preferred==='Inglés');
+  dialog.hidden=false;
+  (preferred==='Inglés'?englishButton:latinoButton).focus();
+}
+function mmhdCastLanguageSelected(language){
+  const movie=mmhdCastPendingMovie;
+  if(!movie || !mmhdCastAvailableSource(movie,language))return;
+  mmhdCastDismissLanguageDialog();
+  // Invocar directamente desde el click para preservar el gesto de usuario de Cast.
+  void handleCast(movie,language);
+}
+(function mmhdCastLanguageEvents(){
+  const dialog=document.getElementById('mmhdCastLanguageDialog');
+  if(!dialog)return;
+  document.getElementById('mmhdCastLanguageLatino').addEventListener('click',()=>mmhdCastLanguageSelected('Latino'));
+  document.getElementById('mmhdCastLanguageEnglish').addEventListener('click',()=>mmhdCastLanguageSelected('Inglés'));
+  document.getElementById('mmhdCastLanguageCancel').addEventListener('click',mmhdCastDismissLanguageDialog);
+  dialog.addEventListener('click',event=>{if(event.target===dialog)mmhdCastDismissLanguageDialog();});
+  document.addEventListener('keydown',event=>{
+    if(dialog.hidden)return;
+    if(event.key==='Escape'){event.preventDefault();mmhdCastDismissLanguageDialog();return;}
+    if(event.key==='Tab'){
+      const list=[document.getElementById('mmhdCastLanguageLatino'),document.getElementById('mmhdCastLanguageEnglish'),document.getElementById('mmhdCastLanguageCancel')];
+      const pos=list.indexOf(document.activeElement);
+      if(event.shiftKey && pos<=0){event.preventDefault();list[list.length-1].focus();}
+      else if(!event.shiftKey && pos===list.length-1){event.preventDefault();list[0].focus();}
+    }
+  });
+})();
+
+async function handleCast(movie, requestedLanguage) {
   if (!movie) return;
   if (!castReady) { castMessage('Google Cast todavía no está disponible. Abre la web desde Chrome por HTTP o HTTPS.'); return; }
+  const hasEnglish=Boolean(mmhdCastAvailableSource(movie,'Inglés'));
+  const hasLatino=Boolean(mmhdCastAvailableSource(movie,'Latino'));
+  // Solo preguntar cuando ambas versiones existen; las películas de un idioma
+  // siguen enviándose con un único click, igual que antes.
+  if(hasEnglish && hasLatino && requestedLanguage!=='Latino' && requestedLanguage!=='Inglés'){
+    mmhdCastChooseLanguage(movie);
+    return;
+  }
+  const castAudioLanguage=requestedLanguage==='Inglés' && hasEnglish ? 'Inglés' :
+    (hasLatino?'Latino':'Inglés');
   castCommandClear();
   castResumeRecovery = null;
   castRecoveryLoading = false;
   castHadMedia = false;
-  let url = (movie.m37 || movie.m22 || movie.m18 || '').trim();
+  let url = mmhdCastAvailableSource(movie,castAudioLanguage);
   if (!url) { castMessage('Esta película no tiene enlace de video.'); return; }
   url = url.replace(/=m\d+(?=($|[&#]))/, '=dv');
   try {
@@ -5308,7 +5429,7 @@ async function handleCast(movie) {
     const info = new chrome.cast.media.MediaInfo(url, 'video/mp4');
     info.streamType = chrome.cast.media.StreamType.BUFFERED;
     info.metadata = new chrome.cast.media.GenericMediaMetadata();
-    info.metadata.title = movie.title || 'Movie Mania HD';
+    info.metadata.title = (movie.title || 'Movie Mania HD') + (hasEnglish && hasLatino ? ' · ' + castAudioLanguage : '');
     if (movie.poster) info.metadata.images = [new chrome.cast.Image(movie.poster)];
     castSubtitleNotice = '';
     if (mmhdNormalizeSubtitleTracks(movie.subtitleTracks,movie.subtitlesUrl).length) {
@@ -5327,7 +5448,7 @@ async function handleCast(movie) {
     const request = new chrome.cast.media.LoadRequest(info);
     request.autoplay = true;
     if (info.tracks?.length) request.activeTrackIds = [info.tracks[0].trackId];
-    castMessage('Enviando película a la TV…' + (castSubtitleNotice ? ' ' + castSubtitleNotice : ''));
+    castMessage('Enviando video en ' + castAudioLanguage + ' a la TV…' + (castSubtitleNotice ? ' ' + castSubtitleNotice : ''));
 
     await session.loadMedia(request);
     if(movie.parentSeriesId!=null)rememberSeriesEpisode(movie);
