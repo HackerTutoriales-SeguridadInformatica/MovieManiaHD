@@ -2812,13 +2812,13 @@ function mmhdAudioVariants(movie){
       return [{language:movie.seriesDefaultLanguage,m37:'',m22:'',m18:''}];
     return [...langs.values()];
   }
-  const firstLanguage=movie.primaryLanguage==='Inglés'?'Inglés':'Latino';
+  const firstLanguage=movie.primaryLanguage||'Latino';
   const main={language:firstLanguage,m37:movie.m37,m22:movie.m22,m18:movie.m18};
   const en={language:'Inglés',m37:movie.m37En,m22:movie.m22En,m18:movie.m18En};
   const entries=[main];
   if(firstLanguage!=='Inglés'||!(main.m37||main.m22||main.m18))entries.push(en);
   const a=movie.audioAlt;
-  if(a&&typeof a==='object'&&a.language&&a.language!=='Latino'&&a.language!=='Inglés')
+  if(a&&typeof a==='object'&&a.language&&(!main.m37&&!main.m22&&!main.m18||a.language!==firstLanguage)&&a.language!=='Inglés')
     entries.push({language:a.language,m37:a.m37,m22:a.m22,m18:a.m18});
   return entries.filter(e=>Boolean(e.m37||e.m22||e.m18));
 }
@@ -2844,7 +2844,7 @@ const MMHD_FLAG_IMAGES={
 function mmhdLanguageBadgeMeta(language){
   const normalized=String(language||"").normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const countries={
-    'latino':'mx', 'mx':'mx', 'mexico':'mx', 'espanol latino':'mx', 'espanol (latino)':'mx', 'es-419':'mx', 'es-mx':'mx', 'es':'es', 'espanol':'es',
+    'latino':'mx', 'mx':'mx', 'mexico':'mx', 'espanol latino':'mx', 'espanol (latino)':'mx', 'es-419':'mx', 'es-mx':'mx', 'es':'es', 'espanol':'es', 'espanol (espana)':'es', 'espanol espana':'es', 'espanol de espana':'es',
     'ingles':'us', 'english':'us', 'en':'us', 'us':'us',
     'coreano':'kr', 'koreano':'kr', 'korean':'kr', 'ko':'kr',
     'japones':'jp', 'japanese':'jp', 'ja':'jp',
@@ -3741,9 +3741,8 @@ function getPlayerHtml(movie, autoNext=false){
   const htmlValue = v => String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;")
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   const mainM37=cleanUrl(movie.m37),mainM22=cleanUrl(movie.m22),mainM18=cleanUrl(movie.m18);
-  const englishMain=movie.primaryLanguage==='Inglés';
-  const m37=englishMain?'':mainM37,m22=englishMain?'':mainM22,m18=englishMain?'':mainM18;
-  const en37=englishMain?mainM37:cleanUrl(movie.m37En),en22=englishMain?mainM22:cleanUrl(movie.m22En),en18=englishMain?mainM18:cleanUrl(movie.m18En);
+  const m37=mainM37,m22=mainM22,m18=mainM18;
+  const en37=cleanUrl(movie.m37En),en22=cleanUrl(movie.m22En),en18=cleanUrl(movie.m18En);
   const downloadSource = mainM37||mainM22||mainM18||en37||en22||en18||cleanUrl(movie.audioAlt?.m37)||cleanUrl(movie.audioAlt?.m22)||cleanUrl(movie.audioAlt?.m18);
   const reps = {
     "__MOVIE_TITLE__":htmlValue(movie.title),
@@ -3755,6 +3754,7 @@ function getPlayerHtml(movie, autoNext=false){
     "__BACKDROP_URL__":jsValue(movie.backdrop),
     "__TMDB_ID__":jsValue(movie.tmdbId ?? movie.id ?? ""),
     "__MMHD_PREFERRED_QUALITY__":jsValue(movie.preferredQuality||""),
+    "__PRIMARY_AUDIO_LANGUAGE__":jsValue(movie.primaryLanguage||"Latino"),
     "__M37_URL__":jsValue(m37),
     "__M22_URL__":jsValue(m22),
     "__M18_URL__":jsValue(m18),
