@@ -1316,6 +1316,9 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </section>
 <section class="series-panel" hidden="" id="seriesPanel">
 <h3><i class="fa-solid fa-list"></i> Temporadas y episodios</h3>
+<label for="seriesDefaultLanguage">Idioma predeterminado del video principal de la serie</label>
+<select id="seriesDefaultLanguage"><option value="Latino">Latino</option><option value="Inglés">Inglés</option></select>
+<small style="display:block;margin:6px 0 12px;color:#acc1d8">Se aplica a los episodios que no tengan un idioma principal definido por separado. Las banderas se obtienen de los videos de sus episodios.</small>
 <label for="seriesSeason">Temporada</label>
 <select id="seriesSeason"></select>
 <div class="series-status-label" id="seriesSeasonStatus" role="status"></div>
@@ -1346,7 +1349,10 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div id="editorBottomHolder"><div class="grid" id="linksGrid" style="display:none">
 <section class="panel" id="linksCard">
 <div class="panel-title"><span class="icon"><i class="fa-solid fa-link"></i></span> <span id="linksHeading">URL del vídeo</span></div>
-<label for="googleUrl">URL Google Photos · Latino (principal)</label>
+<label for="primaryLanguage">Idioma del video principal (campo 1)</label>
+<select id="primaryLanguage"><option value="Latino">Latino</option><option value="Inglés">Inglés</option></select>
+<small style="display:block;margin-bottom:10px;color:#acc1d8">Si tu película solo está en inglés, puedes elegir Inglés aquí y pegarla en el primer campo, o dejar el primero vacío y usar «Video alternativo · Inglés».</small>
+<label for="googleUrl">URL Google Photos · Video principal (idioma seleccionado)</label>
 <input id="googleUrl" placeholder="https://photos.google.com/share/..." type="url"/>
 <button class="primary full" id="btnExtract">
 <i class="fa-solid fa-wand-magic-sparkles"></i> Extraer URLs (1080p / 720p / 420p)
@@ -1892,6 +1898,7 @@ function clearVideoFields(){
   englishExtractRequestId++;
   altExtractRequestId++;
   mmhdLoadAudioAlt(null);
+  $('primaryLanguage').value='Latino';
   for (const id of ["googleUrl", "m37", "m22", "m18", "googleUrlEn", "m37En", "m22En", "m18En", "subtitlesUrl", "subtitlesUrlEn"]) $(id).value = "";
   mmhdClearSubtitleFields();
   resetQualityChecks();
@@ -1914,14 +1921,19 @@ function validateSubtitlesUrl(){
   }
 }
 
+function mmhdSelectedMainLanguage(){return $('primaryLanguage').value==='Inglés'?'Inglés':'Latino';}
+function mmhdHasVideoConfigured(item){
+  return !!(item&&(item.m37||item.m22||item.m18||item.m37En||item.m22En||item.m18En||
+    item.audioAlt?.m37||item.audioAlt?.m22||item.audioAlt?.m18));
+}
 function validateVideoLinks(){
   let available = 0;
-  let availableLatino = 0;
+  let availablePrimary = 0;
   for (const [id, quality] of [["m37","m37"],["m22","m22"],["m18","m18"],["m37En","m37"],["m22En","m22"],["m18En","m18"]]){
     const value = $(id).value.trim();
     if (!value) continue;
     available++;
-    if (!id.endsWith("En")) availableLatino++;
+    if (!id.endsWith("En")) availablePrimary++;
     let url;
     try { url = new URL(value); } catch { throw Error(`La URL de ${quality} no es válida.`); }
     if (url.protocol !== "https:" || !/(^|\.)googleusercontent\.com$/i.test(url.hostname) || url.username || url.password || (url.port && url.port !== "443")) {
@@ -1941,7 +1953,10 @@ function validateVideoLinks(){
         throw Error('La URL del video '+alt.language+' debe ser HTTPS de Google Photos y terminar en ='+quality+'.');
     }
   }
-  if (!availableLatino) throw Error("Agrega al menos una calidad del video principal (Latino). Los videos alternativos son opcionales.");
+  if (!available && !(alt&& (alt.m37||alt.m22||alt.m18)))
+    throw Error("Agrega por lo menos un video con alguna calidad, ya sea principal, Inglés o alternativo.");
+  if(availablePrimary && mmhdSelectedMainLanguage()==='Inglés' && ['m37En','m22En','m18En'].some(id=>$(id).value.trim()))
+    throw Error('Elegiste Inglés como idioma principal; no configures otro video Inglés en el campo alternativo.');
   validateSubtitlesUrl();
 }
 
@@ -2312,10 +2327,9 @@ async function enrichSavedMovies(){
 
 /* Fase 6: series con estructura TMDB por temporada y episodios independientes. */
 function seriesEpisodeCount(item, linkedOnly=false){
-  return (Array.isArray(item?.seasons)?item.seasons:[]).reduce((sum,season)=>sum+(season.episodes||[]).filter(e=>!linkedOnly||(e.m37||e.m22||e.m18)).length,0);
+  return (Array.isArray(item?.seasons)?item.seasons:[]).reduce((sum,season)=>sum+(season.episodes||[]).filter(e=>!linkedOnly||mmhdHasVideoConfigured(e)).length,0);
 }
-// Fase 10: los episodios aún no importados se cuentan por separado de los enlaces pendientes.
-function hasAdminVideo(ep){return !!(String(ep?.m37||"").trim()||String(ep?.m22||"").trim()||String(ep?.m18||"").trim());}
+function hasAdminVideo(ep){return mmhdHasVideoConfigured(ep);}
 function adminSeriesReport(item){
   const summaries=Array.isArray(item?.seasonSummaries)?item.seasonSummaries:[];
   const loaded=Array.isArray(item?.seasons)?item.seasons:[];
@@ -2390,13 +2404,15 @@ function activeAdminEpisode(){
 }
 function storeAdminEpisodeFields(){
   const ep=activeAdminEpisode();if(!ep)return;
-  const previousLinks=["m37","m22","m18"].map(id=>String(ep[id]||""));
+  const previousLinks=["m37","m22","m18","m37En","m22En","m18En"].map(id=>String(ep[id]||""));
   for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl"])ep[id]=$(id).value.trim();
   ep.audioAlt=mmhdAudioAltFromFields();
+  const seriesDefault=state.movie?.seriesDefaultLanguage==='Inglés'?'Inglés':'Latino';
+  ep.primaryLanguage=mmhdSelectedMainLanguage()===seriesDefault?'':mmhdSelectedMainLanguage();
   ep.subtitleTracks=mmhdPanelSubtitleTracks();
-  const playable=["m37","m22","m18"].some(id=>Boolean(ep[id]));
+  const playable=mmhdHasVideoConfigured(ep);
   if(playable&&!ep.addedAt)ep.addedAt=new Date().toISOString();
-  if(playable&&["m37","m22","m18"].some((id,i)=>String(ep[id]||"")!==previousLinks[i]))ep.updatedAt=new Date().toISOString();
+  if(playable&&["m37","m22","m18","m37En","m22En","m18En"].some((id,i)=>String(ep[id]||"")!==previousLinks[i]))ep.updatedAt=new Date().toISOString();
   if(!$('episodeDetailsEditor').hidden){
     ep.name=$('episodeEditName').value.trim() || `Episodio ${ep.number}`;
     ep.overview=$('episodeEditOverview').value.trim();
@@ -2458,6 +2474,7 @@ function chooseAdminEpisode(number){
   state.selectedEpisode={season,episode:number};
   clearVideoFields();
   for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl"])$(id).value=ep[id]||"";
+  $('primaryLanguage').value=ep.primaryLanguage||state.movie.seriesDefaultLanguage||'Latino';
   mmhdLoadSubtitleFields(ep);
   mmhdLoadAudioAlt(ep);
   resetQualityChecks("Enlaces del episodio: pulsa «Verificar reproducción» para comprobarlos.");
@@ -2568,7 +2585,8 @@ async function loadSeries(tmdbId){
       overview:info.overview||"",vote_average:Number(info.vote_average)||0,tagline:info.tagline||"",
       logo:chooseTmdbLogo(images),cast:creditsResult.status==="fulfilled"?castFromTmdb(creditsResult.value):[],
       mediaSynced:imagesResult.status==="fulfilled"&&creditsResult.status==="fulfilled",
-      seasonSummaries:(info.seasons||[]).filter(season=>season.season_number>=1).map(season=>({number:season.season_number,name:season.name,episode_count:season.episode_count})),
+      seriesDefaultLanguage:'Latino',
+    seasonSummaries:(info.seasons||[]).filter(season=>season.season_number>=1).map(season=>({number:season.season_number,name:season.name,episode_count:season.episode_count})),
       seasons:[]};
     state.poster=poster;state.backdrop=backdrop;state.genres=(info.genres||[]).map(g=>g.name).join(", ");
     state.cert=cert;state.tagline=info.tagline||"";
@@ -2593,6 +2611,7 @@ function editSavedSeries(item){
     providersCheckedAtMx:item.providersCheckedAtMx||"",
     overview:item.overview||"",vote_average:Number(item.rating)||0,tagline:item.subtitle||"",
     logo:item.logo||"",cast:item.cast||[],mediaSynced:item.mediaSynced===true,
+    seriesDefaultLanguage:item.seriesDefaultLanguage==='Inglés'?'Inglés':'Latino',
     seasonSummaries:Array.isArray(item.seasonSummaries)?structuredClone(item.seasonSummaries):(item.seasons||[]).map(s=>({number:s.number,name:s.name,episode_count:(s.episodes||[]).length})),
     seasons:structuredClone(item.seasons||[])};
   state.poster=item.poster||"";state.backdrop=item.backdrop||"";
@@ -2607,10 +2626,11 @@ function editSavedSeries(item){
   $("movieCard").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function saveSeriesToCollection(){
+  if(state.movie?.kind==='SERIES')state.movie.seriesDefaultLanguage=$('seriesDefaultLanguage').value;
   storeAdminEpisodeFields();
   const m=state.movie;if(!m || m.kind!=="SERIES")return;
   const active=activeAdminEpisode();
-  if(active && (active.m37||active.m22||active.m18)){
+  if(active && mmhdHasVideoConfigured(active)){
     try{validateVideoLinks();}catch(err){showStatus("Episodio actual: "+err.message,"err");return;}
   }
   const old=state.collection.find(x=>String(x.id)===String(m.id));
@@ -2623,6 +2643,7 @@ function saveSeriesToCollection(){
     searchTitles:m.searchTitlesSynced===true&&Array.isArray(m.searchTitles)?m.searchTitles:(old?.searchTitles||m.searchTitles||[]),
     searchTitlesSynced:m.searchTitlesSynced===true||old?.searchTitlesSynced===true,
     manualSearchTitles:cleanManualSearchTitles($("manualSearchTitles").value),
+    seriesDefaultLanguage:m.seriesDefaultLanguage==='Inglés'?'Inglés':'Latino',
     seasonSummaries:structuredClone(m.seasonSummaries||[]),seasons:structuredClone(m.seasons||[]),
     watchProvidersMx:Array.isArray(m.watchProvidersMx)?m.watchProvidersMx:old?.watchProvidersMx||[],
     providerOverridesMx:mmhdProviderOverrides(m.providerOverridesMx||old?.providerOverridesMx),
@@ -2759,7 +2780,9 @@ function renderSelectedMovie(){
   $("posterPreview").alt = movie.title || "Portada";
   $("overview").textContent = movie.overview || "Sin sinopsis disponible.";
   $("movieRuntime").textContent = movie.runtime ? movie.runtime + " min" : "—";
-  $("movieLanguage").textContent = "Español Latino";
+  const configuredLanguage=movie.kind==='SERIES'?movie.seriesDefaultLanguage:
+    (!movie.m37&&!movie.m22&&!movie.m18&&(movie.m37En||movie.m22En||movie.m18En)?'Inglés':movie.primaryLanguage);
+  $("movieLanguage").textContent = configuredLanguage==='Inglés'?'Inglés':'Español Latino';
   $("movieYear").textContent = movie.release_date ? String(movie.release_date).slice(0,4) : "—";
   $("movieRating").textContent = Number.isFinite(Number(movie.vote_average)) ? Number(movie.vote_average).toFixed(1) : "—";
   $("movieGenres").textContent = state.genres || "—";
@@ -2767,6 +2790,7 @@ function renderSelectedMovie(){
   const isSeries=movie.kind==="SERIES";
   arrangeEpisodeWorkspace(isSeries);
   $("seriesPanel").hidden=!isSeries;
+  if(isSeries)$('seriesDefaultLanguage').value=movie.seriesDefaultLanguage==='Inglés'?'Inglés':'Latino';
   $("linksHeading").textContent=isSeries?"Enlaces del episodio seleccionado":"URL del vídeo";
   $("generateCard").style.display="";
   $("individualExportTitle").textContent=isSeries?"Exportar episodio":"Exportar película";
@@ -2809,6 +2833,7 @@ function editSavedMovie(id){
   for (const id of ["m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl"]) $(id).value=item[id]||"";
   mmhdLoadSubtitleFields(item);
   mmhdLoadAudioAlt(item);
+  $('primaryLanguage').value=item.primaryLanguage==='Inglés'?'Inglés':'Latino';
   resetQualityChecks("Enlaces guardados: pulsa «Verificar reproducción» para comprobarlos.");
   $("artworkStatus").textContent="Puedes cambiar las imágenes sin modificar los enlaces guardados.";
   renderSelectedMovie();
@@ -3379,6 +3404,7 @@ function addMovieToCollection(){
     updatedAt: new Date().toISOString(),
     m37, m22, m18,
     audioAlt:mmhdAudioAltFromFields(),
+    primaryLanguage:mmhdSelectedMainLanguage(),
     googleUrlEn:$("googleUrlEn").value.trim(),
     m37En:$("m37En").value.trim(),m22En:$("m22En").value.trim(),m18En:$("m18En").value.trim(),
     subtitlesUrl:$("subtitlesUrl").value.trim(),
@@ -3422,7 +3448,7 @@ function renderCollection(options={}){
   const sort=$("collectionSort").value;
   let items=state.collection.filter(m=>{
     const match=(`${m.title||""} ${m.year||""} ${m.genres||""}`).toLocaleLowerCase("es").includes(query);
-    const linked=m.kind==="SERIES"?seriesEpisodeCount(m,true)>0:Boolean(m.m37||m.m22||m.m18);
+    const linked=m.kind==="SERIES"?seriesEpisodeCount(m,true)>0:mmhdHasVideoConfigured(m);
     const typeOk=filter==="movies"?m.kind!=="SERIES":filter==="series"?m.kind==="SERIES":true;
     return match && typeOk && (["complete","incomplete"].includes(filter)?(filter==="complete"?linked:!linked):true);
   });
@@ -3438,7 +3464,7 @@ function renderCollection(options={}){
   list.innerHTML=items.map(item=>`
     <div class="collection-item ${state.editingId!==null && String(state.editingId)===String(item.id) ? "active" : ""}">
       <img src="${escHtml(item.poster||"")}" alt="${escHtml(item.title)}" loading="lazy" onerror="this.style.visibility='hidden'">
-      <div><b>${escHtml(item.title)}</b><span>${escHtml(item.year||"Sin año")}${item.kind==="SERIES"?` · Serie · ${seriesEpisodeCount(item,true)}/${seriesEpisodeCount(item)} episodios con enlace`:(item.m37||item.m22||item.m18?" · Video configurado":" · Sin video")}${item.featured===true ? " · ★ Destacada" : ""}</span></div>
+      <div><b>${escHtml(item.title)}</b><span>${escHtml(item.year||"Sin año")}${item.kind==="SERIES"?` · Serie · ${seriesEpisodeCount(item,true)}/${seriesEpisodeCount(item)} episodios con enlace`:(mmhdHasVideoConfigured(item)?" · Video configurado":" · Sin video")}${item.featured===true ? " · ★ Destacada" : ""}</span></div>
       <div class="collection-actions">
         <button type="button" class="collection-featured ${item.featured===true?"is-featured":""}" title="${item.featured===true?"Quitar de":"Agregar a"} destacados" aria-label="${item.featured===true?"Quitar de":"Agregar a"} destacados: ${escHtml(item.title)}" aria-pressed="${item.featured===true}" data-featured-toggle="${escHtml(item.id)}"><i class="fa-${item.featured===true?"solid":"regular"} fa-star"></i></button>
         <button type="button" class="collection-edit" title="Editar película" data-edit-id="${escHtml(item.id)}"><i class="fa-solid fa-pen"></i></button>
@@ -3667,7 +3693,12 @@ async function generateMoviePage(){
     const htmlContent=value=>String(value??"")
       .replace(/&/g,"&amp;").replace(/</g,"&lt;")
       .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-    const downloadSource=(m37||m22||m18).replace(/=m\d+$/,"=dv");
+    const EnglishMain=mmhdSelectedMainLanguage()==='Inglés';
+    const mainEn37=EnglishMain?m37:$('m37En').value.trim();
+    const mainEn22=EnglishMain?m22:$('m22En').value.trim();
+    const mainEn18=EnglishMain?m18:$('m18En').value.trim();
+    const downloadable=m37||m22||m18||mainEn37||mainEn22||mainEn18||$('m37Alt').value.trim()||$('m22Alt').value.trim()||$('m18Alt').value.trim();
+    const downloadSource=downloadable.replace(/=m\d+$/,"=dv");
     const reps={
       "__MOVIE_TITLE__":htmlContent(title),
       "__MOVIE_TITLE_JSON__":jsonContent(title),
@@ -3678,12 +3709,12 @@ async function generateMoviePage(){
       "__BACKDROP_URL__":jsonContent(backdrop),
       "__TMDB_ID__":jsonContent(tmdbId),
       "__MMHD_PREFERRED_QUALITY__":jsonContent(mmhdBestQuality(isSeries?"SERIES":"MOVIE",movie.id,seasonNumber,episodeNumber,{m37,m22,m18})),
-      "__M37_URL__":jsonContent(m37),
-      "__M22_URL__":jsonContent(m22),
-      "__M18_URL__":jsonContent(m18),
-      "__M37_EN_URL__":jsonContent($("m37En").value.trim()),
-      "__M22_EN_URL__":jsonContent($("m22En").value.trim()),
-      "__M18_EN_URL__":jsonContent($("m18En").value.trim()),
+      "__M37_URL__":jsonContent(EnglishMain?'':m37),
+      "__M22_URL__":jsonContent(EnglishMain?'':m22),
+      "__M18_URL__":jsonContent(EnglishMain?'':m18),
+      "__M37_EN_URL__":jsonContent(mainEn37),
+      "__M22_EN_URL__":jsonContent(mainEn22),
+      "__M18_EN_URL__":jsonContent(mainEn18),
       "__AUDIO_ALT_LANGUAGE__":jsonContent($("audioAltLanguage").value),
       "__M37_ALT_URL__":jsonContent($("m37Alt").value.trim()),
       "__M22_ALT_URL__":jsonContent($("m22Alt").value.trim()),
@@ -3818,6 +3849,7 @@ async function buildCollectionHtml(){
           still:String(e.still||""),runtime:Number(e.runtime)||0,
           m37:String(e.m37||""),m22:String(e.m22||""),m18:String(e.m18||""),
           m37En:String(e.m37En||""),m22En:String(e.m22En||""),m18En:String(e.m18En||""),
+          primaryLanguage:e.primaryLanguage==='Inglés'||e.primaryLanguage==='Latino'?e.primaryLanguage:(item.seriesDefaultLanguage==='Inglés'?'Inglés':'Latino'),
           audioAlt:mmhdNormalizedAudioAlt(e.audioAlt),
           subtitlesUrl:String(e.subtitlesUrl||""),
           subtitleTracks:mmhdNormalizeSubtitleTracks(e.subtitleTracks,e.subtitlesUrl),
@@ -3830,6 +3862,8 @@ async function buildCollectionHtml(){
       m37: String(item.m37 || ""),
       m22: String(item.m22 || ""),
       m18: String(item.m18 || ""),
+      primaryLanguage:item.primaryLanguage==='Inglés'?'Inglés':'Latino',
+      seriesDefaultLanguage:item.seriesDefaultLanguage==='Inglés'?'Inglés':'Latino',
       m37En: String(item.m37En || ""),
       m22En: String(item.m22En || ""),
       m18En: String(item.m18En || ""),
@@ -3906,6 +3940,12 @@ function changeSearchKind(kind){
 }
 $("kindMovie").addEventListener("click",()=>changeSearchKind("movie"));
 $("kindSeries").addEventListener("click",()=>changeSearchKind("tv"));
+$('seriesDefaultLanguage').addEventListener('change',()=>{
+  if(state.movie?.kind!=='SERIES')return;
+  storeAdminEpisodeFields();
+  state.movie.seriesDefaultLanguage=$('seriesDefaultLanguage').value;
+  if(state.selectedEpisode){const ep=activeAdminEpisode();$('primaryLanguage').value=ep?.primaryLanguage||state.movie.seriesDefaultLanguage;}
+});
 $("seriesSeason").addEventListener("change",()=>loadSeriesSeason(Number($("seriesSeason").value)));
 $("btnNextPending").addEventListener("click",goNextPendingAdmin);
 $("btnLoadAllSeasons").addEventListener("click",reviewAllAdminSeasons);
@@ -4274,7 +4314,7 @@ async function mmhdPrepareRestore(file){
    Mantiene la biblioteca local, añade títulos nuevos y actualiza títulos
    existentes con prioridad del respaldo para URLs, metadatos clave y
    diagnósticos. No borra episodios ausentes del archivo. */
-const MMHD_BACKUP_LINK_FIELDS=['googleUrl','m37','m22','m18','googleUrlEn','m37En','m22En','m18En','audioAlt','subtitlesUrl','subtitleTracks'];
+const MMHD_BACKUP_LINK_FIELDS=['primaryLanguage','seriesDefaultLanguage','googleUrl','m37','m22','m18','googleUrlEn','m37En','m22En','m18En','audioAlt','subtitlesUrl','subtitleTracks'];
 const MMHD_BACKUP_META_FIELDS=[
   'title','searchTitles','manualSearchTitles','subtitle','year','runtime',
   'poster','backdrop','logo','cast','rating','genres','cert','overview',
