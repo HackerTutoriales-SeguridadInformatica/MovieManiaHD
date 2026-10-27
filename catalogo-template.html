@@ -2802,7 +2802,9 @@ const playbackLanguages = loadObj(LS_PLAYBACK_LANGUAGE);
 function mmhdAudioVariants(movie){
   if(!movie)return [];
   // La tarjeta de una serie resume idiomas presentes en los episodios.
-  if(movie.kind==='SERIES' && Array.isArray(movie.seasons)){
+  // Un episodio reproducible conserva kind='SERIES' y seasons por herencia.
+  // No resumir toda la serie cuando Chromecast necesita las fuentes del capítulo.
+  if(movie.kind==='SERIES' && movie.parentSeriesId==null && Array.isArray(movie.seasons)){
     const langs=new Map();
     for(const season of movie.seasons||[])for(const ep of season.episodes||[]){
       const episode={...ep,primaryLanguage:ep.primaryLanguage||movie.seriesDefaultLanguage||'Latino'};
@@ -3640,97 +3642,153 @@ function mmhdMakeSubtitleScript(subtitleTracks,legacyUrl){
 
 
 
-/* Protección del reproductor FWDEV durante saltos de tiempo.
-   La recuperación antigua cambiaba video.src directamente ante un error
-   transitorio de Google Photos. Esto desincronizaba el controlador de FWDEV,
-   especialmente al usar la barra para adelantar o retroceder.
-   Sustituimos exclusivamente esa recuperación por un aviso pasivo;
-   ningún evento automático modifica src, idioma, calidad, tiempo ni play(). */
-function mmhdProtectSeekQuality(html){
-  const oldRecovery=/<script>\s*\/\* Fase 11\.5\.5: recuperación solo ante error real; la espera lenta NO cambia la calidad\. \*\/[\s\S]*?<\/script>(?=\s*<style>\s*\/\* Bilingüe:)/;
-  const passiveRecovery=`<script>
-/* MMHD: recuperación pasiva para preservar la línea de tiempo y los controles FWDEV.
-   No cambia la URL del video en error / seeking / waiting / stalled. */
-(function(){
+/* Recuperación controlada: NO sustituir video.src ante fallos de Google Photos.
+   Se presenta un botón de reintento que solicita reconstruir todo FWDEV al catálogo. */
+function mmhdSafePlayerRecovery(movieId){
   'use strict';
-  var currentVideo=null, notice=null, errorTimer=0, checkTimer=null, lastError=0;
-  var status={source:'',lastError:'',position:0};
-  function label(){
-    var options=window.MMHD_QUALITY_OPTIONS||[];
-    var src=currentVideo && (currentVideo.getAttribute('src')||currentVideo.currentSrc||'');
-    var item=options.find(function(o){return o && o.source===src;});
-    return item && item.label || '';
+  var video=null,stableTime=0,lastTime=0,bufferSince=0,stallReported=false;
+  var container=null,notice=null,tick=null;
+  var pendingError=0,errorPending=false,sequence=0;
+  var SLOW_MS=60000; // Google Photos puede tardar 40-50s sin estar averiado.
+  function remoteActive(v){
+    try{return !!(v && v.remote && ['connecting','connected'].includes(v.remote.state));}
+    catch(_){return false;}
+  }
+  function sourceInfo(){
+    var v=video, src=v&&(v.getAttribute('src')||v.currentSrc||'')||'';
+    var items=window.MMHD_QUALITY_OPTIONS||[];
+    var current=items.find(function(o){return o&&o.source===src;});
+    var status=null;
+    try{status=window.MMHD_BILINGUAL_QUALITY&&window.MMHD_BILINGUAL_QUALITY.state();}catch(_){}
+    var first=window.MMHD_LANGUAGE_MENU&&window.MMHD_LANGUAGE_MENU[0];
+    return {language:current&&current.language||status&&status.language||first&&first.language||'Latino',
+      quality:current&&current.quality||status&&status.quality||(src.match(/=(m37|m22|m18)(?:$|[?#&])/i)||[])[1]||'m37'};
   }
   function hide(){
     if(notice)notice.hidden=true;
-    clearTimeout(errorTimer);
+    clearTimeout(pendingError);pendingError=0;errorPending=false;
   }
-  function show(message){
-    if(!document.body)return;
+  function message(kind){
+    try{window.parent.postMessage({type:'mmhd-player-health',id:String(movieId),kind:kind,
+      position:stableTime},'*');}catch(_){}
+  }
+  function fullContainer(){
+    var fs=document.fullscreenElement||document.webkitFullscreenElement;
+    return fs && fs.tagName!=='VIDEO' ? fs : document.body;
+  }
+  function ensureNotice(){
+    if(!document.body)return null;
     if(!notice){
-      notice=document.createElement('div');
-      notice.id='mmhd-safe-seek-error';
-      notice.setAttribute('role','status');
-      notice.style.cssText='position:fixed;left:50%;bottom:65px;transform:translateX(-50%);'
-        +'z-index:2147482600;max-width:min(90vw,550px);padding:10px 14px;'
-        +'border:1px solid #64748b;border-radius:9px;background:#142037ed;'
-        +'color:#fff;box-shadow:0 7px 22px #000a;text-align:center;'
-        +'font:600 12px/1.5 Arial,sans-serif;pointer-events:none';
-      document.body.appendChild(notice);
+      notice=document.createElement('div');notice.id='mmhd-safe-retry';notice.hidden=true;
+      notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');
+      notice.style.cssText='position:fixed;bottom:68px;left:50%;transform:translateX(-50%);'
+        +'width:max-content;max-width:min(94vw,480px);box-sizing:border-box;'
+        +'z-index:2147483600;background:rgba(13,23,42,.97);color:#fff;'
+        +'border:1px solid #7796c6;box-shadow:0 9px 28px #000c;'
+        +'border-radius:11px;padding:13px;font:600 12px/1.5 Arial;text-align:center;';
     }
-    notice.textContent=message;
-    notice.hidden=false;
+    var dest=fullContainer();
+    if(notice.parentNode!==dest)dest.appendChild(notice);
+    return notice;
+  }
+  function show(reason){
+    if(!video||video.ended||remoteActive(video))return;
+    var root=ensureNotice();if(!root)return;
+    root.replaceChildren();
+    var text=document.createElement('p');text.style.cssText='margin:0 0 10px';
+    text.textContent=reason==='error'?'El video no pudo continuar. Puedes reintentarlo sin cambiar de idioma ni calidad.'
+      :'El video lleva más de un minuto cargando. Puedes esperar o reintentarlo.';
+    var retry=document.createElement('button');retry.type='button';retry.textContent='↻ Reintentar reproducción';
+    retry.style.cssText='padding:9px 11px;border:0;border-radius:7px;background:#2e63ad;color:white;'
+      +'font:bold 12px Arial;cursor:pointer;margin:2px 4px';
+    retry.onclick=function(){
+      if(retry.disabled)return;
+      retry.disabled=true;
+      retry.textContent='Preparando reproducción…';
+      var info=sourceInfo();
+      try{window.parent.postMessage({type:'mmhd-safe-retry',id:String(movieId),
+        language:info.language,quality:info.quality,position:stableTime},'*');}catch(_){}
+    };
+    var wait=document.createElement('button');wait.type='button';wait.textContent='Seguir esperando';
+    wait.style.cssText='padding:9px 11px;border:1px solid #697d9c;border-radius:7px;'
+      +'background:transparent;color:white;font:bold 12px Arial;cursor:pointer;margin:2px 4px';
+    wait.onclick=function(){hide();bufferSince=Date.now();stallReported=false;};
+    root.append(text,retry,wait);root.hidden=false;
+    message(reason);
   }
   function onError(){
-    var v=currentVideo;
-    if(!v || !v.error || (v.remote && v.remote.state && v.remote.state!=='disconnected'))return;
-    clearTimeout(errorTimer);
-    var code=v.error.code;
-    lastError=Date.now();
-    status.lastError='MediaError '+code;
-    // No se intenta ninguna otra calidad automáticamente. Un fallo temporal
-    // durante un seek debe permanecer bajo el control de FWDEVPlayer.
-    errorTimer=setTimeout(function(){
-      if(currentVideo!==v || !v.error)return;
-      var q=label();
-      show('No se pudo cargar el video'+(q?' ('+q+')':'')
-        +'. Puedes seleccionar otra calidad manualmente o reabrir la película.');
-    },1100);
+    if(errorPending)return;
+    errorPending=true;
+    var current=video,serial=++sequence;
+    clearTimeout(pendingError);
+    pendingError=setTimeout(function(){
+      pendingError=0;
+      if(current!==video||serial!==sequence||!current.error||remoteActive(current)){
+        errorPending=false;return;
+      }
+      show('error');
+    },1000);
   }
+  function onBuffer(){
+    if(!video||video.ended||video.paused||remoteActive(video))return;
+    if(!bufferSince)bufferSince=Date.now();
+  }
+  function onPlaying(){
+    bufferSince=0;stallReported=false;sequence++;
+    hide();message('playing');
+  }
+  function onTimeupdate(){
+    if(!video||!Number.isFinite(video.currentTime))return;
+    lastTime=video.currentTime;
+    if(!video.seeking&&video.readyState>=2&&video.currentTime>0){stableTime=video.currentTime;}
+    if(video.readyState>=3 && !video.seeking){bufferSince=0;stallReported=false;hide();}
+  }
+  function onSeeking(){bufferSince=0;stallReported=false;sequence++;hide();}
+  function onSeeked(){if(video && !video.paused && video.readyState<3)bufferSince=Date.now();}
+  function onPause(){bufferSince=0;stallReported=false;}
+  function onLoaded(){bufferSince=0;stallReported=false;sequence++;hide();}
   function attach(){
-    var v=document.querySelector('#myDiv video')||document.querySelector('video');
-    if(!v || v===currentVideo)return;
-    hide();currentVideo=v;
-    v.addEventListener('error',onError);
-    v.addEventListener('loadstart',hide);
-    v.addEventListener('playing',hide);
-    v.addEventListener('seeking',hide);
-    v.addEventListener('timeupdate',function(){
-      if(currentVideo===v && Number.isFinite(v.currentTime))status.position=v.currentTime;
-    });
-    if(v.error)onError();
+    var candidate=document.querySelector('#myDiv video')||document.querySelector('video');
+    if(!candidate||candidate===video)return;
+    video=candidate;bufferSince=0;stallReported=false;sequence++;hide();
+    video.addEventListener('error',onError);
+    video.addEventListener('waiting',onBuffer);
+    video.addEventListener('stalled',onBuffer);
+    video.addEventListener('playing',onPlaying);
+    video.addEventListener('timeupdate',onTimeupdate);
+    video.addEventListener('seeking',onSeeking);
+    video.addEventListener('seeked',onSeeked);
+    video.addEventListener('pause',onPause);
+    video.addEventListener('loadstart',onLoaded);
+    video.addEventListener('ended',hide);
+    if(video.error)onError();
   }
-  window.MMHD_QUALITY_RECOVERY={status:function(){return {
-    active:label(),failed:status.lastError?[status.lastError]:[],position:status.position,
-    automaticSwitching:false
-  };}};
-  attach();checkTimer=setInterval(attach,750);
-  window.addEventListener('pagehide',function(){
-    clearInterval(checkTimer);clearTimeout(errorTimer);
-  },{once:true});
-})();
-<\/script>`;
-  // El panel antiguo y el corregido conservan el mismo bloque FWDEV codificado.
-  // Si cambia la estructura en otra versión, devolvemos html intacto para no
-  // eliminar accidentalmente un fragmento distinto del reproductor.
+  document.addEventListener('fullscreenchange',ensureNotice);
+  document.addEventListener('webkitfullscreenchange',ensureNotice);
+  window.MMHD_QUALITY_RECOVERY={status:function(){return {position:stableTime,
+    automaticSwitching:false,hasMediaError:!!(video&&video.error)};}};
+  tick=setInterval(function(){
+    attach();
+    if(!video||!video.isConnected||video.ended||video.paused||video.seeking||
+       remoteActive(video)||document.hidden)return;
+    if(video.error){if(!errorPending)onError();return;}
+    if(!bufferSince && video.readyState<3)bufferSince=Date.now();
+    if(bufferSince&&!stallReported&&Date.now()-bufferSince>=SLOW_MS){stallReported=true;show('stall');}
+  },1000);
+  attach();
+  window.addEventListener('pagehide',function(){clearInterval(tick);clearTimeout(pendingError);},{once:true});
+}
+function mmhdProtectSeekQuality(html,movieId){
+  const oldRecovery=/<script>\s*\/\* Fase 11\.5\.5: recuperación solo ante error real; la espera lenta NO cambia la calidad\. \*\/[\s\S]*?<\/script>(?=\s*<style>\s*\/\* Bilingüe:)/;
   if(!oldRecovery.test(html)){
-    console.warn('[MMHD] No se encontró el bloque de recuperación; no se alteró el reproductor.');
+    console.warn('[MMHD] No se encontró el bloque antiguo. No se aplicó recuperación duplicada.');
     return html;
   }
-  return html.replace(oldRecovery,function(){return passiveRecovery;});
+  const safeRecovery='<script>('+mmhdSafePlayerRecovery.toString()+')('+JSON.stringify(String(movieId))+');</'+'script>';
+  return html.replace(oldRecovery,function(){return safeRecovery;});
 }
 
-function getPlayerHtml(movie, autoNext=false){
+function getPlayerHtml(movie, autoNext=false, retryPreference=null){
   if (!movie || !SHARED_PLAYER_B64) return "";
   // Decodificar la plantilla solo al abrir un título, no 358 veces al cargar.
   const cleanUrl = u => String(u ?? "").replace(/[\u0000-\u001F\u007F-\u009F\u00A0\u2000-\u200F\u2028\u2029\u202F\u205F\u3000\uFEFF\s]/g, "");
@@ -3770,7 +3828,7 @@ function getPlayerHtml(movie, autoNext=false){
   };
   let html=b64ToUtf8(SHARED_PLAYER_B64);
   for(const [marker,value] of Object.entries(reps))html=html.split(marker).join(value);
-  html=mmhdProtectSeekQuality(html);
+  html=mmhdProtectSeekQuality(html,movie.id);
   // Calidad e idioma se controlan desde nuestros botones superiores.
   // Ocultar la tuerca nativa FWDEV incluso cuando solo hay audio Latino.
   html=html.replace(/showQualityButton\s*:\s*["']yes["']/i,'showQualityButton:"no"');
@@ -3792,6 +3850,27 @@ function getPlayerHtml(movie, autoNext=false){
     // de la inicialización del reproductor. Nunca se cambia panel.html.
     html=html.replace(/<script\s+type=["']text\/javascript["']>\s*FWDEVPUtils\.onReady\(/i,
       match=>preferenceScript+match);
+  }
+  // Solo durante un reintento solicitado por el usuario. Elegir la misma
+  // pista ANTES de crear FWDEV; nunca cambiar directamente video.src en un error.
+  if(retryPreference && typeof retryPreference==='object'){
+    const wantedLanguage=String(retryPreference.language||'');
+    const wantedQuality=String(retryPreference.quality||'');
+    if(mmhdAudioVariants(movie).some(v=>v.language===wantedLanguage) && /^(m37|m22|m18)$/.test(wantedQuality)){
+      const injected='<script>(function(){'
+        +'var lang='+JSON.stringify(wantedLanguage)+';var q='+JSON.stringify(wantedQuality)+';'
+        +'var opts=window.MMHD_QUALITY_OPTIONS||[];var menu=window.MMHD_LANGUAGE_MENU||[];'
+        +'var desired=opts.find(function(o){return o.language===lang&&new RegExp("="+q+"(?:$|[?#&])","i").test(o.source);});'
+        +'if(!desired)desired=opts.find(function(o){return o.language===lang;});'
+        +'if(!desired)return;'
+        +'if(menu.length){var i=menu.findIndex(function(m){return m.language===lang;});'
+        +'if(i>=0){var entry=menu.splice(i,1)[0];entry.source=desired.source;menu.unshift(entry);}}'
+        +'else{var j=opts.findIndex(function(o){return o.source===desired.source;});'
+        +'if(j>0)opts.unshift(opts.splice(j,1)[0]);}'
+        +'})();</'+'script>\n';
+      html=html.replace(/<script\s+type=["']text\/javascript["']>\s*FWDEVPUtils\.onReady\(/i,
+        match=>injected+match);
+    }
   }
   // Solo para el paso automático entre capítulos: el reproductor FWDEV
   // normalmente inicia en pausa; el siguiente episodio intenta iniciar al abrirse.
@@ -6634,6 +6713,8 @@ let activePlayerMovie=null;
 let parentNextDismissed=false;
 let iframeEpisodeFullscreen=false;
 let lastEpisodeProgress=null;
+let mmhdActiveSubtitleLanguage='off';
+let mmhdPendingSubtitleAfterRetry=null;
 function hidePlayerNextBanner(){
   const el=$("playerNextBanner");
   if(el)el.hidden=true;
@@ -6687,6 +6768,39 @@ $("playerNextGo").addEventListener("click",()=>{
   if(!activePlayerMovie || parentNextDismissed)return;
   advanceEpisode(activePlayerMovie,true);
 });
+let mmhdLastManualRetry=0;
+function mmhdRetryPlayer(movie,language,quality,seconds){
+  const modal=$('playerModal');
+  const frame=$('playerFrame');
+  if(!movie||!frame||!modal.classList.contains('show')||
+     !activePlayerMovie||Number(activePlayerMovie.id)!==Number(movie.id))return;
+  // Limita clics duplicados. No hay reintentos automáticos.
+  if(Date.now()-mmhdLastManualRetry<1800)return;
+  mmhdLastManualRetry=Date.now();
+  const existing=Number(progressSeconds[movie.id])||0;
+  const safeSeconds=Number.isFinite(seconds)&&seconds>0 ? seconds : existing;
+  const checkpoint=Math.max(0,safeSeconds);
+  progressSeconds[movie.id]=checkpoint;
+  saveObj(LS_PROGRESS_SECONDS,progressSeconds);
+  mmhdPendingSubtitleAfterRetry={id:String(movie.id),language:mmhdActiveSubtitleLanguage};
+  if(mmhdAudioVariants(movie).some(v=>v.language===language)){
+    rememberPlaybackLanguage(movie,language);
+  }
+  let newHtml;
+  try{newHtml=getPlayerHtml(movie,false,{language:language,quality:quality});}
+  catch(err){console.warn('[MMHD] No se pudo reconstruir el reproductor',err);return;}
+  if(!newHtml)return;
+  const old=frame.dataset.blobUrl;
+  const blobUrl=URL.createObjectURL(new Blob([newHtml],{type:'text/html;charset=utf-8'}));
+  // Reconstruir FWDEV completo en lugar de mutar el <video> interno.
+  iframeEpisodeFullscreen=false;
+  hidePlayerNextBanner();
+  frame.dataset.blobUrl=blobUrl;
+  frame.src=blobUrl;
+  if(old)setTimeout(()=>URL.revokeObjectURL(old),2000);
+  // Reanudar desde el minuto guardado puede requerir pulsar Play, por políticas
+  // del navegador. La posición se restablecerá con mmhd-request-restore.
+}
 function openPlayer(movie,autoNext=false){
   if (!movie) return;
 
@@ -6712,6 +6826,8 @@ function openPlayer(movie,autoNext=false){
   const url = URL.createObjectURL(blob);
 
   activePlayerMovie=movie;
+  mmhdActiveSubtitleLanguage='off';
+  mmhdPendingSubtitleAfterRetry=null;
   parentNextDismissed=false;
   iframeEpisodeFullscreen=false;
   lastEpisodeProgress=null;
@@ -6748,6 +6864,7 @@ function closePlayer(){
   lastEpisodeProgress=null;
   parentNextDismissed=false;
   activePlayerMovie=null; // Cerrar manualmente nunca lanza el siguiente capítulo.
+  mmhdPendingSubtitleAfterRetry=null;
   const frame = $("playerFrame");
   const url = frame.dataset.blobUrl;
   frame.src = "about:blank";
@@ -7188,6 +7305,17 @@ window.addEventListener("message", (e) => {
       || !$('playerModal').classList.contains('show')) return;
   const parentId=activePlayerMovie.parentSeriesId??null;
 
+  if(data.type==='mmhd-safe-retry'){
+    const seconds=Number(data.position);
+    mmhdRetryPlayer(activePlayerMovie,String(data.language||''),String(data.quality||''),
+      Number.isFinite(seconds)?seconds:0);
+    return;
+  }
+  if(data.type==='mmhd-player-health'){
+    // Diagnóstico informativo; no modificar tiempo, fuente ni sesión multimedia.
+    return;
+  }
+
   if (data.type === "mmhd-request-restore") {
     frame.contentWindow.postMessage({
       type: "mmhd-restore", id: movieId,
@@ -7346,6 +7474,14 @@ syncBackToTop();
     }).slice(0,12):[];
     selected=String(data.selected||'off');
     draw(available);
+    if(mmhdPendingSubtitleAfterRetry&&activePlayerMovie&&
+       mmhdPendingSubtitleAfterRetry.id===String(activePlayerMovie.id)){
+      var desired=mmhdPendingSubtitleAfterRetry.language;
+      if(desired==='off'||available.some(function(t){return t.language===desired;})){
+        mmhdPendingSubtitleAfterRetry=null;
+        setTimeout(function(){try{frame.contentWindow.postMessage({type:'mmhd-subtitle-set',language:desired},'*');}catch(_){}},80);
+      }
+    }else{mmhdActiveSubtitleLanguage=selected;}
     try{frame.contentWindow.postMessage({type:'mmhd-subtitle-parent-ui'},'*');}catch(_){}
   });
   trigger.addEventListener('click',function(){
