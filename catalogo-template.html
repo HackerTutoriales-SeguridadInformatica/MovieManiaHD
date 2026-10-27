@@ -370,8 +370,27 @@ a{color:inherit;text-decoration:none}
 }
 .card:hover .card-poster img{transform:scale(1.05)}
 
+.mmhd-language-badges{
+  position:absolute;top:8px;right:8px;z-index:4;
+  display:flex;flex-direction:row-reverse;align-items:center;
+  pointer-events:none;
+}
+.mmhd-language-badge{
+  width:24px;height:24px;border-radius:50%;
+  display:grid;place-items:center;overflow:hidden;
+  background:rgba(10,14,24,.92);
+  border:2px solid rgba(255,255,255,.92);
+  box-shadow:0 4px 10px rgba(0,0,0,.35);
+  margin-left:-6px;
+  font-size:13px;line-height:1;
+}
+.mmhd-language-badge:first-child{margin-left:0}
+.mmhd-language-badge.mmhd-language-badge-text{
+  color:#fff;font-weight:800;font-size:10px;letter-spacing:.2px;
+}
+
 .card-rating{
-  position:absolute;top:8px;right:8px;
+  position:absolute;top:8px;left:8px;
   background:rgba(0,0,0,.75);backdrop-filter:blur(6px);
   padding:4px 8px;border-radius:6px;
   font-size:11px;font-weight:800;
@@ -1286,10 +1305,13 @@ a{color:inherit;text-decoration:none}
     font-size: 8px;
     padding: 2px 4px;
     top: 4px;
-    right: 4px;
+    left: 4px;
     gap: 2px;
     border-radius: 4px;
   }
+  .mmhd-language-badges{top:4px;right:4px}
+  .mmhd-language-badge{width:19px;height:19px;font-size:10px;margin-left:-5px}
+  .mmhd-language-badge.mmhd-language-badge-text{font-size:8px}
   .card-rating i{ font-size: 7px; }
   .card-play span{
     width: 30px;
@@ -1467,6 +1489,8 @@ a{color:inherit;text-decoration:none}
   .card-body{ padding: 5px 5px 6px; }
   .card-rating{ font-size: 7px; padding: 1px 3px; }
   .card-rating i{ font-size: 6px; }
+  .mmhd-language-badge{width:17px;height:17px;font-size:9px;margin-left:-4px}
+  .mmhd-language-badge.mmhd-language-badge-text{font-size:7px}
 }
 
 /* ============================================
@@ -2245,7 +2269,7 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 }
 .mmhd-home-caption small{color:#6f7484;font-size:11px;font-weight:500;margin-top:4px}
 .mmhd-home-rating{
-  position:absolute;z-index:2;top:8px;right:8px;
+  position:absolute;z-index:2;top:8px;left:8px;
   display:flex;align-items:center;gap:4px;
   padding:4px 8px;border-radius:6px;
   background:rgba(0,0,0,.75);backdrop-filter:blur(6px);
@@ -2253,6 +2277,7 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   color:#fff;font-size:11px;font-weight:800;white-space:nowrap;
 }
 .mmhd-home-rating i{color:var(--orange);font-size:10px}
+.mmhd-home-poster .mmhd-language-badges{top:8px;right:8px}
 .mmhd-home-episode-card{flex-basis:226px}
 .mmhd-home-episode-card .mmhd-home-poster{aspect-ratio:16/9}
 .mmhd-home-see-more{
@@ -2268,7 +2293,8 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   .mmhd-home-caption{padding:6px 6px 8px}
   .mmhd-home-caption strong{font-size:10px;line-height:1.2;min-height:26px}
   .mmhd-home-caption small{font-size:9px;margin-top:2px}
-  .mmhd-home-rating{top:4px;right:4px;padding:2px 4px;gap:2px;border-radius:4px;font-size:8px}
+  .mmhd-home-rating{top:4px;left:4px;padding:2px 4px;gap:2px;border-radius:4px;font-size:8px}
+  .mmhd-home-poster .mmhd-language-badges{top:4px;right:4px}
   .mmhd-home-rating i{font-size:7px}
   .mmhd-home-episode-card{flex:0 0 191px;border-radius:9px}
   .mmhd-home-episode-card .mmhd-home-caption strong{font-size:11px}
@@ -2780,6 +2806,51 @@ function mmhdAudioVariants(movie){
   if(a&&typeof a==='object'&&a.language&&a.language!=='Latino'&&a.language!=='Inglés')
     entries.push({language:a.language,m37:a.m37,m22:a.m22,m18:a.m18});
   return entries.filter(e=>Boolean(e.m37||e.m22||e.m18));
+}
+function mmhdLanguageBadgeMeta(language){
+  const normalized=String(language||"").normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  const map={
+    'latino':{flag:'🇲🇽',short:'LA'},
+    'ingles':{flag:'🇺🇸',short:'EN'},
+    'english':{flag:'🇺🇸',short:'EN'},
+    'coreano':{flag:'🇰🇷',short:'KO'},
+    'koreano':{flag:'🇰🇷',short:'KO'},
+    'japones':{flag:'🇯🇵',short:'JA'},
+    'frances':{flag:'🇫🇷',short:'FR'},
+    'portugues brasil':{flag:'🇧🇷',short:'PT'},
+    'portugues':{flag:'🇵🇹',short:'PT'},
+    'aleman':{flag:'🇩🇪',short:'DE'},
+    'italiano':{flag:'🇮🇹',short:'IT'},
+    'hindi':{flag:'🇮🇳',short:'HI'},
+    'mandarin':{flag:'🇨🇳',short:'ZH'},
+    'chino':{flag:'🇨🇳',short:'ZH'},
+    'tailandes':{flag:'🇹🇭',short:'TH'},
+    'turco':{flag:'🇹🇷',short:'TR'},
+    'ruso':{flag:'🇷🇺',short:'RU'},
+    'arabe':{flag:'🇸🇦',short:'AR'},
+    'espanol':{flag:'🇪🇸',short:'ES'},
+    'espanol latino':{flag:'🇲🇽',short:'LA'}
+  };
+  return map[normalized]||{flag:'',short:String(language||'?').trim().slice(0,2).toUpperCase()||'?'};
+}
+function mmhdLanguageBadgesHTML(movie,extraClass=''){
+  const variants=mmhdAudioVariants(movie);
+  if(!variants.length)return '';
+  const seen=new Set();
+  const badges=variants.map(v=>String(v.language||'').trim()).filter(Boolean).filter(language=>{
+    const key=language.toLowerCase();
+    if(seen.has(key))return false;
+    seen.add(key);
+    return true;
+  }).map(language=>{
+    const meta=mmhdLanguageBadgeMeta(language);
+    const content=meta.flag
+      ? `<span class="mmhd-language-badge" title="${esc(language)}" aria-label="${esc(language)}">${meta.flag}</span>`
+      : `<span class="mmhd-language-badge mmhd-language-badge-text" title="${esc(language)}" aria-label="${esc(language)}">${esc(meta.short)}</span>`;
+    return content;
+  }).join('');
+  const languages=variants.map(v=>String(v.language||'').trim()).filter(Boolean).filter((language,index,array)=>array.findIndex(item=>item.toLowerCase()===language.toLowerCase())===index);
+  return badges?`<div class="mmhd-language-badges ${extraClass}" aria-label="Idiomas: ${esc(languages.join(', '))}">${badges}</div>`:'';
 }
 function rememberPlaybackLanguage(movie,language){
   if(!movie || !mmhdAudioVariants(movie).some(v=>v.language===language))return;
@@ -3896,6 +3967,7 @@ function mmhdSearchCardHTML(m){
              alt="${esc(m.title)}"
              loading="lazy" decoding="async"
              data-fallback-title="${esc(m.title)}">
+        ${mmhdLanguageBadgesHTML(m)}
         ${m.rating > 0 ? `
           <div class="card-rating">
             <i class="fa-solid fa-star"></i> ${m.rating.toFixed(1)}
@@ -4754,6 +4826,7 @@ function cardHTML(m){
              loading="lazy"
              decoding="async"
              data-fallback-title="${esc(m.title)}">
+        ${mmhdLanguageBadgesHTML(m)}
         ${m.rating > 0 ? `
           <div class="card-rating">
             <i class="fa-solid fa-star"></i> ${m.rating.toFixed(1)}
@@ -5036,10 +5109,12 @@ function mmhdHomeCard(item){
     : String(m.year||"—");
   const logo=isEpisode?getMovieLogo(m):"";
   const rating=Number(m.rating);
+  const mediaSource=isEpisode?{m37:episode.episode.m37||'',m22:episode.episode.m22||'',m18:episode.episode.m18||'',m37En:episode.episode.m37En||'',m22En:episode.episode.m22En||'',m18En:episode.episode.m18En||'',audioAlt:episode.episode.audioAlt||null}:m;
   return `<button type="button" class="mmhd-home-card ${isEpisode?"mmhd-home-episode-card":""}" data-mmhd-row-id="${esc(m.id)}" ${isEpisode?`data-mmhd-row-season="${episode.season}" data-mmhd-row-episode="${episode.episode.number}"`:""}
     aria-label="${esc(m.title)} ${esc(name)}">
      <span class="mmhd-home-poster">
        <img loading="lazy" decoding="async" alt="${esc(m.title)}" src="${esc(isEpisode?backdropOptimized(img,true):img)}" data-fallback-title="${esc(m.title)}">
+       ${mmhdLanguageBadgesHTML(mediaSource)}
        ${isEpisode?`<span class="mmhd-episode-brand" aria-hidden="true">
          ${heroLogoAvailable(logo)?`<img class="mmhd-episode-series-logo" src="${esc(logo)}" alt="" loading="eager" decoding="async">`:""}
          <span class="mmhd-episode-series-name">${esc(m.title)}</span>
