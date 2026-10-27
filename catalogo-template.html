@@ -2772,9 +2772,17 @@ const watched = loadSet(LS_WATCHED);
 const progress = loadObj(LS_PROGRESS);
 const progressSeconds = loadObj(LS_PROGRESS_SECONDS);
 const playbackLanguages = loadObj(LS_PLAYBACK_LANGUAGE);
+function mmhdAudioVariants(movie){
+  if(!movie)return [];
+  const entries=[{language:'Latino',m37:movie.m37,m22:movie.m22,m18:movie.m18},
+    {language:'Inglés',m37:movie.m37En,m22:movie.m22En,m18:movie.m18En}];
+  const a=movie.audioAlt;
+  if(a&&typeof a==='object'&&a.language&&a.language!=='Latino'&&a.language!=='Inglés')
+    entries.push({language:a.language,m37:a.m37,m22:a.m22,m18:a.m18});
+  return entries.filter(e=>Boolean(e.m37||e.m22||e.m18));
+}
 function rememberPlaybackLanguage(movie,language){
-  if(!movie || ![movie.m37En,movie.m22En,movie.m18En].some(Boolean))return;
-  if(language!=="Latino" && language!=="Inglés")return;
+  if(!movie || !mmhdAudioVariants(movie).some(v=>v.language===language))return;
   const key=String(movie.id);
   if(playbackLanguages[key]===language)return;
   playbackLanguages[key]=language;
@@ -3340,7 +3348,7 @@ function mmhdSubtitleLoader(){
 function mmhdFullscreenLanguageControls(){
   'use strict';
   var sources=Array.isArray(window.MMHD_QUALITY_OPTIONS)?window.MMHD_QUALITY_OPTIONS:[];
-  var available=['Latino','Inglés'].filter(function(lang){return sources.some(function(s){return s.language===lang;});});
+  var available=Array.from(new Set(sources.map(function(s){return s.language;}).filter(Boolean)));
   if(available.length<2)return;
   var root=document.createElement('div');root.id='mmhdFullscreenLanguage';
   root.style.cssText='position:fixed;top:20px;right:14px;z-index:2147482501;color:white;font:600 12px Arial,sans-serif;text-align:right';
@@ -3652,6 +3660,10 @@ function getPlayerHtml(movie, autoNext=false){
     "__M37_EN_URL__":jsValue(cleanUrl(movie.m37En)),
     "__M22_EN_URL__":jsValue(cleanUrl(movie.m22En)),
     "__M18_EN_URL__":jsValue(cleanUrl(movie.m18En)),
+    "__AUDIO_ALT_LANGUAGE__":jsValue(movie.audioAlt?.language||"Coreano"),
+    "__M37_ALT_URL__":jsValue(cleanUrl(movie.audioAlt?.m37)),
+    "__M22_ALT_URL__":jsValue(cleanUrl(movie.audioAlt?.m22)),
+    "__M18_ALT_URL__":jsValue(cleanUrl(movie.audioAlt?.m18)),
     "__DOWNLOAD_URL__":jsValue(downloadSource.replace(/=m\d+$/, "=dv")),
     "__DV_URL__":jsValue(downloadSource.replace(/=m\d+$/, "=dv"))
   };
@@ -3667,11 +3679,12 @@ function getPlayerHtml(movie, autoNext=false){
   // Restaurar el idioma ANTES de que FWDEVPlayer cree el video.
   // Si fue Inglés, se coloca primero su fuente de mayor calidad (1080p si existe).
   // De esta forma, el seek del progreso se efectúa en el video correcto.
-  if(playbackLanguages[String(movie.id)]==="Inglés" && [movie.m37En,movie.m22En,movie.m18En].some(Boolean)){
+  const savedLanguage=playbackLanguages[String(movie.id)];
+  if(savedLanguage && savedLanguage!=='Latino' && mmhdAudioVariants(movie).some(v=>v.language===savedLanguage)){
     const preferenceScript='<script>(function(){'
       +'var menu=window.MMHD_LANGUAGE_MENU;'
       +'if(!window.MMHD_HAS_ENGLISH || !Array.isArray(menu))return;'
-      +'var i=menu.findIndex(function(option){return option.language==="Inglés";});'
+      +'var i=menu.findIndex(function(option){return option.language==="'+jsValue(savedLanguage)+'";});'
       +'if(i>0)menu.unshift(menu.splice(i,1)[0]);'
       +'})()</'+'script>\n';
     // El script del menú ya está calculado; insertamos la preferencia justo antes
@@ -5557,18 +5570,13 @@ function castSelectSubtitleLanguage(){
    para que CastContext.requestSession conserve la activación requerida por el navegador. */
 let mmhdCastPendingMovie = null;
 let mmhdCastLanguagePreviousFocus = null;
-function mmhdCastAvailableSource(movie, language){
-  if(!movie)return '';
-  const english=language==='Inglés';
-  return String((english ? (movie.m37En||movie.m22En||movie.m18En)
-    : (movie.m37||movie.m22||movie.m18)) || '').trim();
+function mmhdCastAvailableSource(movie,language){
+  const entry=mmhdAudioVariants(movie).find(v=>v.language===language);
+  return String(entry&&(entry.m37||entry.m22||entry.m18)||'').trim();
 }
 function mmhdCastBestResolution(movie,language){
-  if(!movie)return '';
-  const english=language==='Inglés';
-  return (english?movie.m37En:movie.m37)?'1080p':
-    ((english?movie.m22En:movie.m22)?'720p':
-    ((english?movie.m18En:movie.m18)?'420p':''));
+  const entry=mmhdAudioVariants(movie).find(v=>v.language===language);
+  return entry?.m37?'1080p':(entry?.m22?'720p':(entry?.m18?'420p':''));
 }
 function mmhdCastDismissLanguageDialog(){
   const dialog=document.getElementById('mmhdCastLanguageDialog');
@@ -5579,49 +5587,41 @@ function mmhdCastDismissLanguageDialog(){
   try{if(oldFocus&&oldFocus.isConnected)oldFocus.focus();}catch(_){}
 }
 function mmhdCastChooseLanguage(movie){
-  const dialog=document.getElementById('mmhdCastLanguageDialog');
-  if(!dialog)return;
-  const latino=mmhdCastAvailableSource(movie,'Latino');
-  const english=mmhdCastAvailableSource(movie,'Inglés');
-  if(!english||!latino){void handleCast(movie,english?'Inglés':'Latino');return;}
-  mmhdCastPendingMovie=movie;
-  mmhdCastLanguagePreviousFocus=document.activeElement;
-  const title=document.getElementById('mmhdCastLanguageHeading');
-  title.textContent='Transmitir a la TV';
+  const dialog=document.getElementById('mmhdCastLanguageDialog');if(!dialog)return;
+  const variants=mmhdAudioVariants(movie);
+  if(variants.length<2){void handleCast(movie,variants[0]?.language||'Latino');return;}
+  mmhdCastPendingMovie=movie;mmhdCastLanguagePreviousFocus=document.activeElement;
   document.getElementById('mmhdCastLanguageDescription').textContent=
-    (movie.title||'Película')+' · Elige el idioma del video. Los subtítulos se controlan independientemente.';
-  document.getElementById('mmhdCastLatinoResolution').textContent=mmhdCastBestResolution(movie,'Latino');
-  document.getElementById('mmhdCastEnglishResolution').textContent=mmhdCastBestResolution(movie,'Inglés');
-  const preferred=(playbackLanguages[String(movie.id)]==='Inglés')?'Inglés':'Latino';
-  const latinoButton=document.getElementById('mmhdCastLanguageLatino');
-  const englishButton=document.getElementById('mmhdCastLanguageEnglish');
-  latinoButton.dataset.preferred=String(preferred==='Latino');
-  englishButton.dataset.preferred=String(preferred==='Inglés');
+    (movie.title||'Película')+' · Elige el idioma del video. Los subtítulos son independientes.';
+  const buttons=dialog.querySelector('.mmhd-cast-language-buttons');buttons.replaceChildren();
+  const saved=playbackLanguages[String(movie.id)];
+  variants.forEach(variant=>{
+    const button=document.createElement('button');button.type='button';
+    button.dataset.castLanguage=variant.language;button.dataset.preferred=String(saved===variant.language);
+    button.appendChild(document.createTextNode(variant.language));
+    const small=document.createElement('small');small.textContent=mmhdCastBestResolution(movie,variant.language);button.appendChild(small);
+    button.addEventListener('click',()=>mmhdCastLanguageSelected(variant.language));
+    buttons.appendChild(button);
+  });
   dialog.hidden=false;
-  (preferred==='Inglés'?englishButton:latinoButton).focus();
+  (buttons.querySelector('[data-preferred="true"]')||buttons.querySelector('button'))?.focus();
 }
 function mmhdCastLanguageSelected(language){
-  const movie=mmhdCastPendingMovie;
-  if(!movie || !mmhdCastAvailableSource(movie,language))return;
-  mmhdCastDismissLanguageDialog();
-  // Invocar directamente desde el click para preservar el gesto de usuario de Cast.
-  void handleCast(movie,language);
+  const movie=mmhdCastPendingMovie;if(!movie||!mmhdCastAvailableSource(movie,language))return;
+  mmhdCastDismissLanguageDialog();void handleCast(movie,language);
 }
 (function mmhdCastLanguageEvents(){
-  const dialog=document.getElementById('mmhdCastLanguageDialog');
-  if(!dialog)return;
-  document.getElementById('mmhdCastLanguageLatino').addEventListener('click',()=>mmhdCastLanguageSelected('Latino'));
-  document.getElementById('mmhdCastLanguageEnglish').addEventListener('click',()=>mmhdCastLanguageSelected('Inglés'));
+  const dialog=document.getElementById('mmhdCastLanguageDialog');if(!dialog)return;
   document.getElementById('mmhdCastLanguageCancel').addEventListener('click',mmhdCastDismissLanguageDialog);
   dialog.addEventListener('click',event=>{if(event.target===dialog)mmhdCastDismissLanguageDialog();});
   document.addEventListener('keydown',event=>{
     if(dialog.hidden)return;
     if(event.key==='Escape'){event.preventDefault();mmhdCastDismissLanguageDialog();return;}
     if(event.key==='Tab'){
-      const list=[document.getElementById('mmhdCastLanguageLatino'),document.getElementById('mmhdCastLanguageEnglish'),document.getElementById('mmhdCastLanguageCancel')];
+      const list=[...dialog.querySelectorAll('.mmhd-cast-language-buttons button'),document.getElementById('mmhdCastLanguageCancel')];
       const pos=list.indexOf(document.activeElement);
-      if(event.shiftKey && pos<=0){event.preventDefault();list[list.length-1].focus();}
-      else if(!event.shiftKey && pos===list.length-1){event.preventDefault();list[0].focus();}
+      if(event.shiftKey&&pos<=0){event.preventDefault();list[list.length-1].focus();}
+      else if(!event.shiftKey&&pos===list.length-1){event.preventDefault();list[0].focus();}
     }
   });
 })();
@@ -5629,16 +5629,11 @@ function mmhdCastLanguageSelected(language){
 async function handleCast(movie, requestedLanguage) {
   if (!movie) return;
   if (!castReady) { castMessage('Google Cast todavía no está disponible. Abre la web desde Chrome por HTTP o HTTPS.'); return; }
-  const hasEnglish=Boolean(mmhdCastAvailableSource(movie,'Inglés'));
-  const hasLatino=Boolean(mmhdCastAvailableSource(movie,'Latino'));
-  // Solo preguntar cuando ambas versiones existen; las películas de un idioma
-  // siguen enviándose con un único click, igual que antes.
-  if(hasEnglish && hasLatino && requestedLanguage!=='Latino' && requestedLanguage!=='Inglés'){
-    mmhdCastChooseLanguage(movie);
-    return;
+  const variants=mmhdAudioVariants(movie);
+  if(variants.length>1 && !variants.some(v=>v.language===requestedLanguage)){
+    mmhdCastChooseLanguage(movie);return;
   }
-  const castAudioLanguage=requestedLanguage==='Inglés' && hasEnglish ? 'Inglés' :
-    (hasLatino?'Latino':'Inglés');
+  const castAudioLanguage=variants.some(v=>v.language===requestedLanguage)?requestedLanguage:(variants[0]?.language||'Latino');
   castCommandClear();
   castResumeRecovery = null;
   castRecoveryLoading = false;
@@ -5661,7 +5656,7 @@ async function handleCast(movie, requestedLanguage) {
     const info = new chrome.cast.media.MediaInfo(url, 'video/mp4');
     info.streamType = chrome.cast.media.StreamType.BUFFERED;
     info.metadata = new chrome.cast.media.GenericMediaMetadata();
-    info.metadata.title = (movie.title || 'Movie Mania HD') + (hasEnglish && hasLatino ? ' · ' + castAudioLanguage : '');
+    info.metadata.title = (movie.title || 'Movie Mania HD') + (variants.length>1 ? ' · ' + castAudioLanguage : '');
     if (movie.poster) info.metadata.images = [new chrome.cast.Image(movie.poster)];
     castSubtitleNotice = '';
     if (mmhdNormalizeSubtitleTracks(movie.subtitleTracks,movie.subtitlesUrl).length) {
@@ -6069,6 +6064,7 @@ function playableForSeries(series,season,episode){
     backdrop:episodeBackdrop||series.backdrop||series.poster||"",
     m37:episode.m37||"",m22:episode.m22||"",m18:episode.m18||"",
     m37En:episode.m37En||"",m22En:episode.m22En||"",m18En:episode.m18En||"",
+    audioAlt:episode.audioAlt||null,
     subtitlesUrl:episode.subtitlesUrl||"",
     subtitleTracks:episode.subtitleTracks||[],
     preferredQuality:episode.preferredQuality||""};
@@ -7271,11 +7267,11 @@ syncBackToTop();
   function reset(){close();box.hidden=true;menu.replaceChildren();current='Latino';}
   function draw(){
     var m=typeof activePlayerMovie!=='undefined'?activePlayerMovie:null;
-    var hasEnglish=Boolean(m && [m.m37En,m.m22En,m.m18En].some(Boolean));
-    box.hidden=!hasEnglish;
+    var options=mmhdAudioVariants(m).map(function(v){return v.language;});
+    box.hidden=options.length<2;
     menu.replaceChildren();
-    if(!hasEnglish)return;
-    ['Latino','Inglés'].forEach(function(lang){
+    if(options.length<2)return;
+    options.forEach(function(lang){
       var item=document.createElement('button');item.type='button';item.textContent=lang;
       item.setAttribute('role','menuitemradio');item.setAttribute('aria-checked',String(current===lang));
       item.addEventListener('click',function(){
@@ -7289,7 +7285,7 @@ syncBackToTop();
   window.addEventListener('message',function(event){
     if(event.source!==frame.contentWindow || !event.data || event.data.type!=='mmhd-bilingual-quality-state')return;
     if(!document.getElementById('playerModal')?.classList.contains('show'))return;
-    if(event.data.language==='Latino'||event.data.language==='Inglés')current=event.data.language;
+    if(typeof event.data.language==='string')current=event.data.language;
     draw();
   });
   button.addEventListener('click',function(){if(box.hidden)return;menu.hidden=!menu.hidden;
