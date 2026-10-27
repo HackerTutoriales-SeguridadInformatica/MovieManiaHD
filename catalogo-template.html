@@ -2801,8 +2801,22 @@ const progressSeconds = loadObj(LS_PROGRESS_SECONDS);
 const playbackLanguages = loadObj(LS_PLAYBACK_LANGUAGE);
 function mmhdAudioVariants(movie){
   if(!movie)return [];
-  const entries=[{language:'Latino',m37:movie.m37,m22:movie.m22,m18:movie.m18},
-    {language:'Inglés',m37:movie.m37En,m22:movie.m22En,m18:movie.m18En}];
+  // La tarjeta de una serie resume idiomas presentes en los episodios.
+  if(movie.kind==='SERIES' && Array.isArray(movie.seasons)){
+    const langs=new Map();
+    for(const season of movie.seasons||[])for(const ep of season.episodes||[]){
+      const episode={...ep,primaryLanguage:ep.primaryLanguage||movie.seriesDefaultLanguage||'Latino'};
+      for(const track of mmhdAudioVariants(episode))if(!langs.has(track.language))langs.set(track.language,track);
+    }
+    if(!langs.size && movie.seriesDefaultLanguage)
+      return [{language:movie.seriesDefaultLanguage,m37:'',m22:'',m18:''}];
+    return [...langs.values()];
+  }
+  const firstLanguage=movie.primaryLanguage==='Inglés'?'Inglés':'Latino';
+  const main={language:firstLanguage,m37:movie.m37,m22:movie.m22,m18:movie.m18};
+  const en={language:'Inglés',m37:movie.m37En,m22:movie.m22En,m18:movie.m18En};
+  const entries=[main];
+  if(firstLanguage!=='Inglés'||!(main.m37||main.m22||main.m18))entries.push(en);
   const a=movie.audioAlt;
   if(a&&typeof a==='object'&&a.language&&a.language!=='Latino'&&a.language!=='Inglés')
     entries.push({language:a.language,m37:a.m37,m22:a.m22,m18:a.m18});
@@ -3725,8 +3739,11 @@ function getPlayerHtml(movie, autoNext=false){
     .replace(/</g,"\\u003c");
   const htmlValue = v => String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;")
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-  const m37=cleanUrl(movie.m37), m22=cleanUrl(movie.m22), m18=cleanUrl(movie.m18);
-  const downloadSource = m37 || m22 || m18;
+  const mainM37=cleanUrl(movie.m37),mainM22=cleanUrl(movie.m22),mainM18=cleanUrl(movie.m18);
+  const englishMain=movie.primaryLanguage==='Inglés';
+  const m37=englishMain?'':mainM37,m22=englishMain?'':mainM22,m18=englishMain?'':mainM18;
+  const en37=englishMain?mainM37:cleanUrl(movie.m37En),en22=englishMain?mainM22:cleanUrl(movie.m22En),en18=englishMain?mainM18:cleanUrl(movie.m18En);
+  const downloadSource = mainM37||mainM22||mainM18||en37||en22||en18||cleanUrl(movie.audioAlt?.m37)||cleanUrl(movie.audioAlt?.m22)||cleanUrl(movie.audioAlt?.m18);
   const reps = {
     "__MOVIE_TITLE__":htmlValue(movie.title),
     "__MOVIE_TITLE_JSON__":jsValue(movie.title),
@@ -3740,9 +3757,9 @@ function getPlayerHtml(movie, autoNext=false){
     "__M37_URL__":jsValue(m37),
     "__M22_URL__":jsValue(m22),
     "__M18_URL__":jsValue(m18),
-    "__M37_EN_URL__":jsValue(cleanUrl(movie.m37En)),
-    "__M22_EN_URL__":jsValue(cleanUrl(movie.m22En)),
-    "__M18_EN_URL__":jsValue(cleanUrl(movie.m18En)),
+    "__M37_EN_URL__":jsValue(en37),
+    "__M22_EN_URL__":jsValue(en22),
+    "__M18_EN_URL__":jsValue(en18),
     "__AUDIO_ALT_LANGUAGE__":jsValue(movie.audioAlt?.language||"Coreano"),
     "__M37_ALT_URL__":jsValue(cleanUrl(movie.audioAlt?.m37)),
     "__M22_ALT_URL__":jsValue(cleanUrl(movie.audioAlt?.m22)),
@@ -5121,7 +5138,7 @@ function mmhdHomeCard(item){
     : String(m.year||"—");
   const logo=isEpisode?getMovieLogo(m):"";
   const rating=Number(m.rating);
-  const mediaSource=isEpisode?{m37:episode.episode.m37||'',m22:episode.episode.m22||'',m18:episode.episode.m18||'',m37En:episode.episode.m37En||'',m22En:episode.episode.m22En||'',m18En:episode.episode.m18En||'',audioAlt:episode.episode.audioAlt||null}:m;
+  const mediaSource=isEpisode?{m37:episode.episode.m37||'',m22:episode.episode.m22||'',m18:episode.episode.m18||'',m37En:episode.episode.m37En||'',m22En:episode.episode.m22En||'',m18En:episode.episode.m18En||'',audioAlt:episode.episode.audioAlt||null,primaryLanguage:episode.episode.primaryLanguage||m.seriesDefaultLanguage||'Latino'}:m;
   return `<button type="button" class="mmhd-home-card ${isEpisode?"mmhd-home-episode-card":""}" data-mmhd-row-id="${esc(m.id)}" ${isEpisode?`data-mmhd-row-season="${episode.season}" data-mmhd-row-episode="${episode.episode.number}"`:""}
     aria-label="${esc(m.title)} ${esc(name)}">
      <span class="mmhd-home-poster">
@@ -6150,6 +6167,7 @@ function playableForSeries(series,season,episode){
     overview:episode.overview||series.overview,runtime:episode.runtime?episode.runtime+" min":series.runtime,
     backdrop:episodeBackdrop||series.backdrop||series.poster||"",
     m37:episode.m37||"",m22:episode.m22||"",m18:episode.m18||"",
+    primaryLanguage:episode.primaryLanguage||series.seriesDefaultLanguage||'Latino',
     m37En:episode.m37En||"",m22En:episode.m22En||"",m18En:episode.m18En||"",
     audioAlt:episode.audioAlt||null,
     subtitlesUrl:episode.subtitlesUrl||"",
@@ -6157,7 +6175,7 @@ function playableForSeries(series,season,episode){
     preferredQuality:episode.preferredQuality||""};
 }
 function isPlayableEpisode(ep){
-  return Boolean(ep&&(ep.m37||ep.m22||ep.m18));
+  return Boolean(ep&&mmhdAudioVariants(ep).length);
 }
 function findSeriesEpisode(series,seasonNumber,episodeNumber){
   const season=series?.seasons?.find(s=>Number(s.number)===Number(seasonNumber));
@@ -6496,7 +6514,7 @@ async function showDownloadBox(movieOverride){
   const m = isMedia ? movieOverride : selectedPlayable();
   if (!m || activeDownload) return;
   hideBrowserVerification();
-  const sourceUrl = [m.m37,m.m22,m.m18].map(url=>String(url||"").trim()).find(Boolean) || "";
+  const sourceUrl = mmhdAudioVariants(m).flatMap(v=>[v.m37,v.m22,v.m18]).map(url=>String(url||"").trim()).find(Boolean) || "";
   if (!sourceUrl){ alert("Esta película o episodio no tiene URLs configuradas."); return; }
   mmhdTrackAnalytics('mmhd_download_request', {
     content_id: String(m.parentSeriesId ?? m.id),
@@ -6671,7 +6689,7 @@ $("playerNextGo").addEventListener("click",()=>{
 function openPlayer(movie,autoNext=false){
   if (!movie) return;
 
-  if (!movie.m37 && !movie.m22 && !movie.m18){
+  if (!mmhdAudioVariants(movie).length){
     alert("Esta película aún no tiene URLs de video configuradas.");
     return;
   }
