@@ -1120,7 +1120,14 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-platform-bulk-status{color:#b7d4ff;font-size:11px;line-height:1.6}
 @media(max-width:670px){.mmhd-platform-choices{grid-template-columns:1fr}.mmhd-platform-heading{align-items:flex-start}.mmhd-platform-panel{padding:12px}}
 
-/* Movie Mania HD V3 · Google Analytics 4 en tiempo real */
+/* Movie Mania HD V3 · Google Analytics 4 tiempo real e histórico */
+.mmhd-ga-period{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 16px}
+.mmhd-ga-period button{background:#142238;border:1px solid #29415d;color:#aac1da;padding:10px 13px}
+.mmhd-ga-period button.active{background:#3a1b30;border-color:#fa476f;color:#fff}
+.mmhd-ga-daily{display:flex;gap:3px;align-items:end;min-height:154px}
+.mmhd-ga-daily .mmhd-ga-minute{background:linear-gradient(0deg,#ff315e,#ff8199)}
+.mmhd-ga-chart-caption{color:#91a9c2;font-size:11px;margin:8px 0 0}
+
 .mmhd-ga-panel{margin-bottom:14px}
 .mmhd-ga-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .mmhd-ga-config label{margin:0}
@@ -1157,7 +1164,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div class="rail-label">ESPACIO DE TRABAJO</div>
 <nav aria-label="Navegación principal" class="rail-nav">
 <button aria-current="page" class="rail-link active" data-view="overview" type="button"><i class="fa-solid fa-chart-pie"></i><span>Resumen</span></button>
-<button class="rail-link" data-view="analytics" type="button"><i class="fa-solid fa-chart-line"></i><span>Tráfico en vivo</span></button>
+<button class="rail-link" data-view="analytics" type="button"><i class="fa-solid fa-chart-line"></i><span>Estadísticas</span></button>
 <button class="rail-link" data-view="library" type="button"><i class="fa-solid fa-layer-group"></i><span>Mi biblioteca</span></button>
 <button class="rail-link" data-view="editor" type="button"><i class="fa-solid fa-square-plus"></i><span>Agregar / editar</span></button>
 <button class="rail-link" data-view="pending" type="button"><i class="fa-solid fa-list-check"></i><span>Pendientes</span></button>
@@ -1210,8 +1217,8 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </section>
 <section aria-labelledby="mmhd-analytics-title" class="admin-view" data-page="analytics" hidden id="view-analytics">
   <div class="page-heading"><div><div class="eyebrow">ESTADÍSTICAS DE TU WEB</div>
-    <h2 id="mmhd-analytics-title">Tráfico en tiempo real</h2>
-    <p>Datos de los últimos 30 minutos de Google Analytics 4. Actualización automática cada 60 segundos mientras ves esta sección.</p>
+    <h2 id="mmhd-analytics-title">Estadísticas de Google Analytics</h2>
+    <p>Consulta el tráfico en vivo o el historial de los últimos 7, 30 y 90 días. Actualización automática cada 60 segundos mientras estés en esta sección.</p>
   </div></div>
   <section class="panel mmhd-ga-panel">
     <div class="panel-title"><span class="icon"><i class="fa-solid fa-shield-halved"></i></span> Conexión privada con Google Analytics</div>
@@ -1231,19 +1238,25 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
     </div>
     <div id="mmhdGaStatus" role="status" aria-live="polite" class="mmhd-ga-status">Configura la propiedad y el ID de cliente OAuth; luego inicia sesión con tu cuenta autorizada.</div>
   </section>
-  <div class="mmhd-ga-stats" aria-label="Cifras en tiempo real">
-    <div class="panel mmhd-ga-stat"><small>Usuarios activos · 30 min</small><strong id="mmhdGaActive30">—</strong></div>
-    <div class="panel mmhd-ga-stat"><small>Usuarios activos · 5 min</small><strong id="mmhdGaActive5">—</strong></div>
-    <div class="panel mmhd-ga-stat"><small>Reproducciones solicitadas · 30 min</small><strong id="mmhdGaPlays">—</strong></div>
-    <div class="panel mmhd-ga-stat"><small>Descargas solicitadas · 30 min</small><strong id="mmhdGaDownloads">—</strong></div>
+  <div class="mmhd-ga-period" aria-label="Periodo de estadísticas" id="mmhdGaPeriod">
+    <button type="button" data-period="live">30 minutos</button>
+    <button type="button" data-period="7">7 días</button>
+    <button type="button" data-period="30" class="active" aria-pressed="true">30 días</button>
+    <button type="button" data-period="90">90 días</button>
+  </div>
+  <div class="mmhd-ga-stats" aria-label="Resumen del periodo">
+    <div class="panel mmhd-ga-stat"><small id="mmhdGaLabelUsers">Usuarios activos · 30 días</small><strong id="mmhdGaActive30">—</strong></div>
+    <div class="panel mmhd-ga-stat"><small id="mmhdGaLabelSecondary">Sesiones · 30 días</small><strong id="mmhdGaActive5">—</strong></div>
+    <div class="panel mmhd-ga-stat"><small id="mmhdGaLabelPlays">Reproducciones solicitadas · 30 días</small><strong id="mmhdGaPlays">—</strong></div>
+    <div class="panel mmhd-ga-stat"><small id="mmhdGaLabelDownloads">Descargas solicitadas · 30 días</small><strong id="mmhdGaDownloads">—</strong></div>
   </div>
   <div class="mmhd-ga-grid">
-    <section class="panel"><h3 class="mmhd-ga-section-title">Actividad de los últimos 30 minutos</h3><p class="support-text">Usuarios activos por minuto (una misma persona puede contar en varios minutos).</p><div class="mmhd-ga-minutes" id="mmhdGaMinutes" aria-label="Actividad por minuto">Conecta tu cuenta para ver la gráfica.</div></section>
-    <section class="panel"><h3 class="mmhd-ga-section-title">Países activos</h3><div id="mmhdGaCountries" class="mmhd-ga-rows">Sin datos aún.</div></section>
+    <section class="panel"><h3 class="mmhd-ga-section-title" id="mmhdGaChartTitle">Actividad de los últimos 30 días</h3><p class="support-text" id="mmhdGaChartHelp">Usuarios activos por día; la suma diaria puede superar el total de usuarios únicos.</p><div class="mmhd-ga-minutes" id="mmhdGaMinutes" aria-label="Actividad por minuto">Conecta tu cuenta para ver la gráfica.</div></section>
+    <section class="panel"><h3 class="mmhd-ga-section-title" id="mmhdGaCountryTitle">Países con actividad</h3><div id="mmhdGaCountries" class="mmhd-ga-rows">Sin datos aún.</div></section>
     <section class="panel"><h3 class="mmhd-ga-section-title">Eventos de Movie Mania HD</h3><p class="support-text">Cuenta interacciones registradas; no confirma que se haya reproducido o descargado un archivo.</p><div id="mmhdGaEvents" class="mmhd-ga-rows">Sin datos aún.</div></section>
     <section class="panel"><h3 class="mmhd-ga-section-title">Páginas o pantallas vistas</h3><div id="mmhdGaPages" class="mmhd-ga-rows">Sin datos aún.</div></section>
   </div>
-  <p class="support-text mmhd-ga-footnote">Los informes en tiempo real no admiten dimensiones personalizadas de evento como <code>content_title</code>. Para el ranking de películas y series continúa utilizando tu exploración de popularidad en Analytics.</p>
+  <p class="support-text mmhd-ga-footnote">Las reproducciones y descargas son solicitudes registradas, no confirmaciones de reproducción o descarga completada. El historial de GA4 puede tardar en procesarse; los datos del día actual pueden ser provisionales. Para el ranking por título se requiere que la dimensión personalizada correspondiente esté configurada en GA4.</p>
 </section>
 <section aria-labelledby="library-title" class="admin-view" data-page="library" hidden="" id="view-library">
 <div class="page-heading"><div><div class="eyebrow">BIBLIOTECA</div><h2 id="library-title">Gestiona tu colección</h2><p>Encuentra cualquier título y modifica su información o enlaces sin empezar de nuevo.</p></div><div class="page-actions"><button class="primary" data-create="movie" type="button"><i class="fa-solid fa-plus"></i> Añadir contenido</button></div></div>
@@ -5277,7 +5290,7 @@ renderCollection();
 (function(){
   const navButtons=[...document.querySelectorAll('.rail-link[data-view]')];
   const views=[...document.querySelectorAll('.admin-view[data-page]')];
-  const navTitles={overview:'Resumen',analytics:'Tráfico en vivo',library:'Mi biblioteca',editor:'Agregar / editar',pending:'Pendientes',diagnostic:'Diagnóstico',review:'Revisiones TXT',appearance:'Personalización',tools:'Herramientas'};
+  const navTitles={overview:'Resumen',analytics:'Estadísticas',library:'Mi biblioteca',editor:'Agregar / editar',pending:'Pendientes',diagnostic:'Diagnóstico',review:'Revisiones TXT',appearance:'Personalización',tools:'Herramientas'};
   function setPanelView(name){
     if(!navTitles[name])name='overview';
     views.forEach(el=>{el.hidden=el.dataset.page!==name});
@@ -5409,6 +5422,9 @@ renderCollection();
   if(!view)return;
   const configKey='mmhd_ga_realtime_settings_v1';
   const sessionKey='mmhd_ga_realtime_tab_token_v1';
+  const periodKey='mmhd_ga_selected_period_v1';
+  let period='30';
+  try{const saved=localStorage.getItem(periodKey);if(['live','7','30','90'].includes(saved))period=saved;}catch(_){}
   const sessionSafetyMs=45000; // margen para no iniciar informes con un token a punto de caducar
   let accessToken='',expiresAt=0,oauthClient=null,busy=false,lastErrorAuth=false;
 
@@ -5483,8 +5499,9 @@ renderCollection();
     if(response.status===404)return 'No se encontró la propiedad GA4. Verifica su ID numérico.';
     return details?.error?.message||'Error de Google Analytics ('+response.status+').';
   }
-  async function query(propertyId,body){
-    const response=await fetch('https://analyticsdata.googleapis.com/v1beta/properties/'+encodeURIComponent(propertyId)+':runRealtimeReport',{
+  async function query(propertyId,body,historical=false){
+    const endpoint=historical?'runReport':'runRealtimeReport';
+    const response=await fetch('https://analyticsdata.googleapis.com/v1beta/properties/'+encodeURIComponent(propertyId)+':'+endpoint,{
       method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'
     });
     const json=await response.json().catch(()=>({}));
@@ -5515,6 +5532,59 @@ renderCollection();
       holder.append(bar);
     });
   }
+  function syncPeriod(){
+    document.querySelectorAll('#mmhdGaPeriod [data-period]').forEach(b=>{
+      const selected=b.dataset.period===period;b.classList.toggle('active',selected);b.setAttribute('aria-pressed',String(selected));
+    });
+    const live=period==='live',suffix=live?'30 min':period+' días';
+    $ga('mmhdGaLabelUsers').textContent='Usuarios activos · '+suffix;
+    $ga('mmhdGaLabelSecondary').textContent=live?'Usuarios activos · 5 min':'Sesiones · '+suffix;
+    $ga('mmhdGaLabelPlays').textContent='Reproducciones solicitadas · '+suffix;
+    $ga('mmhdGaLabelDownloads').textContent='Descargas solicitadas · '+suffix;
+    $ga('mmhdGaChartTitle').textContent='Actividad de los últimos '+(live?'30 minutos':period+' días');
+    $ga('mmhdGaChartHelp').textContent=live?'Usuarios activos por minuto (una persona puede contar en varios minutos).':'Usuarios activos por día; la suma diaria puede superar el total de usuarios únicos.';
+    $ga('mmhdGaCountryTitle').textContent=live?'Países activos':'Países con actividad';
+    $ga('mmhdGaMinutes').setAttribute('aria-label',live?'Actividad por minuto':'Actividad diaria');
+  }
+  function showDailyGraph(report){
+    const holder=$ga('mmhdGaMinutes');holder.replaceChildren();holder.classList.add('mmhd-ga-daily');
+    const values=new Map((report.rows||[]).map(r=>[String(r.dimensionValues?.[0]?.value||''),Number(r.metricValues?.[0]?.value||0)||0]));
+    const max=Math.max(1,...values.values());
+    const days=Number(period),now=new Date();
+    // Fechas locales visuales; GA4 devuelve fechas en la zona horaria de la propiedad.
+    for(let ago=days-1;ago>=0;ago--){
+      const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-ago);
+      const key=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+      const value=values.get(key)||0,bar=document.createElement('span');bar.className='mmhd-ga-minute';
+      bar.style.height=Math.max(3,value/max*140)+'px';
+      bar.title=d.toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})+': '+value.toLocaleString('es-MX')+' usuarios activos';
+      holder.append(bar);
+    }
+  }
+  async function updateHistorical(propertyId,currentPeriod){
+    const dateRanges=[{startDate:(Number(currentPeriod)-1)+'daysAgo',endDate:'today'}];
+    const metricUsers=[{name:'activeUsers'}],metricEvents=[{name:'eventCount'}];
+    const requests=[
+      {dateRanges,metrics:[...metricUsers,{name:'sessions'}]},
+      {dateRanges,dimensions:[{name:'country'}],metrics:metricUsers,limit:'10',orderBys:[{metric:{metricName:'activeUsers'},desc:true}]},
+      {dateRanges,dimensions:[{name:'eventName'}],metrics:metricEvents,limit:'250'},
+      {dateRanges,dimensions:[{name:'date'}],metrics:metricUsers,limit:'100',orderBys:[{dimension:{dimensionName:'date'}}]},
+      {dateRanges,dimensions:[{name:'pagePath'}],metrics:[{name:'screenPageViews'}],limit:'10',orderBys:[{metric:{metricName:'screenPageViews'},desc:true}]}
+    ];
+    const [summary,countries,events,days,pages]=await Promise.all(requests.map(body=>query(propertyId,body,true)));
+    if(period!==currentPeriod||!connected())return;
+    const allEvents=rowValues(events),eventCount=name=>allEvents.find(e=>e.label===name)?.count||0;
+    $ga('mmhdGaActive30').textContent=readMetric(summary).toLocaleString('es-MX');
+    $ga('mmhdGaActive5').textContent=(Number(summary.rows?.[0]?.metricValues?.[1]?.value||0)||0).toLocaleString('es-MX');
+    $ga('mmhdGaPlays').textContent=eventCount('mmhd_play_request').toLocaleString('es-MX');
+    $ga('mmhdGaDownloads').textContent=eventCount('mmhd_download_request').toLocaleString('es-MX');
+    const pretty={mmhd_section_view:'Secciones abiertas',mmhd_title_open:'Fichas abiertas',mmhd_play_request:'Reproducciones solicitadas',mmhd_download_request:'Descargas solicitadas'};
+    showRows('mmhdGaCountries',rowValues(countries),'Sin usuarios activos en el periodo.');
+    showRows('mmhdGaEvents',allEvents.filter(x=>x.label.startsWith('mmhd_')).map(x=>({...x,label:pretty[x.label]||x.label})),'Sin eventos MMHD en el periodo.');
+    showRows('mmhdGaPages',rowValues(pages),'Sin páginas registradas en el periodo.');
+    showDailyGraph(days);
+    showStatus('Última actualización: '+new Date().toLocaleTimeString('es-MX')+' · Datos correspondientes a los últimos '+currentPeriod+' días (incluye hoy).');
+  }
   async function updateRealtime(){
     if(view.hidden||busy)return;
     if(!connected()){
@@ -5523,7 +5593,10 @@ renderCollection();
     }
     let propertyId;
     try{propertyId=validConfig().propertyId;}catch(err){showStatus(err.message,true);return;}
-    busy=true;updateButtons();showStatus('Consultando los últimos 30 minutos…');
+    const currentPeriod=period;
+    busy=true;updateButtons();showStatus('Consultando '+(currentPeriod==='live'?'los últimos 30 minutos':'los últimos '+currentPeriod+' días')+'…');
+    if(currentPeriod!=='live'){try{await updateHistorical(propertyId,currentPeriod);}catch(err){if(period===currentPeriod)showStatus('No se pudieron consultar los datos: '+String(err.message||err),true);}finally{busy=false;updateButtons();if(period!==currentPeriod&&connected()&&!view.hidden)void updateRealtime();}return;}
+    $ga('mmhdGaMinutes').classList.remove('mmhd-ga-daily');
     const base={metrics:[{name:'activeUsers'}]};
     const requests=[
       base,
@@ -5535,7 +5608,7 @@ renderCollection();
     ];
     try{
       const [all,short,countries,events,minutes,pages]=await Promise.all(requests.map(body=>query(propertyId,body)));
-      if(!connected())return;
+      if(!connected()||period!==currentPeriod)return;
       const allEvents=rowValues(events);
       const eventCount=name=>allEvents.find(e=>e.label===name)?.count||0;
       $ga('mmhdGaActive30').textContent=readMetric(all).toLocaleString('es-MX');
@@ -5549,7 +5622,7 @@ renderCollection();
       showMinuteGraph(rowValues(minutes));
       showStatus('Última actualización: '+new Date().toLocaleTimeString('es-MX')+' · Datos correspondientes a los últimos 30 minutos.');
     }catch(err){showStatus('No se pudieron consultar los datos: '+String(err.message||err),true);}
-    finally{busy=false;updateButtons();}
+    finally{busy=false;updateButtons();if(period!==currentPeriod&&connected()&&!view.hidden)void updateRealtime();}
   }
   function startOAuth(){
     let config;
@@ -5575,6 +5648,13 @@ renderCollection();
       oauthClient.requestAccessToken({prompt:''});
     }catch(err){showStatus('No se pudo iniciar la autorización: '+err.message,true);}
   }
+  syncPeriod();
+  document.querySelectorAll('#mmhdGaPeriod [data-period]').forEach(button=>button.addEventListener('click',()=>{
+    if(period===button.dataset.period)return;
+    period=button.dataset.period;try{localStorage.setItem(periodKey,period);}catch(_){}
+    syncPeriod();clearData();
+    if(connected())void updateRealtime();
+  }));
   connect.addEventListener('click',startOAuth);
   refresh.addEventListener('click',()=>{saveConfig();void updateRealtime();});
   disconnect.addEventListener('click',disconnectAccount);
