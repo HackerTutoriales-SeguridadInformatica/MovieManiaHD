@@ -1119,6 +1119,35 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-platform-credit a{color:#9cc2ff;text-decoration:underline}
 .mmhd-platform-bulk-status{color:#b7d4ff;font-size:11px;line-height:1.6}
 @media(max-width:670px){.mmhd-platform-choices{grid-template-columns:1fr}.mmhd-platform-heading{align-items:flex-start}.mmhd-platform-panel{padding:12px}}
+
+/* Movie Mania HD V3 · Google Analytics 4 en tiempo real */
+.mmhd-ga-panel{margin-bottom:14px}
+.mmhd-ga-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.mmhd-ga-config label{margin:0}
+.mmhd-ga-config input{margin-top:7px}
+.mmhd-ga-actions{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 10px}
+.mmhd-ga-actions button{width:auto}
+.mmhd-ga-status{color:#bed5ea;background:#102237;border:1px solid #254b6a;border-radius:9px;padding:10px 12px;line-height:1.55}
+.mmhd-ga-status.error{color:#ffc7ca;border-color:#863b51;background:#341627}
+.mmhd-ga-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 14px}
+.mmhd-ga-stat{margin:0;display:flex;flex-direction:column;justify-content:space-between;gap:12px;min-height:110px}
+.mmhd-ga-stat small{color:#a9bed3;font-size:12px;font-weight:650;line-height:1.45}
+.mmhd-ga-stat strong{font-size:34px;color:#fff;font-variant-numeric:tabular-nums}
+.mmhd-ga-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.mmhd-ga-grid .panel{min-width:0}
+.mmhd-ga-section-title{margin:0 0 10px;color:#f5f9ff;font-size:15px}
+.mmhd-ga-rows{display:flex;flex-direction:column;gap:0;color:#bcd0e3;min-height:90px}
+.mmhd-ga-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid #21374a;padding:10px 0}
+.mmhd-ga-row:last-child{border-bottom:0}
+.mmhd-ga-row span{overflow-wrap:anywhere}
+.mmhd-ga-row strong{color:#edf8ff;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mmhd-ga-minutes{display:flex;align-items:end;gap:3px;min-height:154px;color:#bcd0e3}
+.mmhd-ga-minute{flex:1;min-width:0;background:linear-gradient(0deg,#277ee0,#43b3ed);border-radius:3px 3px 0 0;min-height:3px;position:relative}
+.mmhd-ga-minute:hover{filter:brightness(1.2)}
+.mmhd-ga-footnote{margin:16px 0;line-height:1.6}
+@media(max-width:1000px){.mmhd-ga-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.mmhd-ga-config,.mmhd-ga-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -1128,6 +1157,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div class="rail-label">ESPACIO DE TRABAJO</div>
 <nav aria-label="Navegación principal" class="rail-nav">
 <button aria-current="page" class="rail-link active" data-view="overview" type="button"><i class="fa-solid fa-chart-pie"></i><span>Resumen</span></button>
+<button class="rail-link" data-view="analytics" type="button"><i class="fa-solid fa-chart-line"></i><span>Tráfico en vivo</span></button>
 <button class="rail-link" data-view="library" type="button"><i class="fa-solid fa-layer-group"></i><span>Mi biblioteca</span></button>
 <button class="rail-link" data-view="editor" type="button"><i class="fa-solid fa-square-plus"></i><span>Agregar / editar</span></button>
 <button class="rail-link" data-view="pending" type="button"><i class="fa-solid fa-list-check"></i><span>Pendientes</span></button>
@@ -1177,6 +1207,43 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </div></section>
 <section class="panel"><div class="section-head"><div class="panel-title"><span class="icon"><i class="fa-solid fa-clock-rotate-left"></i></span> Últimos títulos</div><button class="text-button" data-view="library" type="button">Ver biblioteca <i class="fa-solid fa-arrow-right"></i></button></div><div class="recent-list" id="adminRecentList"></div></section>
 </div>
+</section>
+<section aria-labelledby="mmhd-analytics-title" class="admin-view" data-page="analytics" hidden id="view-analytics">
+  <div class="page-heading"><div><div class="eyebrow">ESTADÍSTICAS DE TU WEB</div>
+    <h2 id="mmhd-analytics-title">Tráfico en tiempo real</h2>
+    <p>Datos de los últimos 30 minutos de Google Analytics 4. Actualización automática cada 60 segundos mientras ves esta sección.</p>
+  </div></div>
+  <section class="panel mmhd-ga-panel">
+    <div class="panel-title"><span class="icon"><i class="fa-solid fa-shield-halved"></i></span> Conexión privada con Google Analytics</div>
+    <p class="support-text">Solo la cuenta de Google autorizada puede consultar las estadísticas. El ID de cliente OAuth es público; el token de acceso no se guarda. No pegues contraseñas, claves privadas ni archivos JSON de cuentas de servicio.</p>
+    <div class="mmhd-ga-config">
+      <label for="mmhdGaProperty">ID numérico de propiedad GA4
+        <input id="mmhdGaProperty" type="text" placeholder="Ej. 123456789" inputmode="numeric" autocomplete="off" spellcheck="false" />
+      </label>
+      <label for="mmhdGaClientId">ID de cliente OAuth 2.0 (aplicación web)
+        <input id="mmhdGaClientId" type="text" placeholder="xxxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false" />
+      </label>
+    </div>
+    <div class="mmhd-ga-actions">
+      <button class="primary" type="button" id="mmhdGaConnect"><i class="fa-brands fa-google"></i> Conectar con Google</button>
+      <button class="secondary" type="button" id="mmhdGaRefresh" disabled><i class="fa-solid fa-rotate"></i> Actualizar ahora</button>
+      <button class="secondary" type="button" id="mmhdGaDisconnect" disabled>Desconectar</button>
+    </div>
+    <div id="mmhdGaStatus" role="status" aria-live="polite" class="mmhd-ga-status">Configura la propiedad y el ID de cliente OAuth; luego inicia sesión con tu cuenta autorizada.</div>
+  </section>
+  <div class="mmhd-ga-stats" aria-label="Cifras en tiempo real">
+    <div class="panel mmhd-ga-stat"><small>Usuarios activos · 30 min</small><strong id="mmhdGaActive30">—</strong></div>
+    <div class="panel mmhd-ga-stat"><small>Usuarios activos · 5 min</small><strong id="mmhdGaActive5">—</strong></div>
+    <div class="panel mmhd-ga-stat"><small>Reproducciones solicitadas · 30 min</small><strong id="mmhdGaPlays">—</strong></div>
+    <div class="panel mmhd-ga-stat"><small>Descargas solicitadas · 30 min</small><strong id="mmhdGaDownloads">—</strong></div>
+  </div>
+  <div class="mmhd-ga-grid">
+    <section class="panel"><h3 class="mmhd-ga-section-title">Actividad de los últimos 30 minutos</h3><p class="support-text">Usuarios activos por minuto (una misma persona puede contar en varios minutos).</p><div class="mmhd-ga-minutes" id="mmhdGaMinutes" aria-label="Actividad por minuto">Conecta tu cuenta para ver la gráfica.</div></section>
+    <section class="panel"><h3 class="mmhd-ga-section-title">Países activos</h3><div id="mmhdGaCountries" class="mmhd-ga-rows">Sin datos aún.</div></section>
+    <section class="panel"><h3 class="mmhd-ga-section-title">Eventos de Movie Mania HD</h3><p class="support-text">Cuenta interacciones registradas; no confirma que se haya reproducido o descargado un archivo.</p><div id="mmhdGaEvents" class="mmhd-ga-rows">Sin datos aún.</div></section>
+    <section class="panel"><h3 class="mmhd-ga-section-title">Páginas o pantallas vistas</h3><div id="mmhdGaPages" class="mmhd-ga-rows">Sin datos aún.</div></section>
+  </div>
+  <p class="support-text mmhd-ga-footnote">Los informes en tiempo real no admiten dimensiones personalizadas de evento como <code>content_title</code>. Para el ranking de películas y series continúa utilizando tu exploración de popularidad en Analytics.</p>
 </section>
 <section aria-labelledby="library-title" class="admin-view" data-page="library" hidden="" id="view-library">
 <div class="page-heading"><div><div class="eyebrow">BIBLIOTECA</div><h2 id="library-title">Gestiona tu colección</h2><p>Encuentra cualquier título y modifica su información o enlaces sin empezar de nuevo.</p></div><div class="page-actions"><button class="primary" data-create="movie" type="button"><i class="fa-solid fa-plus"></i> Añadir contenido</button></div></div>
@@ -5210,7 +5277,7 @@ renderCollection();
 (function(){
   const navButtons=[...document.querySelectorAll('.rail-link[data-view]')];
   const views=[...document.querySelectorAll('.admin-view[data-page]')];
-  const navTitles={overview:'Resumen',library:'Mi biblioteca',editor:'Agregar / editar',pending:'Pendientes',diagnostic:'Diagnóstico',review:'Revisiones TXT',appearance:'Personalización',tools:'Herramientas'};
+  const navTitles={overview:'Resumen',analytics:'Tráfico en vivo',library:'Mi biblioteca',editor:'Agregar / editar',pending:'Pendientes',diagnostic:'Diagnóstico',review:'Revisiones TXT',appearance:'Personalización',tools:'Herramientas'};
   function setPanelView(name){
     if(!navTitles[name])name='overview';
     views.forEach(el=>{el.hidden=el.dataset.page!==name});
@@ -5332,6 +5399,160 @@ renderCollection();
   window.addEventListener('resize',schedule,{passive:true});
   schedule();
 })();
+</script><script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+/* GA4 Data API — autorización OAuth de usuario. No se almacenan tokens. */
+(function(){
+  'use strict';
+  const $ga=id=>document.getElementById(id);
+  const view=$ga('view-analytics');
+  if(!view)return;
+  const configKey='mmhd_ga_realtime_settings_v1';
+  let accessToken='',expiresAt=0,oauthClient=null,busy=false,lastErrorAuth=false;
+  const connect=$ga('mmhdGaConnect'),refresh=$ga('mmhdGaRefresh'),disconnect=$ga('mmhdGaDisconnect');
+  const propertyField=$ga('mmhdGaProperty'),clientField=$ga('mmhdGaClientId');
+  try{
+    const data=JSON.parse(localStorage.getItem(configKey)||'{}');
+    if(data&&typeof data==='object'){
+      if(/^\d{4,20}$/.test(String(data.propertyId||'')))propertyField.value=data.propertyId;
+      if(/^[A-Za-z0-9-]+\.apps\.googleusercontent\.com$/.test(String(data.clientId||'')))clientField.value=data.clientId;
+    }
+  }catch(_){}
+  function showStatus(message,error=false){
+    const el=$ga('mmhdGaStatus');el.textContent=message;
+    el.classList.toggle('error',Boolean(error));
+  }
+  function saveConfig(){
+    try{localStorage.setItem(configKey,JSON.stringify({propertyId:propertyField.value.trim(),clientId:clientField.value.trim()}));}catch(_){}
+  }
+  function validConfig(){
+    const propertyId=propertyField.value.trim(),clientId=clientField.value.trim();
+    if(!/^\d{4,20}$/.test(propertyId))throw Error('Ingresa el ID numérico de la propiedad GA4 (no el ID G- de medición).');
+    if(!/^[A-Za-z0-9-]+\.apps\.googleusercontent\.com$/.test(clientId))throw Error('El ID de cliente OAuth web debe terminar en .apps.googleusercontent.com.');
+    return {propertyId,clientId};
+  }
+  function connected(){return Boolean(accessToken)&&Date.now()<expiresAt-30000;}
+  function updateButtons(){refresh.disabled=busy||!connected();disconnect.disabled=!accessToken;connect.disabled=busy;}
+  function clearData(){
+    for(const id of ['mmhdGaActive30','mmhdGaActive5','mmhdGaPlays','mmhdGaDownloads'])$ga(id).textContent='—';
+    $ga('mmhdGaMinutes').textContent='Conecta tu cuenta para ver la gráfica.';
+    for(const id of ['mmhdGaCountries','mmhdGaEvents','mmhdGaPages'])$ga(id).textContent='Sin datos aún.';
+  }
+  function disconnectAccount(){
+    const token=accessToken;accessToken='';expiresAt=0;lastErrorAuth=false;updateButtons();clearData();
+    try{if(token&&window.google?.accounts?.oauth2?.revoke)window.google.accounts.oauth2.revoke(token,()=>{});}catch(_){}
+    showStatus('Desconectado. Tus ajustes públicos de propiedad e ID de cliente permanecen guardados en este navegador.');
+  }
+  function apiError(response,details){
+    if(response.status===401){
+      accessToken='';expiresAt=0;lastErrorAuth=true;updateButtons();
+      return 'La sesión de Google caducó. Haz clic en Conectar con Google para autorizar de nuevo.';
+    }
+    if(response.status===403)return 'Acceso denegado: verifica que tu cuenta tenga permiso de lectura en GA4 y que la Analytics Data API esté habilitada en Google Cloud.';
+    if(response.status===404)return 'No se encontró la propiedad GA4. Verifica su ID numérico.';
+    return details?.error?.message||'Error de Google Analytics ('+response.status+').';
+  }
+  async function query(propertyId,body){
+    const response=await fetch('https://analyticsdata.googleapis.com/v1beta/properties/'+encodeURIComponent(propertyId)+':runRealtimeReport',{
+      method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'
+    });
+    const json=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error(apiError(response,json));
+    return json;
+  }
+  function readMetric(report){return Number(report?.rows?.[0]?.metricValues?.[0]?.value||0)||0;}
+  function rowValues(report){return (report?.rows||[]).map(r=>({label:String(r.dimensionValues?.[0]?.value||'Sin especificar'),count:Number(r.metricValues?.[0]?.value||0)||0}));}
+  function showRows(id,rows,emptyMessage){
+    const holder=$ga(id);holder.replaceChildren();
+    if(!rows.length){holder.textContent=emptyMessage;return;}
+    for(const item of rows){
+      const row=document.createElement('div');row.className='mmhd-ga-row';
+      const label=document.createElement('span');label.textContent=item.label;
+      const count=document.createElement('strong');count.textContent=item.count.toLocaleString('es-MX');
+      row.append(label,count);holder.append(row);
+    }
+  }
+  function showMinuteGraph(rows){
+    const holder=$ga('mmhdGaMinutes');holder.replaceChildren();
+    const points=Array.from({length:30},()=>0);
+    rows.forEach(item=>{const index=Number(item.label);if(Number.isInteger(index)&&index>=0&&index<30)points[29-index]=item.count;});
+    const max=Math.max(1,...points);
+    points.forEach((value,index)=>{
+      const bar=document.createElement('span');bar.className='mmhd-ga-minute';
+      bar.style.height=(Math.max(3,value/max*140))+'px';
+      bar.title=(29-index)+' min atrás: '+value+' usuarios activos';
+      holder.append(bar);
+    });
+  }
+  async function updateRealtime(){
+    if(view.hidden||busy)return;
+    if(!connected()){
+      if(accessToken){accessToken='';expiresAt=0;updateButtons();showStatus('Sesión caducada. Conecta nuevamente con Google para continuar.',true);}
+      return;
+    }
+    let propertyId;
+    try{propertyId=validConfig().propertyId;}catch(err){showStatus(err.message,true);return;}
+    busy=true;updateButtons();showStatus('Consultando los últimos 30 minutos…');
+    const base={metrics:[{name:'activeUsers'}]};
+    const requests=[
+      base,
+      {metrics:[{name:'activeUsers'}],minuteRanges:[{startMinutesAgo:4,endMinutesAgo:0}]},
+      {dimensions:[{name:'country'}],metrics:[{name:'activeUsers'}],limit:'10',orderBys:[{metric:{metricName:'activeUsers'},desc:true}]},
+      {dimensions:[{name:'eventName'}],metrics:[{name:'eventCount'}],limit:'100'},
+      {dimensions:[{name:'minutesAgo'}],metrics:[{name:'activeUsers'}],limit:'30'},
+      {dimensions:[{name:'unifiedScreenName'}],metrics:[{name:'screenPageViews'}],limit:'10',orderBys:[{metric:{metricName:'screenPageViews'},desc:true}]}
+    ];
+    try{
+      const [all,short,countries,events,minutes,pages]=await Promise.all(requests.map(body=>query(propertyId,body)));
+      if(!connected())return;
+      const allEvents=rowValues(events);
+      const eventCount=name=>allEvents.find(e=>e.label===name)?.count||0;
+      $ga('mmhdGaActive30').textContent=readMetric(all).toLocaleString('es-MX');
+      $ga('mmhdGaActive5').textContent=readMetric(short).toLocaleString('es-MX');
+      $ga('mmhdGaPlays').textContent=eventCount('mmhd_play_request').toLocaleString('es-MX');
+      $ga('mmhdGaDownloads').textContent=eventCount('mmhd_download_request').toLocaleString('es-MX');
+      const pretty={mmhd_section_view:'Secciones abiertas',mmhd_title_open:'Fichas abiertas',mmhd_play_request:'Reproducciones solicitadas',mmhd_download_request:'Descargas solicitadas'};
+      showRows('mmhdGaCountries',rowValues(countries),'Sin usuarios activos en el periodo.');
+      showRows('mmhdGaEvents',allEvents.filter(x=>x.label.startsWith('mmhd_')).map(x=>({...x,label:pretty[x.label]||x.label})),'Sin eventos MMHD recientes.');
+      showRows('mmhdGaPages',rowValues(pages),'Sin páginas registradas en el periodo.');
+      showMinuteGraph(rowValues(minutes));
+      showStatus('Última actualización: '+new Date().toLocaleTimeString('es-MX')+' · Datos correspondientes a los últimos 30 minutos.');
+    }catch(err){showStatus('No se pudieron consultar los datos: '+String(err.message||err),true);}
+    finally{busy=false;updateButtons();}
+  }
+  function startOAuth(){
+    let config;
+    try{config=validConfig();}catch(err){showStatus(err.message,true);return;}
+    saveConfig();
+    if(!window.google?.accounts?.oauth2){
+      showStatus('La biblioteca de inicio de sesión de Google todavía no ha cargado. Comprueba tu conexión, permite ventanas emergentes y vuelve a pulsar Conectar.',true);
+      return;
+    }
+    try{
+      oauthClient=google.accounts.oauth2.initTokenClient({
+        client_id:config.clientId,scope:'https://www.googleapis.com/auth/analytics.readonly',
+        callback:function(response){
+          if(response.error){showStatus('Google no autorizó la conexión: '+response.error,true);return;}
+          if(!response.access_token){showStatus('No se recibió un token de acceso.',true);return;}
+          accessToken=response.access_token;
+          expiresAt=Date.now()+(Number(response.expires_in)||3000)*1000;
+          lastErrorAuth=false;updateButtons();void updateRealtime();
+        },
+        error_callback:function(e){showStatus('No se completó el inicio de sesión de Google: '+(e.type||'ventana bloqueada'),true);}
+      });
+      oauthClient.requestAccessToken({prompt:'consent'});
+    }catch(err){showStatus('No se pudo iniciar la autorización: '+err.message,true);}
+  }
+  connect.addEventListener('click',startOAuth);
+  refresh.addEventListener('click',()=>{saveConfig();void updateRealtime();});
+  disconnect.addEventListener('click',disconnectAccount);
+  propertyField.addEventListener('change',saveConfig);clientField.addEventListener('change',saveConfig);
+  // Consultar únicamente mientras está abierta la sección para limitar el uso de cuota.
+  const interval=setInterval(()=>{if(!view.hidden&&!document.hidden&&connected())void updateRealtime();},60000);
+  window.addEventListener('pagehide',()=>{clearInterval(interval);accessToken='';expiresAt=0;});
+  updateButtons();
+})();
 </script>
+
 </body>
 </html>
