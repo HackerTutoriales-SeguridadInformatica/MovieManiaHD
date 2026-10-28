@@ -1215,7 +1215,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   </div></div>
   <section class="panel mmhd-ga-panel">
     <div class="panel-title"><span class="icon"><i class="fa-solid fa-shield-halved"></i></span> Conexión privada con Google Analytics</div>
-    <p class="support-text">Solo la cuenta de Google autorizada puede consultar las estadísticas. El ID de cliente OAuth es público; el token de acceso no se guarda. No pegues contraseñas, claves privadas ni archivos JSON de cuentas de servicio.</p>
+    <p class="support-text">Solo la cuenta de Google autorizada puede consultar las estadísticas. El ID de cliente OAuth es público; el acceso temporal se guarda únicamente en esta pestaña para recuperarlo al actualizar. No pegues contraseñas, claves privadas ni archivos JSON de cuentas de servicio.</p>
     <div class="mmhd-ga-config">
       <label for="mmhdGaProperty">ID numérico de propiedad GA4
         <input id="mmhdGaProperty" type="text" placeholder="Ej. 123456789" inputmode="numeric" autocomplete="off" spellcheck="false" />
@@ -5401,14 +5401,17 @@ renderCollection();
 })();
 </script><script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
-/* GA4 Data API — autorización OAuth de usuario. No se almacenan tokens. */
+/* GA4 Data API — OAuth de usuario, token temporal solo en sessionStorage de la pestaña. */
 (function(){
   'use strict';
   const $ga=id=>document.getElementById(id);
   const view=$ga('view-analytics');
   if(!view)return;
   const configKey='mmhd_ga_realtime_settings_v1';
+  const sessionKey='mmhd_ga_realtime_tab_token_v1';
+  const sessionSafetyMs=45000; // margen para no iniciar informes con un token a punto de caducar
   let accessToken='',expiresAt=0,oauthClient=null,busy=false,lastErrorAuth=false;
+
   const connect=$ga('mmhdGaConnect'),refresh=$ga('mmhdGaRefresh'),disconnect=$ga('mmhdGaDisconnect');
   const propertyField=$ga('mmhdGaProperty'),clientField=$ga('mmhdGaClientId');
   try{
@@ -5431,7 +5434,35 @@ renderCollection();
     if(!/^[A-Za-z0-9-]+\.apps\.googleusercontent\.com$/.test(clientId))throw Error('El ID de cliente OAuth web debe terminar en .apps.googleusercontent.com.');
     return {propertyId,clientId};
   }
-  function connected(){return Boolean(accessToken)&&Date.now()<expiresAt-30000;}
+  function forgetSession(){
+    try{sessionStorage.removeItem(sessionKey);}catch(_){}
+  }
+  function storeSession(config){
+    try{
+      sessionStorage.setItem(sessionKey,JSON.stringify({
+        accessToken,expiresAt,propertyId:config.propertyId,clientId:config.clientId
+      }));
+    }catch(_){} // navegadores con sessionStorage bloqueado: la conexión seguirá funcionando en memoria
+  }
+  function restoreSession(){
+    try{
+      const saved=JSON.parse(sessionStorage.getItem(sessionKey)||'null');
+      if(!saved)return false;
+      const config=validConfig();
+      const expiration=Number(saved.expiresAt);
+      const token=String(saved.accessToken||'');
+      // Solo restaurar el permiso de la misma propiedad y cliente, sin renovar tokens caducados.
+      if(saved.propertyId!==config.propertyId||saved.clientId!==config.clientId||
+         !Number.isFinite(expiration)||expiration<Date.now()+sessionSafetyMs||
+         expiration>Date.now()+3600000||!/^[-._~A-Za-z0-9]{20,4096}$/.test(token)){
+        forgetSession();return false;
+      }
+      accessToken=token;expiresAt=expiration;
+      return true;
+    }catch(_){forgetSession();return false;}
+  }
+  function clearAuth(){accessToken='';expiresAt=0;forgetSession();updateButtons();}
+  function connected(){return Boolean(accessToken)&&Date.now()<expiresAt-sessionSafetyMs;}
   function updateButtons(){refresh.disabled=busy||!connected();disconnect.disabled=!accessToken;connect.disabled=busy;}
   function clearData(){
     for(const id of ['mmhdGaActive30','mmhdGaActive5','mmhdGaPlays','mmhdGaDownloads'])$ga(id).textContent='—';
@@ -5439,13 +5470,13 @@ renderCollection();
     for(const id of ['mmhdGaCountries','mmhdGaEvents','mmhdGaPages'])$ga(id).textContent='Sin datos aún.';
   }
   function disconnectAccount(){
-    const token=accessToken;accessToken='';expiresAt=0;lastErrorAuth=false;updateButtons();clearData();
+    const token=accessToken;lastErrorAuth=false;clearAuth();clearData();
     try{if(token&&window.google?.accounts?.oauth2?.revoke)window.google.accounts.oauth2.revoke(token,()=>{});}catch(_){}
     showStatus('Desconectado. Tus ajustes públicos de propiedad e ID de cliente permanecen guardados en este navegador.');
   }
   function apiError(response,details){
     if(response.status===401){
-      accessToken='';expiresAt=0;lastErrorAuth=true;updateButtons();
+      lastErrorAuth=true;clearAuth();
       return 'La sesión de Google caducó. Haz clic en Conectar con Google para autorizar de nuevo.';
     }
     if(response.status===403)return 'Acceso denegado: verifica que tu cuenta tenga permiso de lectura en GA4 y que la Analytics Data API esté habilitada en Google Cloud.';
@@ -5487,7 +5518,7 @@ renderCollection();
   async function updateRealtime(){
     if(view.hidden||busy)return;
     if(!connected()){
-      if(accessToken){accessToken='';expiresAt=0;updateButtons();showStatus('Sesión caducada. Conecta nuevamente con Google para continuar.',true);}
+      if(accessToken){clearAuth();showStatus('El acceso temporal de Google caducó. Pulsa Conectar con Google para renovarlo.',true);}
       return;
     }
     let propertyId;
@@ -5535,22 +5566,46 @@ renderCollection();
           if(response.error){showStatus('Google no autorizó la conexión: '+response.error,true);return;}
           if(!response.access_token){showStatus('No se recibió un token de acceso.',true);return;}
           accessToken=response.access_token;
-          expiresAt=Date.now()+(Number(response.expires_in)||3000)*1000;
-          lastErrorAuth=false;updateButtons();void updateRealtime();
+          expiresAt=Date.now()+Math.min(Math.max(Number(response.expires_in)||3000,60),3600)*1000;
+          lastErrorAuth=false;storeSession(config);updateButtons();void updateRealtime();
         },
         error_callback:function(e){showStatus('No se completó el inicio de sesión de Google: '+(e.type||'ventana bloqueada'),true);}
       });
-      oauthClient.requestAccessToken({prompt:'consent'});
+      // Google conserva el consentimiento previo; no volver a solicitarlo siempre.
+      oauthClient.requestAccessToken({prompt:''});
     }catch(err){showStatus('No se pudo iniciar la autorización: '+err.message,true);}
   }
   connect.addEventListener('click',startOAuth);
   refresh.addEventListener('click',()=>{saveConfig();void updateRealtime();});
   disconnect.addEventListener('click',disconnectAccount);
-  propertyField.addEventListener('change',saveConfig);clientField.addEventListener('change',saveConfig);
+  function configChanged(){
+    // No reutilizar un token temporal para otra propiedad u otro cliente OAuth.
+    const saved=(()=>{try{return JSON.parse(sessionStorage.getItem(sessionKey)||'null');}catch(_){return null;}})();
+    if(accessToken&&saved&&(saved.propertyId!==propertyField.value.trim()||saved.clientId!==clientField.value.trim())){
+      clearAuth();clearData();showStatus('Cambió la configuración. Conecta con Google para validar el nuevo acceso.');
+    }
+    saveConfig();
+  }
+  propertyField.addEventListener('change',configChanged);
+  clientField.addEventListener('change',configChanged);
+  // Al navegar a Tráfico en vivo, usar el token restaurado para actualizar enseguida.
+  const viewObserver=new MutationObserver(()=>{
+    if(!view.hidden&&!document.hidden&&connected()&&!busy)void updateRealtime();
+  });
+  viewObserver.observe(view,{attributes:true,attributeFilter:['hidden']});
   // Consultar únicamente mientras está abierta la sección para limitar el uso de cuota.
-  const interval=setInterval(()=>{if(!view.hidden&&!document.hidden&&connected())void updateRealtime();},60000);
-  window.addEventListener('pagehide',()=>{clearInterval(interval);accessToken='';expiresAt=0;});
+  const interval=setInterval(()=>{
+    if(!view.hidden&&!document.hidden){
+      if(connected())void updateRealtime();
+      else if(accessToken){clearAuth();showStatus('El acceso temporal de Google caducó. Pulsa Conectar con Google para renovarlo.',true);}
+    }
+  },60000);
+  window.addEventListener('pagehide',()=>{clearInterval(interval);viewObserver.disconnect();accessToken='';expiresAt=0;});
+  if(restoreSession()){
+    showStatus('Sesión de Google restaurada en esta pestaña. Consultando datos si Tráfico en vivo está abierto…');
+  }
   updateButtons();
+  if(connected()&&!view.hidden)void updateRealtime();
 })();
 </script>
 
