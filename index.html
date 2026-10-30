@@ -7758,7 +7758,7 @@ syncBackToTop();
   timer=setTimeout(finish,window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?5000:5000);
 })();
 </script>
-</<div id="mmhd-request-modal" hidden role="dialog" aria-modal="true" aria-labelledby="mmhd-request-title">
+<div id="mmhd-request-modal" hidden role="dialog" aria-modal="true" aria-labelledby="mmhd-request-title">
  <div class="mmhd-request-card"><div class="mmhd-req-top"><h2 id="mmhd-request-title">🎬 Solicitar contenido</h2><button type="button" class="mmhd-req-close" id="mmhd-req-close" aria-label="Cerrar">×</button></div>
  <p>Solicita una película o serie de manera anónima. No pedimos nombre ni correo.</p>
  <label for="mmhd-req-type">Tipo de contenido</label><select id="mmhd-req-type"><option value="movie">Película</option><option value="tv">Serie</option></select>
@@ -7798,5 +7798,5 @@ syncBackToTop();
  }catch(e){say(e.message||'No se pudo enviar')}finally{busy=false;submit.disabled=!chosen}});
 })();
 </script>
-body>
+</body>
 </html>
