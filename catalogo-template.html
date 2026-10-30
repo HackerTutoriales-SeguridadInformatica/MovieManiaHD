@@ -2388,6 +2388,36 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 @media(max-width:600px){#mmhd-halloween .hallow-moon{top:18%;width:175px;left:calc(50% - 87px)}#mmhd-halloween .hallow-center{padding-top:65px}#mmhd-halloween .hallow-bat.b1{left:3%}#mmhd-halloween .hallow-bat.b2{right:4%}}
 @media(prefers-reduced-motion:reduce){#mmhd-halloween *,#mmhd-halloween{animation:none!important;transition:none!important}}
 
+
+/* Halloween movimiento cinematográfico v2: movimiento de lado a lado real */
+#mmhd-halloween{background:radial-gradient(ellipse at 50% 50%,#35213b 0%,#130f21 58%,#03040a 100%)}
+#mmhd-halloween .hallow-moon{animation:hallow-moon-rise 1.8s ease-out both,hallow-moon-drift 5s 1.8s ease-in-out infinite alternate}
+#mmhd-halloween .hallow-bat{position:absolute;left:-20%;right:auto;top:15%;display:block;z-index:4;font-size:clamp(32px,6vw,68px);filter:brightness(.2);animation:hallow-cross 3.6s linear infinite;will-change:transform}
+#mmhd-halloween .hallow-bat.b1{left:-20%;top:21%;animation:hallow-cross 3.4s -.6s linear infinite}
+#mmhd-halloween .hallow-bat.b2{left:-20%;right:auto;top:36%;font-size:52px;animation:hallow-cross-high 4.3s -2.1s linear infinite}
+#mmhd-halloween .hallow-bat.b3{left:-20%;right:auto;top:9%;font-size:35px;animation:hallow-cross 3.1s -1.5s linear infinite}
+#mmhd-halloween .hallow-ghost{position:absolute;z-index:1;pointer-events:none;font-size:clamp(40px,7vw,85px);opacity:.48;filter:drop-shadow(0 0 16px #a7c8ff66);will-change:transform;animation:hallow-ghost-sweep 5s ease-in-out infinite}
+#mmhd-halloween .hallow-ghost.g1{left:0;top:49%;animation-delay:-1s}
+#mmhd-halloween .hallow-ghost.g2{right:2%;top:17%;font-size:48px;opacity:.35;animation:hallow-ghost-right 4.8s -2s ease-in-out infinite}
+#mmhd-halloween .hallow-flash{position:absolute;inset:0;pointer-events:none;z-index:5;background:#d9ddff;opacity:0;animation:hallow-lightning 5.7s 0s linear 1}
+#mmhd-halloween .hallow-title{animation:hallow-title-entrance 1.6s .25s cubic-bezier(.19,1,.22,1) both,hallow-title-glow 2s 1.8s ease-in-out infinite alternate}
+#mmhd-halloween .hallow-pumpkin{animation:hallow-pumpkin-pop 1s .2s cubic-bezier(.2,1.6,.4,1) both,hallow-pumpkin 1.1s 1.2s ease-in-out infinite alternate}
+#mmhd-halloween .hallow-stars{animation:hallow-stars-pan 5s linear infinite}
+#mmhd-halloween .hallow-fog{animation:hallow-fog-motion 3.4s ease-in-out infinite alternate}
+#mmhd-halloween .hallow-fog.two{animation-direction:alternate-reverse;animation-delay:-1.7s}
+@keyframes hallow-cross{0%{transform:translateX(-10vw) translateY(25px) rotate(-16deg) scale(.6)}35%{transform:translateX(45vw) translateY(-35px) rotate(12deg) scale(1.08)}65%{transform:translateX(82vw) translateY(20px) rotate(-7deg) scale(.8)}100%{transform:translateX(145vw) translateY(-40px) rotate(15deg) scale(.6)}}
+@keyframes hallow-cross-high{0%{transform:translateX(-10vw) translateY(20px) rotate(15deg)}45%{transform:translateX(65vw) translateY(-50px) rotate(-12deg) scale(1.25)}100%{transform:translateX(145vw) translateY(25px) rotate(16deg)}}
+@keyframes hallow-ghost-sweep{0%,100%{transform:translate(-18vw,28px) rotate(-10deg);opacity:0}20%{opacity:.4}65%{transform:translate(42vw,-28px) rotate(10deg);opacity:.62}90%{opacity:.05}}
+@keyframes hallow-ghost-right{0%,100%{transform:translate(17vw,20px);opacity:0}35%{opacity:.5}80%{transform:translate(-40vw,-42px);opacity:.3}}
+@keyframes hallow-lightning{0%,33%,35%,36%,39%,100%{opacity:0}33.4%,35.5%,37.4%{opacity:.26}}
+@keyframes hallow-title-entrance{0%{opacity:0;transform:perspective(700px) translateZ(-250px) scale(.55);filter:blur(18px)}75%{opacity:1;filter:blur(0)}100%{opacity:1;transform:perspective(700px) translateZ(0) scale(1);filter:blur(0)}}
+@keyframes hallow-title-glow{to{text-shadow:0 4px 26px #000,0 0 48px #ff6b34b3}}
+@keyframes hallow-pumpkin-pop{0%{opacity:0;transform:scale(.2) rotate(-28deg)}80%{opacity:1;transform:scale(1.2) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes hallow-moon-drift{to{transform:translateY(-12px) scale(1.04)}}
+@keyframes hallow-stars-pan{to{background-position:45px -60px}}
+@keyframes hallow-fog-motion{to{transform:translateX(18%) translateY(-20px) scale(1.18)}}
+@media(prefers-reduced-motion:reduce){#mmhd-halloween *,#mmhd-halloween{animation:none!important;transition:none!important}}
+
 </style>
 </head>
 <body>
@@ -2395,7 +2425,8 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 <div id="mmhd-halloween" role="dialog" aria-label="Bienvenida de Halloween a Movie Mania HD" aria-modal="true">
   <div class="hallow-stars" aria-hidden="true"></div><div class="hallow-moon" aria-hidden="true"></div>
   <span class="hallow-bat b1" aria-hidden="true">🦇</span><span class="hallow-bat b2" aria-hidden="true">🦇</span><span class="hallow-bat b3" aria-hidden="true">🦇</span>
-  <div class="hallow-fog" aria-hidden="true"></div><div class="hallow-fog two" aria-hidden="true"></div>
+  <span class="hallow-ghost g1" aria-hidden="true">👻</span><span class="hallow-ghost g2" aria-hidden="true">👻</span>
+  <div class="hallow-fog" aria-hidden="true"></div><div class="hallow-fog two" aria-hidden="true"></div><div class="hallow-flash" aria-hidden="true"></div>
   <div class="hallow-center"><span class="hallow-pumpkin" aria-hidden="true">🎃</span><p class="hallow-overline">Una noche de películas te espera</p><h2 class="hallow-title">MOVIE <span>MANIA</span> HD</h2><p class="hallow-subtitle">¡FELIZ HALLOWEEN!</p></div>
   <button id="mmhd-halloween-skip" class="hallow-skip" type="button">Omitir intro ✕</button>
 </div>
@@ -7667,7 +7698,7 @@ syncBackToTop();
   if(skip)skip.addEventListener('click',finish);
   intro.addEventListener('keydown',function(e){if(e.key==='Escape')finish();});
   document.addEventListener('keydown',function onKey(e){if(e.key==='Escape'){finish();document.removeEventListener('keydown',onKey);}});
-  timer=setTimeout(finish,window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?900:4000);
+  timer=setTimeout(finish,window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?900:5700);
 })();
 </script>
 </body>
