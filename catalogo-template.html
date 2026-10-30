@@ -2359,9 +2359,47 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   .mmhd-home-episode-card .mmhd-episode-caption small{font-size:9.5px}
 }
 
+
+/* Movie Mania HD · bienvenida cinematográfica de Halloween */
+#mmhd-halloween{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;isolation:isolate;overflow:hidden;background:radial-gradient(ellipse at 50% 65%,#291429 0%,#100c1c 49%,#05060b 100%);color:#fff;font-family:Inter,Arial,sans-serif;transition:opacity .75s ease,visibility .75s ease}
+#mmhd-halloween.mmhd-halloween-out{opacity:0;visibility:hidden;pointer-events:none}
+#mmhd-halloween .hallow-moon{position:absolute;left:calc(50% - 115px);top:12%;width:230px;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 32%,#fff1be,#fcb25c 63%,#d45e29 100%);box-shadow:0 0 65px 25px #f78c4033,0 0 160px 55px #e96b261a;animation:hallow-moon-rise 2.2s ease-out both}
+#mmhd-halloween .hallow-moon:after{content:'';position:absolute;inset:13%;border-radius:50%;background:radial-gradient(circle at 30% 55%,#ae683b35 0 8%,transparent 9%),radial-gradient(circle at 68% 24%,#9d582c3b 0 12%,transparent 13%),radial-gradient(circle at 68% 73%,#ae683b27 0 10%,transparent 11%)}
+#mmhd-halloween .hallow-stars{position:absolute;inset:0;background-image:radial-gradient(#fff9 1px,transparent 1.5px);background-size:79px 83px;opacity:.23}
+#mmhd-halloween .hallow-fog{position:absolute;width:125%;height:32%;left:-12%;bottom:-5%;filter:blur(30px);border-radius:50%;background:radial-gradient(ellipse,#a29fb34d,transparent 70%);animation:hallow-fog 7s ease-in-out infinite alternate}
+#mmhd-halloween .hallow-fog.two{bottom:18%;opacity:.32;animation-delay:-3s;animation-direction:alternate-reverse}
+#mmhd-halloween .hallow-bat{position:absolute;font-size:clamp(25px,5vw,56px);color:#100d18;text-shadow:0 3px 3px #0005;animation:hallow-batfly 4s ease-in-out infinite alternate;will-change:transform}
+#mmhd-halloween .hallow-bat.b1{top:19%;left:13%;animation-delay:-1s}
+#mmhd-halloween .hallow-bat.b2{top:32%;right:17%;font-size:32px;animation-delay:-2.2s}
+#mmhd-halloween .hallow-bat.b3{top:12%;right:29%;font-size:24px;animation-delay:-.7s}
+#mmhd-halloween .hallow-center{position:relative;z-index:2;text-align:center;max-width:min(92vw,850px);padding:42px 15px 0;animation:hallow-reveal 1.25s .25s ease-out both}
+#mmhd-halloween .hallow-pumpkin{display:block;font-size:clamp(72px,14vw,126px);line-height:1.1;filter:drop-shadow(0 0 25px #f57c32aa);animation:hallow-pumpkin 2.2s ease-in-out infinite alternate}
+#mmhd-halloween .hallow-overline{margin:15px 0 8px;color:#ffb672;font-weight:800;font-size:clamp(10px,2vw,14px);letter-spacing:.32em;text-transform:uppercase}
+#mmhd-halloween .hallow-title{margin:0;font-size:clamp(35px,8vw,82px);font-weight:900;letter-spacing:-.055em;line-height:1.03;text-shadow:0 4px 26px #000,0 0 32px #ff6b343e}
+#mmhd-halloween .hallow-title span{color:#ff8c41}
+#mmhd-halloween .hallow-subtitle{font-size:clamp(13px,3vw,20px);font-weight:600;letter-spacing:.18em;margin:17px 0 0;color:#e7c9bd}
+#mmhd-halloween .hallow-skip{position:absolute;right:max(18px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:3;padding:10px 16px;background:#211a2a;border:1px solid #bc785e;color:#fff;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer}
+#mmhd-halloween .hallow-skip:hover,#mmhd-halloween .hallow-skip:focus-visible{background:#553022;outline:2px solid #f9a968}
+@keyframes hallow-reveal{from{opacity:0;transform:translateY(25px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes hallow-moon-rise{from{opacity:0;transform:translateY(75px)}to{opacity:1;transform:translateY(0)}}
+@keyframes hallow-batfly{from{transform:translate(-15px,12px) rotate(-16deg)}to{transform:translate(52px,-27px) rotate(12deg)}}
+@keyframes hallow-fog{to{transform:translateX(12%) scale(1.08)}}
+@keyframes hallow-pumpkin{to{filter:drop-shadow(0 0 38px #ff8838ff);transform:translateY(-7px)}}
+@media(max-width:600px){#mmhd-halloween .hallow-moon{top:18%;width:175px;left:calc(50% - 87px)}#mmhd-halloween .hallow-center{padding-top:65px}#mmhd-halloween .hallow-bat.b1{left:3%}#mmhd-halloween .hallow-bat.b2{right:4%}}
+@media(prefers-reduced-motion:reduce){#mmhd-halloween *,#mmhd-halloween{animation:none!important;transition:none!important}}
+
 </style>
 </head>
 <body>
+<!-- Halloween: aparece en cada carga del index generado, sin dependencias externas. -->
+<div id="mmhd-halloween" role="dialog" aria-label="Bienvenida de Halloween a Movie Mania HD" aria-modal="true">
+  <div class="hallow-stars" aria-hidden="true"></div><div class="hallow-moon" aria-hidden="true"></div>
+  <span class="hallow-bat b1" aria-hidden="true">🦇</span><span class="hallow-bat b2" aria-hidden="true">🦇</span><span class="hallow-bat b3" aria-hidden="true">🦇</span>
+  <div class="hallow-fog" aria-hidden="true"></div><div class="hallow-fog two" aria-hidden="true"></div>
+  <div class="hallow-center"><span class="hallow-pumpkin" aria-hidden="true">🎃</span><p class="hallow-overline">Una noche de películas te espera</p><h2 class="hallow-title">MOVIE <span>MANIA</span> HD</h2><p class="hallow-subtitle">¡FELIZ HALLOWEEN!</p></div>
+  <button id="mmhd-halloween-skip" class="hallow-skip" type="button">Omitir intro ✕</button>
+</div>
+
 
 <div class="app" id="appScreen">
   <aside class="sidebar">
@@ -7605,6 +7643,31 @@ syncBackToTop();
   document.addEventListener('keydown',function(e){if(e.key==='Escape')update();});
   new MutationObserver(update).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['hidden']});
   update();
+})();
+</script>
+
+<script>
+/* Intro de Halloween: temporizador independiente del catálogo y cierre accesible. */
+(function(){
+  'use strict';
+  var intro=document.getElementById('mmhd-halloween');
+  if(!intro)return;
+  var skip=document.getElementById('mmhd-halloween-skip');
+  var done=false;
+  var timer;
+  function finish(){
+    if(done)return;
+    done=true;
+    clearTimeout(timer);
+    intro.classList.add('mmhd-halloween-out');
+    intro.setAttribute('aria-hidden','true');
+    intro.removeAttribute('aria-modal');
+    setTimeout(function(){if(intro.parentNode)intro.parentNode.removeChild(intro);},800);
+  }
+  if(skip)skip.addEventListener('click',finish);
+  intro.addEventListener('keydown',function(e){if(e.key==='Escape')finish();});
+  document.addEventListener('keydown',function onKey(e){if(e.key==='Escape'){finish();document.removeEventListener('keydown',onKey);}});
+  timer=setTimeout(finish,window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?900:4000);
 })();
 </script>
 </body>
