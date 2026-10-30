@@ -1155,6 +1155,13 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 @media(max-width:1000px){.mmhd-ga-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.mmhd-ga-config,.mmhd-ga-grid{grid-template-columns:1fr}}
 
+
+/* Administración de solicitudes */
+.mmhd-admin-req-row{display:flex;align-items:center;gap:12px;padding:12px;background:#152033;border:1px solid #263b51;border-radius:11px;margin:8px 0;flex-wrap:wrap}
+.mmhd-admin-req-row img{width:47px;height:66px;object-fit:cover;border-radius:5px}
+.mmhd-admin-req-row .details{flex:1;min-width:180px}.mmhd-admin-req-row .details small{display:block;color:#98b1c6;margin-top:5px}
+.mmhd-admin-req-row select{width:auto;min-width:135px}.mmhd-admin-req-row button{padding:9px 12px}
+.mmhd-req-secret{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mmhd-req-secret input{flex:1;min-width:220px}
 </style>
 </head>
 <body>
@@ -1167,6 +1174,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <button class="rail-link" data-view="analytics" type="button"><i class="fa-solid fa-chart-line"></i><span>Estadísticas</span></button>
 <button class="rail-link" data-view="library" type="button"><i class="fa-solid fa-layer-group"></i><span>Mi biblioteca</span></button>
 <button class="rail-link" data-view="editor" type="button"><i class="fa-solid fa-square-plus"></i><span>Agregar / editar</span></button>
+<button class="rail-link" data-view="requests" type="button"><i class="fa-solid fa-inbox"></i><span>Solicitudes</span></button>
 <button class="rail-link" data-view="pending" type="button"><i class="fa-solid fa-list-check"></i><span>Pendientes</span></button>
 <button class="rail-link" data-view="diagnostic" type="button"><i class="fa-solid fa-heart-pulse"></i><span>Diagnóstico</span></button>
 <button class="rail-link" data-view="review" type="button"><i class="fa-solid fa-clipboard-check"></i><span>Revisiones TXT</span></button>
@@ -1258,6 +1266,14 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   </div>
   <p class="support-text mmhd-ga-footnote">Las reproducciones y descargas son solicitudes registradas, no confirmaciones de reproducción o descarga completada. El historial de GA4 puede tardar en procesarse; los datos del día actual pueden ser provisionales. Para el ranking por título se requiere que la dimensión personalizada correspondiente esté configurada en GA4.</p>
 </section>
+
+<section aria-labelledby="mmhd-requests-heading" class="admin-view" data-page="requests" hidden id="view-requests">
+ <div class="page-heading"><div><div class="eyebrow">COMUNIDAD</div><h2 id="mmhd-requests-heading">Solicitudes de visitantes</h2><p>Peticiones anónimas recibidas desde el catálogo, agrupadas por película o serie.</p></div></div>
+ <div class="panel"><p class="support-text">Introduce la clave administrativa configurada en Vercel. Se conserva solo durante esta pestaña, nunca en el HTML publicado.</p>
+ <div class="mmhd-req-secret"><input id="mmhd-admin-requests-key" type="password" autocomplete="off" placeholder="Clave de solicitudes" aria-label="Clave administrativa" /><button class="primary" type="button" id="mmhd-admin-requests-load">Conectar y actualizar</button><button class="secondary" type="button" id="mmhd-admin-requests-logout">Desconectar</button></div>
+ <p id="mmhd-admin-requests-status" class="support-text" role="status"></p><div id="mmhd-admin-requests-list"></div></div>
+</section>
+
 <section aria-labelledby="library-title" class="admin-view" data-page="library" hidden="" id="view-library">
 <div class="page-heading"><div><div class="eyebrow">BIBLIOTECA</div><h2 id="library-title">Gestiona tu colección</h2><p>Encuentra cualquier título y modifica su información o enlaces sin empezar de nuevo.</p></div><div class="page-actions"><button class="primary" data-create="movie" type="button"><i class="fa-solid fa-plus"></i> Añadir contenido</button></div></div>
 <div class="mmhd-library-healthbar"><button type="button" class="secondary" data-view="diagnostic"><i class="fa-solid fa-heart-pulse"></i> Diagnóstico general de enlaces</button><span id="libraryQualityHint">Calidades verificadas: sin datos todavía.</span></div>
@@ -5290,7 +5306,7 @@ renderCollection();
 (function(){
   const navButtons=[...document.querySelectorAll('.rail-link[data-view]')];
   const views=[...document.querySelectorAll('.admin-view[data-page]')];
-  const navTitles={overview:'Resumen',analytics:'Estadísticas',library:'Mi biblioteca',editor:'Agregar / editar',pending:'Pendientes',diagnostic:'Diagnóstico',review:'Revisiones TXT',appearance:'Personalización',tools:'Herramientas'};
+  const navTitles={overview:'Resumen',analytics:'Estadísticas',library:'Mi biblioteca',editor:'Agregar / editar',requests:'Solicitudes',pending:'Pendientes',diagnostic:'Diagnóstico',review:'Revisiones TXT',appearance:'Personalización',tools:'Herramientas'};
   function setPanelView(name){
     if(!navTitles[name])name='overview';
     views.forEach(el=>{el.hidden=el.dataset.page!==name});
@@ -5686,6 +5702,25 @@ renderCollection();
   }
   updateButtons();
   if(connected()&&!view.hidden)void updateRealtime();
+})();
+</script>
+
+<script>
+/* Acceso a solicitudes: la clave se solicita, nunca se incrusta en el panel. */
+(()=>{'use strict';const keyEl=document.getElementById('mmhd-admin-requests-key'),list=document.getElementById('mmhd-admin-requests-list'),status=document.getElementById('mmhd-admin-requests-status');if(!keyEl)return;
+ let key='';try{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}catch{}keyEl.value=key;
+ const say=t=>status.textContent=t;
+ async function api(method,path,data){const res=await fetch(path,{method,headers:{'content-type':'application/json','x-mmhd-admin-key':key},body:data?JSON.stringify(data):undefined,cache:'no-store'});const payload=await res.json();if(!res.ok)throw Error(payload.error||'Error de conexión');return payload}
+ async function load(){key=keyEl.value.trim();if(!key){say('Introduce tu clave administrativa.');return;}say('Consultando solicitudes…');list.replaceChildren();try{
+ const data=await api('GET','/api/requests');sessionStorage.setItem('mmhd_requests_admin_key',key);say(data.items.length+' títulos solicitados.');
+ if(!data.items.length){list.textContent='Todavía no hay solicitudes.';return;}
+ data.items.forEach(r=>{const row=document.createElement('div');row.className='mmhd-admin-req-row';if(r.poster_path){const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w92'+r.poster_path;im.alt='';row.append(im)}
+ const info=document.createElement('div');info.className='details';const title=document.createElement('strong'),small=document.createElement('small');title.textContent=r.title;small.textContent=(r.media_type==='tv'?'Serie':'Película')+' · '+(r.release_year||'Sin año')+' · '+r.votes+' solicitud(es) · '+new Date(r.updated_at).toLocaleDateString('es-MX');info.append(title,small);row.append(info);
+ const select=document.createElement('select');[['pending','Pendiente'],['progress','En proceso'],['added','Agregada']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;select.append(o)});select.value=r.status;
+ select.addEventListener('change',async()=>{select.disabled=true;try{await api('PATCH','/api/requests',{id:r.id,status:select.value});say('Estado actualizado.')}catch(e){say(e.message);select.value=r.status}finally{select.disabled=false}});row.append(select);list.append(row)});
+ }catch(e){say(e.message||'No se pudo conectar');}}
+ document.getElementById('mmhd-admin-requests-load').addEventListener('click',load);
+ document.getElementById('mmhd-admin-requests-logout').addEventListener('click',()=>{key='';keyEl.value='';sessionStorage.removeItem('mmhd_requests_admin_key');list.replaceChildren();say('Conexión cerrada.')});
 })();
 </script>
 
