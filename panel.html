@@ -4055,8 +4055,18 @@ async function previewCollection(){
     const previewHtml=html.replace(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi, tag=>
       /\bmedia=/.test(tag) ? tag : tag.replace(/>$/, " media=\"print\" onload=\"this.media='all'\">")
     );
-    $("catalogPreviewFrame").srcdoc=previewHtml;
-    $("catalogPreviewDialog").showModal();
+    // Crear un iframe limpio en cada apertura. Reutilizar un iframe cuyo srcdoc
+    // se vació al cerrar puede dejar la vista previa en blanco en Chromium.
+    const dialog=$("catalogPreviewDialog");
+    const previousFrame=$("catalogPreviewFrame");
+    const frame=document.createElement("iframe");
+    frame.id="catalogPreviewFrame";
+    frame.title=previousFrame.title;
+    frame.setAttribute("referrerpolicy","no-referrer");
+    frame.setAttribute("sandbox","allow-scripts allow-forms allow-popups");
+    previousFrame.replaceWith(frame);
+    dialog.showModal();
+    frame.srcdoc=previewHtml;
     $("collectionStatus").className="status show ok";
     $("collectionStatus").textContent=`✓ Vista previa de ${count} títulos. No se ha exportado ningún archivo.`;
   }catch(e){
@@ -4198,7 +4208,19 @@ $("btnRecoverCollection").addEventListener("click",()=>{
 $("btnGenerateCollection").addEventListener("click", generateCollection);
 $("btnPreviewCollection").addEventListener("click", previewCollection);
 $("btnClosePreview").addEventListener("click",()=>$("catalogPreviewDialog").close());
-$("catalogPreviewDialog").addEventListener("close",()=>{$("catalogPreviewFrame").srcdoc="";});
+$("catalogPreviewDialog").addEventListener("close",()=>{
+  // Descartar el documento previo (scripts, timers, audio y vídeo) sin
+  // navegar el iframe que se volverá a usar en una apertura posterior.
+  const frame=$("catalogPreviewFrame");
+  if(frame){
+    const clean=document.createElement("iframe");
+    clean.id="catalogPreviewFrame";
+    clean.title=frame.title;
+    clean.setAttribute("referrerpolicy","no-referrer");
+    clean.setAttribute("sandbox","allow-scripts allow-forms allow-popups");
+    frame.replaceWith(clean);
+  }
+});
 $("btnImportJson").addEventListener("click", importJsonCatalog);
 apiKey.addEventListener("input", ()=>{ state.validated=false; $("keyStatus").className="status"; $("keyStatus").textContent=""; });
 $("credentialType").addEventListener("change", ()=>{ state.validated=false; $("keyStatus").className="status"; $("keyStatus").textContent=""; });
