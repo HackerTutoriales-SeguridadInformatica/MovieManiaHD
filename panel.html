@@ -1163,6 +1163,13 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-admin-req-row select{width:auto;min-width:135px}.mmhd-admin-req-row button{padding:9px 12px}
 .mmhd-req-secret{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mmhd-req-secret input{flex:1;min-width:220px}
 
+
+/* Eliminar una solicitud: control independiente de las acciones de estado. */
+.mmhd-admin-req-row{position:relative;padding-right:46px}
+.mmhd-admin-req-row .mmhd-req-delete{position:absolute;right:10px;top:10px;width:28px;height:28px;min-height:0;padding:0;display:grid;place-items:center;border-radius:7px;border:1px solid #714050;background:#321a28;color:#ffb5bf;font-size:23px;font-weight:500;line-height:1;cursor:pointer}
+.mmhd-admin-req-row .mmhd-req-delete:hover,.mmhd-admin-req-row .mmhd-req-delete:focus-visible{background:#8d283e;color:#fff;outline:2px solid #ff869d;outline-offset:1px}
+.mmhd-admin-req-row .mmhd-req-delete:disabled{opacity:.4;cursor:wait}
+
 /* Solicitudes: tarjetas, contador y acción rápida. */
 .mmhd-req-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0}
 .mmhd-req-stat{border:1px solid #314057;background:#101e2f;border-radius:12px;padding:13px 16px;display:flex;flex-direction:column;gap:4px}
@@ -1284,7 +1291,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
  <div class="page-heading"><div><div class="eyebrow">COMUNIDAD</div><h2 id="mmhd-requests-heading">Solicitudes de visitantes</h2><p>Peticiones anónimas recibidas desde el catálogo, agrupadas por película o serie.</p></div></div>
  <div class="panel"><p class="support-text">Introduce la clave administrativa configurada en Vercel. La conexión se mantiene durante esta pestaña. Opcionalmente puedes recordarla en este navegador de confianza. No se incluye en el HTML publicado.</p>
  <div class="mmhd-req-secret"><input id="mmhd-admin-requests-key" type="password" autocomplete="off" placeholder="Clave de solicitudes" aria-label="Clave administrativa" /><button class="primary" type="button" id="mmhd-admin-requests-load">Conectar y actualizar</button><button class="secondary" type="button" id="mmhd-admin-requests-logout">Desconectar</button></div>
- <label class="support-text" style="display:flex;align-items:center;gap:8px;margin:10px 0"><input type="checkbox" id="mmhd-req-remember" style="width:16px;height:16px"/> Recordar clave y conectar automáticamente en este navegador</label><p class="support-text" style="font-size:11px;opacity:.8">Solo en un equipo privado: esta opción guarda la clave en el almacenamiento local del navegador. Cualquier persona con acceso a este perfil o código malicioso de la misma página podría recuperarla. «Desconectar» borra la clave guardada.</p><p id="mmhd-admin-requests-status" class="support-text" role="status"></p><div id="mmhd-admin-requests-stats" class="mmhd-req-stats" hidden aria-label="Resumen de solicitudes"><div class="mmhd-req-stat"><strong id="mmhd-req-pending">0</strong><span>Títulos pendientes</span></div><div class="mmhd-req-stat"><strong id="mmhd-req-votes">0</strong><span>Solicitudes pendientes</span></div><div class="mmhd-req-stat"><strong id="mmhd-req-added">0</strong><span>Títulos agregados</span></div></div><div id="mmhd-admin-requests-list"></div></div>
+ <label class="support-text" style="display:flex;align-items:center;gap:8px;margin:10px 0"><input type="checkbox" id="mmhd-req-remember" style="width:16px;height:16px"/> Recordar clave y conectar automáticamente en este navegador</label><p class="support-text" style="font-size:11px;opacity:.8">Solo en un equipo privado: esta opción guarda la clave en el almacenamiento local del navegador. Cualquier persona con acceso a este perfil o código malicioso de la misma página podría recuperarla. «Desconectar» borra la clave guardada.</p><p id="mmhd-admin-requests-status" class="support-text" role="status"></p><div id="mmhd-admin-requests-stats" class="mmhd-req-stats" hidden aria-label="Resumen de solicitudes"><div class="mmhd-req-stat"><strong id="mmhd-req-pending">0</strong><span>Pendiente</span></div><div class="mmhd-req-stat"><strong id="mmhd-req-progress">0</strong><span>En proceso</span></div><div class="mmhd-req-stat"><strong id="mmhd-req-added">0</strong><span>Agregada</span></div></div><div id="mmhd-admin-requests-list"></div></div>
 </section>
 
 <section aria-labelledby="library-title" class="admin-view" data-page="library" hidden="" id="view-library">
@@ -5722,12 +5729,12 @@ renderCollection();
 /* Solicitudes: conexión recordada opcional, pósters, resumen y botón Agregada. */
 (()=>{'use strict';
  const keyEl=document.getElementById('mmhd-admin-requests-key'),list=document.getElementById('mmhd-admin-requests-list'),status=document.getElementById('mmhd-admin-requests-status');if(!keyEl)return;
- const remember=document.getElementById('mmhd-req-remember'),stats=document.getElementById('mmhd-admin-requests-stats'),pendingEl=document.getElementById('mmhd-req-pending'),votesEl=document.getElementById('mmhd-req-votes'),addedEl=document.getElementById('mmhd-req-added'),savedKeyName='mmhd_requests_admin_key_persist_v1';
+ const remember=document.getElementById('mmhd-req-remember'),stats=document.getElementById('mmhd-admin-requests-stats'),pendingEl=document.getElementById('mmhd-req-pending'),progressEl=document.getElementById('mmhd-req-progress'),addedEl=document.getElementById('mmhd-req-added'),savedKeyName='mmhd_requests_admin_key_persist_v1';
  let key='',savedPersistent=false,items=[];
  try{const saved=localStorage.getItem(savedKeyName);if(saved){key=saved;savedPersistent=true;remember.checked=true}else{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}}catch{try{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}catch{}}keyEl.value=key;
  const say=t=>status.textContent=t;
  async function api(method,path,data){const res=await fetch(path,{method,headers:{'content-type':'application/json','x-mmhd-admin-key':key},body:data?JSON.stringify(data):undefined,cache:'no-store'});const payload=await res.json();if(!res.ok)throw Error(payload.error||'Error de conexión');return payload}
- function renderStats(){const pending=items.filter(x=>x.status==='pending');pendingEl.textContent=pending.length;votesEl.textContent=pending.reduce((n,x)=>n+(Number(x.votes)||0),0);addedEl.textContent=items.filter(x=>x.status==='added').length;stats.hidden=false}
+ function renderStats(){pendingEl.textContent=items.filter(x=>x.status==='pending').length;progressEl.textContent=items.filter(x=>x.status==='progress').length;addedEl.textContent=items.filter(x=>x.status==='added').length;stats.hidden=false}
  function render(){list.replaceChildren();renderStats();if(!items.length){list.textContent='Todavía no hay solicitudes.';return;}
  items.forEach(r=>{const row=document.createElement('div');row.className='mmhd-admin-req-row';row.dataset.status=r.status;
  if(typeof r.poster_path==='string'&&/^\/[a-zA-Z0-9_/-]+\.(jpg|jpeg|png|webp)$/i.test(r.poster_path)){
@@ -5737,7 +5744,15 @@ renderCollection();
  const actions=document.createElement('div');actions.className='mmhd-req-actions';const select=document.createElement('select');[['pending','Pendiente'],['progress','En proceso'],['added','Agregada']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;select.append(o)});select.value=r.status;
  const btn=document.createElement('button');btn.type='button';btn.textContent=r.status==='added'?'✓ Agregada':'✓ Marcar agregada';btn.disabled=r.status==='added';
  async function setStatus(next){if(next===r.status)return;select.disabled=true;btn.disabled=true;try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;say('Estado actualizado: '+r.title+'.');render()}catch(e){say(e.message);select.value=r.status;select.disabled=false;btn.disabled=r.status==='added'}}
- select.addEventListener('change',()=>setStatus(select.value));btn.addEventListener('click',()=>setStatus('added'));actions.append(select,btn);row.append(actions);list.append(row)})}
+ select.addEventListener('change',()=>setStatus(select.value));btn.addEventListener('click',()=>setStatus('added'));
+ const remove=document.createElement('button');remove.type='button';remove.className='mmhd-req-delete';remove.setAttribute('aria-label','Eliminar solicitud de '+r.title);remove.title='Eliminar solicitud';remove.textContent='×';
+ remove.addEventListener('click',async()=>{
+  if(!window.confirm('¿Eliminar definitivamente la solicitud «'+r.title+'»?\n\nSe borrarán el título y sus registros de solicitudes. Esta acción no se puede deshacer.'))return;
+  remove.disabled=true;select.disabled=true;btn.disabled=true;
+  try{await api('DELETE','/api/requests',{id:r.id});items=items.filter(x=>x.id!==r.id);say('Solicitud eliminada: '+r.title+'.');render()}
+  catch(e){say('No se pudo eliminar «'+r.title+'»: '+e.message);remove.disabled=false;select.disabled=false;btn.disabled=r.status==='added'}
+ });
+ actions.append(select,btn);row.append(actions,remove);list.append(row)})}
  async function load(){key=keyEl.value.trim();if(!key){say('Introduce tu clave administrativa.');return;}say('Consultando solicitudes…');try{
  const data=await api('GET','/api/requests');items=Array.isArray(data.items)?data.items:[];
  try{sessionStorage.setItem('mmhd_requests_admin_key',key);if(remember.checked)localStorage.setItem(savedKeyName,key);else localStorage.removeItem(savedKeyName)}catch{}
