@@ -3996,48 +3996,7 @@ function getPlayerHtml(movie, autoNext=false, retryPreference=null){
     + mmhdMakeFullscreenMenuLayerScript()
     + (autoNext && movie.parentSeriesId!=null ? buildNextEpisodeAutostartScript() : "")
     + (nextEpisode?.status==="ready" ? buildNextEpisodeBannerScript(movie,nextEpisode) : "");
-  return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"
-<div id="mmhd-request-modal" hidden role="dialog" aria-modal="true" aria-labelledby="mmhd-request-title">
- <div class="mmhd-request-card"><div class="mmhd-req-top"><h2 id="mmhd-request-title">🎬 Solicitar contenido</h2><button type="button" class="mmhd-req-close" id="mmhd-req-close" aria-label="Cerrar">×</button></div>
- <p>Solicita una película o serie de manera anónima. No pedimos nombre ni correo.</p>
- <label for="mmhd-req-type">Tipo de contenido</label><select id="mmhd-req-type"><option value="movie">Película</option><option value="tv">Serie</option></select>
- <label for="mmhd-req-query">Busca el título en TMDB</label><input id="mmhd-req-query" maxlength="100" placeholder="Nombre de la película o serie" autocomplete="off" />
- <div id="mmhd-req-results" class="mmhd-req-results" aria-live="polite"></div><div class="mmhd-req-message" id="mmhd-req-message" role="status"></div>
- <button id="mmhd-req-submit" class="mmhd-req-submit" disabled type="button">Enviar solicitud anónima</button></div>
-</div>
-
-<script>
-/* Solicitudes de catálogo: ninguna credencial administrativa en el navegador público. */
-(()=>{'use strict';
- const modal=document.getElementById('mmhd-request-modal');if(!modal)return;
- const q=document.getElementById('mmhd-req-query'),type=document.getElementById('mmhd-req-type'),results=document.getElementById('mmhd-req-results'),msg=document.getElementById('mmhd-req-message'),submit=document.getElementById('mmhd-req-submit');
- let chosen=null, debounce=null,serial=0,busy=false;
- const say=t=>{msg.textContent=t};
- function open(){modal.hidden=false;q.focus();}
- function close(){modal.hidden=true;}
- document.querySelectorAll('[data-mmhd-request-open]').forEach(b=>b.addEventListener('click',open));
- document.getElementById('mmhd-req-close').addEventListener('click',close);
- modal.addEventListener('click',e=>{if(e.target===modal)close()});
- document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)close()});
- function reset(){chosen=null;submit.disabled=true;results.replaceChildren();}
- async function search(){const seq=++serial;reset();say('');const term=q.value.trim();if(term.length<2)return;
-   results.textContent='Buscando…';try{const response=await fetch('/api/request-search?type='+encodeURIComponent(type.value)+'&q='+encodeURIComponent(term));const payload=await response.json();if(seq!==serial)return;
-   if(!response.ok)throw Error(payload.error||'No se pudo buscar');results.replaceChildren();
-   if(!payload.results?.length){results.textContent='No encontramos resultados. Prueba otro título.';return;}
-   payload.results.forEach(m=>{const b=document.createElement('button');b.type='button';b.className='mmhd-req-result';b.setAttribute('aria-pressed','false');
-      if(m.poster){const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w92'+m.poster;im.alt='';im.loading='lazy';b.append(im)}
-      const s=document.createElement('span'),strong=document.createElement('strong'),small=document.createElement('small');strong.textContent=m.title;small.textContent=m.year||'Sin año';s.append(strong,small);b.append(s);
-      b.addEventListener('click',()=>{results.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');chosen=m;submit.disabled=false;say('Seleccionado: '+m.title)});results.append(b);
-   });
- }catch(e){if(seq===serial){results.textContent='';say(e.message||'Error de búsqueda')}}}
- q.addEventListener('input',()=>{clearTimeout(debounce);++serial;reset();debounce=setTimeout(search,350)});
- type.addEventListener('change',()=>{clearTimeout(debounce);search()});
- submit.addEventListener('click',async()=>{if(!chosen||busy)return;busy=true;submit.disabled=true;say('Enviando…');try{
- const res=await fetch('/api/requests',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:type.value,id:chosen.id})});const data=await res.json();if(!res.ok)throw Error(data.error||'No se pudo enviar');say(data.duplicate?'Ya habías solicitado este título recientemente.':'¡Solicitud enviada correctamente!');
- }catch(e){say(e.message||'No se pudo enviar')}finally{busy=false;submit.disabled=!chosen}});
-})();
-</script>
-</body>") : html+scriptTag;
+  return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"</body>") : html+scriptTag;
 }
 
 /* ============================================================
@@ -7797,6 +7756,46 @@ syncBackToTop();
   intro.addEventListener('keydown',function(e){if(e.key==='Escape')finish();});
   document.addEventListener('keydown',function onKey(e){if(e.key==='Escape'){finish();document.removeEventListener('keydown',onKey);}});
   timer=setTimeout(finish,window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?5000:5000);
+})();
+</script>
+<div id="mmhd-request-modal" hidden role="dialog" aria-modal="true" aria-labelledby="mmhd-request-title">
+ <div class="mmhd-request-card"><div class="mmhd-req-top"><h2 id="mmhd-request-title">🎬 Solicitar contenido</h2><button type="button" class="mmhd-req-close" id="mmhd-req-close" aria-label="Cerrar">×</button></div>
+ <p>Solicita una película o serie de manera anónima. No pedimos nombre ni correo.</p>
+ <label for="mmhd-req-type">Tipo de contenido</label><select id="mmhd-req-type"><option value="movie">Película</option><option value="tv">Serie</option></select>
+ <label for="mmhd-req-query">Busca el título en TMDB</label><input id="mmhd-req-query" maxlength="100" placeholder="Nombre de la película o serie" autocomplete="off" />
+ <div id="mmhd-req-results" class="mmhd-req-results" aria-live="polite"></div><div class="mmhd-req-message" id="mmhd-req-message" role="status"></div>
+ <button id="mmhd-req-submit" class="mmhd-req-submit" disabled type="button">Enviar solicitud anónima</button></div>
+</div>
+
+<script>
+/* Solicitudes de catálogo: ninguna credencial administrativa en el navegador público. */
+(()=>{'use strict';
+ const modal=document.getElementById('mmhd-request-modal');if(!modal)return;
+ const q=document.getElementById('mmhd-req-query'),type=document.getElementById('mmhd-req-type'),results=document.getElementById('mmhd-req-results'),msg=document.getElementById('mmhd-req-message'),submit=document.getElementById('mmhd-req-submit');
+ let chosen=null, debounce=null,serial=0,busy=false;
+ const say=t=>{msg.textContent=t};
+ function open(){modal.hidden=false;q.focus();}
+ function close(){modal.hidden=true;}
+ document.querySelectorAll('[data-mmhd-request-open]').forEach(b=>b.addEventListener('click',open));
+ document.getElementById('mmhd-req-close').addEventListener('click',close);
+ modal.addEventListener('click',e=>{if(e.target===modal)close()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)close()});
+ function reset(){chosen=null;submit.disabled=true;results.replaceChildren();}
+ async function search(){const seq=++serial;reset();say('');const term=q.value.trim();if(term.length<2)return;
+   results.textContent='Buscando…';try{const response=await fetch('/api/request-search?type='+encodeURIComponent(type.value)+'&q='+encodeURIComponent(term));const payload=await response.json();if(seq!==serial)return;
+   if(!response.ok)throw Error(payload.error||'No se pudo buscar');results.replaceChildren();
+   if(!payload.results?.length){results.textContent='No encontramos resultados. Prueba otro título.';return;}
+   payload.results.forEach(m=>{const b=document.createElement('button');b.type='button';b.className='mmhd-req-result';b.setAttribute('aria-pressed','false');
+      if(m.poster){const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w92'+m.poster;im.alt='';im.loading='lazy';b.append(im)}
+      const s=document.createElement('span'),strong=document.createElement('strong'),small=document.createElement('small');strong.textContent=m.title;small.textContent=m.year||'Sin año';s.append(strong,small);b.append(s);
+      b.addEventListener('click',()=>{results.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');chosen=m;submit.disabled=false;say('Seleccionado: '+m.title)});results.append(b);
+   });
+ }catch(e){if(seq===serial){results.textContent='';say(e.message||'Error de búsqueda')}}}
+ q.addEventListener('input',()=>{clearTimeout(debounce);++serial;reset();debounce=setTimeout(search,350)});
+ type.addEventListener('change',()=>{clearTimeout(debounce);search()});
+ submit.addEventListener('click',async()=>{if(!chosen||busy)return;busy=true;submit.disabled=true;say('Enviando…');try{
+ const res=await fetch('/api/requests',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:type.value,id:chosen.id})});const data=await res.json();if(!res.ok)throw Error(data.error||'No se pudo enviar');say(data.duplicate?'Ya habías solicitado este título recientemente.':'¡Solicitud enviada correctamente!');
+ }catch(e){say(e.message||'No se pudo enviar')}finally{busy=false;submit.disabled=!chosen}});
 })();
 </script>
 </body>
