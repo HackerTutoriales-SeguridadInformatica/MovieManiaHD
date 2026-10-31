@@ -7796,8 +7796,18 @@ syncBackToTop();
    }catch(e){captchaHelp.textContent=e.message||'No se pudo cargar la verificación.';}finally{captchaInit=null}})();return captchaInit;
  }
  const say=t=>{msg.textContent=t};
- function open(){modal.hidden=false;q.focus();initCaptcha()}
- function close(){modal.hidden=true;}
+ function clearForm(){
+   clearTimeout(debounce);++serial;chosen=null;q.value='';type.value='movie';results.replaceChildren();syncClear();say('');
+   captchaToken='';canSubmit();
+ }
+ function open(){
+   if(busy)return;
+   clearForm();modal.hidden=false;q.focus();
+   if(widgetId!==null&&window.turnstile){captchaHelp.textContent='Completa la verificación antes de enviar.';window.turnstile.reset(widgetId)}
+   else initCaptcha();
+ }
+ function close(){if(busy)return;modal.hidden=true;clearForm();}
+
  document.querySelectorAll('[data-mmhd-request-open]').forEach(b=>b.addEventListener('click',open));
  document.getElementById('mmhd-req-close').addEventListener('click',close);
  modal.addEventListener('click',e=>{if(e.target===modal)close()});
@@ -7817,9 +7827,13 @@ syncBackToTop();
  clearBtn.addEventListener('click',()=>{q.value='';syncClear();clearTimeout(debounce);++serial;reset();say('');q.focus()});
  q.addEventListener('input',()=>{syncClear();clearTimeout(debounce);++serial;reset();debounce=setTimeout(search,350)});syncClear();
  type.addEventListener('change',()=>{clearTimeout(debounce);search()});
- submit.addEventListener('click',async()=>{if(!chosen||busy||!captchaToken)return;busy=true;canSubmit();say('Enviando…');try{
- const res=await fetch('/api/requests',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:type.value,id:chosen.id,turnstileToken:captchaToken})});const data=await res.json();if(!res.ok)throw Error(data.error||'No se pudo enviar');say(data.duplicate?'Ya habías solicitado este título recientemente.':'¡Solicitud enviada correctamente!');
- }catch(e){say(e.message||'No se pudo enviar')}finally{busy=false;resetCaptcha()}});
+ submit.addEventListener('click',async()=>{if(!chosen||busy||!captchaToken)return;busy=true;canSubmit();say('Enviando…');let sent=false;try{
+ const res=await fetch('/api/requests',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:type.value,id:chosen.id,turnstileToken:captchaToken})});const data=await res.json();if(!res.ok)throw Error(data.error||'No se pudo enviar');sent=true;
+ say(data.duplicate?'Esta solicitud ya estaba registrada recientemente. Cerrando…':'¡Solicitud enviada correctamente! Cerrando…');
+ // Conservamos brevemente la confirmación; no reiniciamos Turnstile detrás del mensaje.
+ await new Promise(resolve=>setTimeout(resolve,1100));
+ }catch(e){say(e.message||'No se pudo enviar')}
+ finally{busy=false;if(sent){modal.hidden=true;clearForm();}else{resetCaptcha()}}});
 })();
 </script>
 </body>
