@@ -1162,6 +1162,19 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-admin-req-row .details{flex:1;min-width:180px}.mmhd-admin-req-row .details small{display:block;color:#98b1c6;margin-top:5px}
 .mmhd-admin-req-row select{width:auto;min-width:135px}.mmhd-admin-req-row button{padding:9px 12px}
 .mmhd-req-secret{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mmhd-req-secret input{flex:1;min-width:220px}
+
+/* Solicitudes: tarjetas, contador y acción rápida. */
+.mmhd-req-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0}
+.mmhd-req-stat{border:1px solid #314057;background:#101e2f;border-radius:12px;padding:13px 16px;display:flex;flex-direction:column;gap:4px}
+.mmhd-req-stat strong{font-size:25px;color:#fff}.mmhd-req-stat span{color:#9bb3c8;font-size:11px}
+.mmhd-admin-req-row{flex-wrap:nowrap;gap:16px;align-items:center}
+.mmhd-admin-req-row img,.mmhd-admin-req-row .mmhd-req-placeholder{width:66px;height:96px;flex:0 0 66px;border-radius:8px;object-fit:cover;background:#263448}
+.mmhd-admin-req-row .mmhd-req-placeholder{display:grid;place-items:center;color:#9eb3c9;text-align:center;font-size:11px}
+.mmhd-req-actions{display:flex;flex-direction:column;gap:7px;align-items:stretch;min-width:156px}
+.mmhd-req-actions button{background:#176947;border:1px solid #2c9b70;border-radius:8px;color:#fff;font-weight:700;font-size:11px;min-height:34px}
+.mmhd-req-actions button:disabled{opacity:.55;cursor:default}
+.mmhd-admin-req-row[data-status="added"]{border-color:#286c56;background:#102a28}
+@media(max-width:600px){.mmhd-req-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.mmhd-req-stat{padding:10px 7px}.mmhd-req-stat strong{font-size:20px}.mmhd-admin-req-row{flex-wrap:wrap}.mmhd-req-actions{width:100%;flex-direction:row}.mmhd-req-actions select,.mmhd-req-actions button{flex:1;min-width:0}}
 </style>
 </head>
 <body>
@@ -1271,7 +1284,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
  <div class="page-heading"><div><div class="eyebrow">COMUNIDAD</div><h2 id="mmhd-requests-heading">Solicitudes de visitantes</h2><p>Peticiones anónimas recibidas desde el catálogo, agrupadas por película o serie.</p></div></div>
  <div class="panel"><p class="support-text">Introduce la clave administrativa configurada en Vercel. La conexión se mantiene durante esta pestaña. Opcionalmente puedes recordarla en este navegador de confianza. No se incluye en el HTML publicado.</p>
  <div class="mmhd-req-secret"><input id="mmhd-admin-requests-key" type="password" autocomplete="off" placeholder="Clave de solicitudes" aria-label="Clave administrativa" /><button class="primary" type="button" id="mmhd-admin-requests-load">Conectar y actualizar</button><button class="secondary" type="button" id="mmhd-admin-requests-logout">Desconectar</button></div>
- <label class="support-text" style="display:flex;align-items:center;gap:8px;margin:10px 0"><input type="checkbox" id="mmhd-req-remember" style="width:16px;height:16px"/> Recordar clave y conectar automáticamente en este navegador</label><p class="support-text" style="font-size:11px;opacity:.8">Solo en un equipo privado: esta opción guarda la clave en el almacenamiento local del navegador. Cualquier persona con acceso a este perfil o código malicioso de la misma página podría recuperarla. «Desconectar» borra la clave guardada.</p><p id="mmhd-admin-requests-status" class="support-text" role="status"></p><div id="mmhd-admin-requests-list"></div></div>
+ <label class="support-text" style="display:flex;align-items:center;gap:8px;margin:10px 0"><input type="checkbox" id="mmhd-req-remember" style="width:16px;height:16px"/> Recordar clave y conectar automáticamente en este navegador</label><p class="support-text" style="font-size:11px;opacity:.8">Solo en un equipo privado: esta opción guarda la clave en el almacenamiento local del navegador. Cualquier persona con acceso a este perfil o código malicioso de la misma página podría recuperarla. «Desconectar» borra la clave guardada.</p><p id="mmhd-admin-requests-status" class="support-text" role="status"></p><div id="mmhd-admin-requests-stats" class="mmhd-req-stats" hidden aria-label="Resumen de solicitudes"><div class="mmhd-req-stat"><strong id="mmhd-req-pending">0</strong><span>Títulos pendientes</span></div><div class="mmhd-req-stat"><strong id="mmhd-req-votes">0</strong><span>Solicitudes pendientes</span></div><div class="mmhd-req-stat"><strong id="mmhd-req-added">0</strong><span>Títulos agregados</span></div></div><div id="mmhd-admin-requests-list"></div></div>
 </section>
 
 <section aria-labelledby="library-title" class="admin-view" data-page="library" hidden="" id="view-library">
@@ -5706,21 +5719,33 @@ renderCollection();
 </script>
 
 <script>
-/* Acceso a solicitudes: la clave se solicita, nunca se incrusta en el panel. */
-(()=>{'use strict';const keyEl=document.getElementById('mmhd-admin-requests-key'),list=document.getElementById('mmhd-admin-requests-list'),status=document.getElementById('mmhd-admin-requests-status');if(!keyEl)return;
- const remember=document.getElementById('mmhd-req-remember'),savedKeyName='mmhd_requests_admin_key_persist_v1';let key='',savedPersistent=false;try{const saved=localStorage.getItem(savedKeyName);if(saved){key=saved;savedPersistent=true;remember.checked=true}else{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}}catch{try{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}catch{}}keyEl.value=key;
+/* Solicitudes: conexión recordada opcional, pósters, resumen y botón Agregada. */
+(()=>{'use strict';
+ const keyEl=document.getElementById('mmhd-admin-requests-key'),list=document.getElementById('mmhd-admin-requests-list'),status=document.getElementById('mmhd-admin-requests-status');if(!keyEl)return;
+ const remember=document.getElementById('mmhd-req-remember'),stats=document.getElementById('mmhd-admin-requests-stats'),pendingEl=document.getElementById('mmhd-req-pending'),votesEl=document.getElementById('mmhd-req-votes'),addedEl=document.getElementById('mmhd-req-added'),savedKeyName='mmhd_requests_admin_key_persist_v1';
+ let key='',savedPersistent=false,items=[];
+ try{const saved=localStorage.getItem(savedKeyName);if(saved){key=saved;savedPersistent=true;remember.checked=true}else{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}}catch{try{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}catch{}}keyEl.value=key;
  const say=t=>status.textContent=t;
  async function api(method,path,data){const res=await fetch(path,{method,headers:{'content-type':'application/json','x-mmhd-admin-key':key},body:data?JSON.stringify(data):undefined,cache:'no-store'});const payload=await res.json();if(!res.ok)throw Error(payload.error||'Error de conexión');return payload}
- async function load(){key=keyEl.value.trim();if(!key){say('Introduce tu clave administrativa.');return;}say('Consultando solicitudes…');list.replaceChildren();try{
- const data=await api('GET','/api/requests');try{sessionStorage.setItem('mmhd_requests_admin_key',key);if(remember.checked){localStorage.setItem(savedKeyName,key)}else{localStorage.removeItem(savedKeyName)}}catch{}say(data.items.length+' títulos solicitados.');
- if(!data.items.length){list.textContent='Todavía no hay solicitudes.';return;}
- data.items.forEach(r=>{const row=document.createElement('div');row.className='mmhd-admin-req-row';if(r.poster_path){const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w92'+r.poster_path;im.alt='';row.append(im)}
+ function renderStats(){const pending=items.filter(x=>x.status==='pending');pendingEl.textContent=pending.length;votesEl.textContent=pending.reduce((n,x)=>n+(Number(x.votes)||0),0);addedEl.textContent=items.filter(x=>x.status==='added').length;stats.hidden=false}
+ function render(){list.replaceChildren();renderStats();if(!items.length){list.textContent='Todavía no hay solicitudes.';return;}
+ items.forEach(r=>{const row=document.createElement('div');row.className='mmhd-admin-req-row';row.dataset.status=r.status;
+ if(typeof r.poster_path==='string'&&/^\/[a-zA-Z0-9_/-]+\.(jpg|jpeg|png|webp)$/i.test(r.poster_path)){
+ const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w154'+r.poster_path;im.alt='Póster de '+r.title;im.loading='lazy';im.referrerPolicy='no-referrer';im.onerror=()=>{const ph=document.createElement('div');ph.className='mmhd-req-placeholder';ph.textContent='Sin póster';im.replaceWith(ph)};row.append(im)
+ }else{const ph=document.createElement('div');ph.className='mmhd-req-placeholder';ph.textContent='Sin póster';row.append(ph)}
  const info=document.createElement('div');info.className='details';const title=document.createElement('strong'),small=document.createElement('small');title.textContent=r.title;small.textContent=(r.media_type==='tv'?'Serie':'Película')+' · '+(r.release_year||'Sin año')+' · '+r.votes+' solicitud(es) · '+new Date(r.updated_at).toLocaleDateString('es-MX');info.append(title,small);row.append(info);
- const select=document.createElement('select');[['pending','Pendiente'],['progress','En proceso'],['added','Agregada']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;select.append(o)});select.value=r.status;
- select.addEventListener('change',async()=>{select.disabled=true;try{await api('PATCH','/api/requests',{id:r.id,status:select.value});say('Estado actualizado.')}catch(e){say(e.message);select.value=r.status}finally{select.disabled=false}});row.append(select);list.append(row)});
- }catch(e){say(e.message||'No se pudo conectar');}}
+ const actions=document.createElement('div');actions.className='mmhd-req-actions';const select=document.createElement('select');[['pending','Pendiente'],['progress','En proceso'],['added','Agregada']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;select.append(o)});select.value=r.status;
+ const btn=document.createElement('button');btn.type='button';btn.textContent=r.status==='added'?'✓ Agregada':'✓ Marcar agregada';btn.disabled=r.status==='added';
+ async function setStatus(next){if(next===r.status)return;select.disabled=true;btn.disabled=true;try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;say('Estado actualizado: '+r.title+'.');render()}catch(e){say(e.message);select.value=r.status;select.disabled=false;btn.disabled=r.status==='added'}}
+ select.addEventListener('change',()=>setStatus(select.value));btn.addEventListener('click',()=>setStatus('added'));actions.append(select,btn);row.append(actions);list.append(row)})}
+ async function load(){key=keyEl.value.trim();if(!key){say('Introduce tu clave administrativa.');return;}say('Consultando solicitudes…');try{
+ const data=await api('GET','/api/requests');items=Array.isArray(data.items)?data.items:[];
+ try{sessionStorage.setItem('mmhd_requests_admin_key',key);if(remember.checked)localStorage.setItem(savedKeyName,key);else localStorage.removeItem(savedKeyName)}catch{}
+ say(items.length+' títulos solicitados.');render()
+ }catch(e){say(e.message||'No se pudo conectar')}}
  document.getElementById('mmhd-admin-requests-load').addEventListener('click',load);
- document.getElementById('mmhd-admin-requests-logout').addEventListener('click',()=>{key='';keyEl.value='';remember.checked=false;try{sessionStorage.removeItem('mmhd_requests_admin_key');localStorage.removeItem(savedKeyName)}catch{}list.replaceChildren();say('Conexión cerrada y clave recordada eliminada.')});if(savedPersistent&&key){load()}
+ document.getElementById('mmhd-admin-requests-logout').addEventListener('click',()=>{key='';items=[];keyEl.value='';remember.checked=false;try{sessionStorage.removeItem('mmhd_requests_admin_key');localStorage.removeItem(savedKeyName)}catch{}list.replaceChildren();stats.hidden=true;say('Conexión cerrada y clave recordada eliminada.')});
+ if(savedPersistent&&key)load();
 })();
 </script>
 
