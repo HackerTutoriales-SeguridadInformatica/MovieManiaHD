@@ -1170,6 +1170,15 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-admin-req-row .mmhd-req-delete:hover,.mmhd-admin-req-row .mmhd-req-delete:focus-visible{background:#8d283e;color:#fff;outline:2px solid #ff869d;outline-offset:1px}
 .mmhd-admin-req-row .mmhd-req-delete:disabled{opacity:.4;cursor:wait}
 
+/* Tres botones de estado visibles y separados, sin selector desplegable. */
+.mmhd-req-actions{display:flex;flex-direction:row;flex-wrap:wrap;gap:7px;align-items:center;justify-content:flex-end;min-width:0;max-width:480px}
+.mmhd-req-actions .mmhd-req-state{flex:0 0 auto;padding:9px 11px;min-height:35px;border-radius:8px;border:1px solid #3d506b;background:#19283e;color:#c4d5e9;font-size:11px;font-weight:700;white-space:nowrap}
+.mmhd-req-actions .mmhd-req-state-progress{border-color:#7d6633;background:#352c1c;color:#ffe3a1}
+.mmhd-req-actions .mmhd-req-state-added{border-color:#2c9b70;background:#176947;color:white}
+.mmhd-req-actions .mmhd-req-state.is-active{outline:2px solid #84b5ff;outline-offset:1px;opacity:1;cursor:default}
+.mmhd-req-actions .mmhd-req-state-added.is-active{outline-color:#5ce4a9}
+.mmhd-req-actions .mmhd-req-state:disabled:not(.is-active){opacity:.55}
+@media(max-width:780px){.mmhd-req-actions{width:100%;justify-content:flex-start}.mmhd-req-actions .mmhd-req-state{flex:1 1 auto}}
 /* Solicitudes: tarjetas, contador y acción rápida. */
 .mmhd-req-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0}
 .mmhd-req-stat{border:1px solid #314057;background:#101e2f;border-radius:12px;padding:13px 16px;display:flex;flex-direction:column;gap:4px}
@@ -1182,6 +1191,17 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-req-actions button:disabled{opacity:.55;cursor:default}
 .mmhd-admin-req-row[data-status="added"]{border-color:#286c56;background:#102a28}
 @media(max-width:600px){.mmhd-req-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.mmhd-req-stat{padding:10px 7px}.mmhd-req-stat strong{font-size:20px}.mmhd-admin-req-row{flex-wrap:wrap}.mmhd-req-actions{width:100%;flex-direction:row}.mmhd-req-actions select,.mmhd-req-actions button{flex:1;min-width:0}}
+
+/* Prioridad final de los botones de estado. */
+/* Tres botones de estado visibles y separados, sin selector desplegable. */
+.mmhd-req-actions{display:flex;flex-direction:row;flex-wrap:wrap;gap:7px;align-items:center;justify-content:flex-end;min-width:0;max-width:480px}
+.mmhd-req-actions .mmhd-req-state{flex:0 0 auto;padding:9px 11px;min-height:35px;border-radius:8px;border:1px solid #3d506b;background:#19283e;color:#c4d5e9;font-size:11px;font-weight:700;white-space:nowrap}
+.mmhd-req-actions .mmhd-req-state-progress{border-color:#7d6633;background:#352c1c;color:#ffe3a1}
+.mmhd-req-actions .mmhd-req-state-added{border-color:#2c9b70;background:#176947;color:white}
+.mmhd-req-actions .mmhd-req-state.is-active{outline:2px solid #84b5ff;outline-offset:1px;opacity:1;cursor:default}
+.mmhd-req-actions .mmhd-req-state-added.is-active{outline-color:#5ce4a9}
+.mmhd-req-actions .mmhd-req-state:disabled:not(.is-active){opacity:.55}
+@media(max-width:780px){.mmhd-req-actions{width:100%;justify-content:flex-start}.mmhd-req-actions .mmhd-req-state{flex:1 1 auto}}
 </style>
 </head>
 <body>
@@ -5741,18 +5761,25 @@ renderCollection();
  const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w154'+r.poster_path;im.alt='Póster de '+r.title;im.loading='lazy';im.referrerPolicy='no-referrer';im.onerror=()=>{const ph=document.createElement('div');ph.className='mmhd-req-placeholder';ph.textContent='Sin póster';im.replaceWith(ph)};row.append(im)
  }else{const ph=document.createElement('div');ph.className='mmhd-req-placeholder';ph.textContent='Sin póster';row.append(ph)}
  const info=document.createElement('div');info.className='details';const title=document.createElement('strong'),small=document.createElement('small');title.textContent=r.title;small.textContent=(r.media_type==='tv'?'Serie':'Película')+' · '+(r.release_year||'Sin año')+' · '+r.votes+' solicitud(es) · '+new Date(r.updated_at).toLocaleDateString('es-MX');info.append(title,small);row.append(info);
- const actions=document.createElement('div');actions.className='mmhd-req-actions';const select=document.createElement('select');[['pending','Pendiente'],['progress','En proceso'],['added','Agregada']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;select.append(o)});select.value=r.status;
- const btn=document.createElement('button');btn.type='button';btn.textContent=r.status==='added'?'✓ Agregada':'✓ Marcar agregada';btn.disabled=r.status==='added';
- async function setStatus(next){if(next===r.status)return;select.disabled=true;btn.disabled=true;try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;say('Estado actualizado: '+r.title+'.');render()}catch(e){say(e.message);select.value=r.status;select.disabled=false;btn.disabled=r.status==='added'}}
- select.addEventListener('change',()=>setStatus(select.value));btn.addEventListener('click',()=>setStatus('added'));
+ const actions=document.createElement('div');actions.className='mmhd-req-actions';
+ const stateButtons=[['pending','Pendiente'],['progress','En proceso'],['added','✓ Marcar agregada']].map(([value,label])=>{
+  const button=document.createElement('button');button.type='button';button.className='mmhd-req-state mmhd-req-state-'+value;
+  button.textContent=value==='added'&&r.status==='added'?'✓ Agregada':label;
+  const active=r.status===value;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active));
+  button.disabled=active;button.addEventListener('click',()=>setStatus(value));return button;
+ });
+ async function setStatus(next){if(next===r.status)return;stateButtons.forEach(b=>b.disabled=true);
+  try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;say('Estado actualizado: '+r.title+'.');render()}
+  catch(e){say(e.message);stateButtons.forEach((b,i)=>b.disabled=[ 'pending','progress','added'][i]===r.status)}
+ }
  const remove=document.createElement('button');remove.type='button';remove.className='mmhd-req-delete';remove.setAttribute('aria-label','Eliminar solicitud de '+r.title);remove.title='Eliminar solicitud';remove.textContent='×';
  remove.addEventListener('click',async()=>{
   if(!window.confirm('¿Eliminar definitivamente la solicitud «'+r.title+'»?\n\nSe borrarán el título y sus registros de solicitudes. Esta acción no se puede deshacer.'))return;
-  remove.disabled=true;select.disabled=true;btn.disabled=true;
+  remove.disabled=true;stateButtons.forEach(b=>b.disabled=true);
   try{await api('DELETE','/api/requests',{id:r.id});items=items.filter(x=>x.id!==r.id);say('Solicitud eliminada: '+r.title+'.');render()}
-  catch(e){say('No se pudo eliminar «'+r.title+'»: '+e.message);remove.disabled=false;select.disabled=false;btn.disabled=r.status==='added'}
+  catch(e){say('No se pudo eliminar «'+r.title+'»: '+e.message);remove.disabled=false;stateButtons.forEach((b,i)=>b.disabled=['pending','progress','added'][i]===r.status)}
  });
- actions.append(select,btn);row.append(actions,remove);list.append(row)})}
+ actions.append(...stateButtons);row.append(actions,remove);list.append(row)})}
  async function load(){key=keyEl.value.trim();if(!key){say('Introduce tu clave administrativa.');return;}say('Consultando solicitudes…');try{
  const data=await api('GET','/api/requests');items=Array.isArray(data.items)?data.items:[];
  try{sessionStorage.setItem('mmhd_requests_admin_key',key);if(remember.checked)localStorage.setItem(savedKeyName,key);else localStorage.removeItem(savedKeyName)}catch{}
