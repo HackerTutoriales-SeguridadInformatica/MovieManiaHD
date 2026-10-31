@@ -1,0 +1,2 @@
+// Solo revela la site key pública; nunca el secreto de Turnstile.
+module.exports=function handler(req,res){res.setHeader('Cache-Control','no-store');if(req.method!=='GET')return res.status(405).json({error:'Método no permitido'});const siteKey=process.env.MMHD_TURNSTILE_SITE_KEY;if(!siteKey)return res.status(503).json({error:'Verificación anti-bots no configurada.'});return res.status(200).json({siteKey});};
