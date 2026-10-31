@@ -12,7 +12,7 @@ async function supabase(path,{method='GET',body,prefer}={}){
 function admin(req){const expected=process.env.MMHD_REQUESTS_ADMIN_TOKEN||'';return expected.length>=24&&constantEquals(String(req.headers['x-mmhd-admin-key']||''),expected)}
 module.exports=async function handler(req,res){
  res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
- if(!['GET','POST','PATCH'].includes(req.method))return fail(res,405,'Método no permitido');
+ if(!['GET','POST','PATCH','DELETE'].includes(req.method))return fail(res,405,'Método no permitido');
  try{
   if(req.method==='GET'){
    if(!admin(req))return fail(res,401,'Clave administrativa incorrecta.');
@@ -45,6 +45,20 @@ module.exports=async function handler(req,res){
    const id=Number(req.body?.id),status=String(req.body?.status||'');
    if(!Number.isSafeInteger(id)||id<1||!['pending','progress','added'].includes(status))return fail(res,400,'Datos inválidos');
    await supabase('content_requests?id=eq.'+id,{method:'PATCH',body:{status},prefer:'return=minimal'});
+   return res.status(200).json({ok:true});
+  }
+  if(req.method==='DELETE'){
+   if(!admin(req))return fail(res,401,'Clave administrativa incorrecta.');
+   const id=Number(req.body?.id);
+   if(!Number.isSafeInteger(id)||id<1)return fail(res,400,'Identificador inválido.');
+   const rows=await supabase('content_requests?select=id,media_type,tmdb_id&id=eq.'+id+'&limit=1');
+   if(!Array.isArray(rows)||!rows.length)return fail(res,404,'La solicitud ya no existe.');
+   const item=rows[0];
+   // Retirar también los registros de deduplicación vinculados a este título.
+   // Así una nueva solicitud futura no queda bloqueada por una huella antigua.
+   const filter='media_type=eq.'+encodeURIComponent(item.media_type)+'&tmdb_id=eq.'+encodeURIComponent(item.tmdb_id);
+   await supabase('content_request_events?'+filter,{method:'DELETE',prefer:'return=minimal'});
+   await supabase('content_requests?id=eq.'+id,{method:'DELETE',prefer:'return=minimal'});
    return res.status(200).json({ok:true});
   }
   // POST público: solo TMDB ID y tipo, nunca se confía en título o póster enviados por el visitante.
