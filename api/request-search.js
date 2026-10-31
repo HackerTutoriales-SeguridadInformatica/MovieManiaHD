@@ -12,7 +12,7 @@ module.exports=async function handler(req,res){
   const r=await fetch(url,{headers:{Authorization:`Bearer ${key}`,Accept:'application/json'},signal:AbortSignal.timeout(8500)});
   if(!r.ok)return res.status(502).json({error:'TMDB no respondió correctamente.'});
   const d=await r.json();
-  const results=(d.results||[]).filter(x=>Number.isSafeInteger(x.id)&&x.id>0).slice(0,LIMIT).map(x=>({id:x.id,title:String(x.title||x.name||'').slice(0,200),year:String(x.release_date||x.first_air_date||'').slice(0,4),poster:/^\/[\w/-]+$/.test(x.poster_path||'')?x.poster_path:null}));
+  const results=(d.results||[]).filter(x=>Number.isSafeInteger(x.id)&&x.id>0).slice(0,LIMIT).map(x=>({id:x.id,title:String(x.title||x.name||'').slice(0,200),year:String(x.release_date||x.first_air_date||'').slice(0,4),poster:/^\/[\w./-]+$/.test(x.poster_path||'')?x.poster_path:null}));
   res.status(200).json({results});
  }catch(e){res.status(502).json({error:'No fue posible buscar en TMDB.'})}
 };
