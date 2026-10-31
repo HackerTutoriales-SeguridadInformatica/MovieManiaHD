@@ -2428,7 +2428,7 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 #mmhd-halloween .hallow-ghost.g2{opacity:.7;animation:hallow-ghost-v3 6s -2s ease-in-out infinite alternate-reverse}
 #mmhd-halloween .hallow-fog{opacity:.65}
 #mmhd-halloween .hallow-flash{animation:hallow-lightning-v3 4.2s 1s infinite}
-#mmhd-halloween .hallow-progress{position:absolute;bottom:0;left:0;height:5px;width:100%;background:linear-gradient(90deg,#f27d36,#ffe19e);transform-origin:left;animation:hallow-progress 5s linear forwards;z-index:8;box-shadow:0 0 16px #ff832a}
+#mmhd-halloween .hallow-progress{position:absolute;bottom:0;left:0;height:5px;width:100%;background:linear-gradient(90deg,#f27d36,#ffe19e);transform-origin:left;animation:hallow-progress 3s linear forwards;z-index:8;box-shadow:0 0 16px #ff832a}
 @keyframes hallow-flight-visible{0%{transform:translateX(-8vw) translateY(25px) rotate(-12deg) scale(.7)}35%{transform:translateX(50vw) translateY(-45px) rotate(16deg) scale(1.2)}70%{transform:translateX(95vw) translateY(35px) rotate(-11deg) scale(.9)}100%{transform:translateX(155vw) translateY(-20px) rotate(16deg) scale(.8)}}
 @keyframes hallow-ghost-v3{0%{transform:translate(0,30px) rotate(-9deg);opacity:.35}100%{transform:translate(58vw,-95px) rotate(9deg);opacity:.85}}
 @keyframes hallow-lightning-v3{0%,19%,23%,24%,27%,100%{opacity:0}20%,24.8%{opacity:.28}}
@@ -7766,7 +7766,7 @@ syncBackToTop();
   if(skip)skip.addEventListener('click',finish);
   intro.addEventListener('keydown',function(e){if(e.key==='Escape')finish();});
   document.addEventListener('keydown',function onKey(e){if(e.key==='Escape'){finish();document.removeEventListener('keydown',onKey);}});
-  timer=setTimeout(finish,window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?5000:5000);
+  timer=setTimeout(finish,window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?3000:3000);
 })();
 </script>
 <div id="mmhd-request-modal" hidden role="dialog" aria-modal="true" aria-labelledby="mmhd-request-title">
