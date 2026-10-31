@@ -5746,7 +5746,7 @@ renderCollection();
 </script>
 
 <script>
-/* Solicitudes: conexión recordada opcional, pósters, resumen y botón Agregada. */
+/* Solicitudes: conexión recordada, tres estados, eliminación y actualización automática. */
 (()=>{'use strict';
  const keyEl=document.getElementById('mmhd-admin-requests-key'),list=document.getElementById('mmhd-admin-requests-list'),status=document.getElementById('mmhd-admin-requests-status');if(!keyEl)return;
  const remember=document.getElementById('mmhd-req-remember'),stats=document.getElementById('mmhd-admin-requests-stats'),pendingEl=document.getElementById('mmhd-req-pending'),progressEl=document.getElementById('mmhd-req-progress'),addedEl=document.getElementById('mmhd-req-added'),savedKeyName='mmhd_requests_admin_key_persist_v1';
@@ -5769,25 +5769,58 @@ renderCollection();
   button.disabled=active;button.addEventListener('click',()=>setStatus(value));return button;
  });
  async function setStatus(next){if(next===r.status)return;stateButtons.forEach(b=>b.disabled=true);
-  try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;say('Estado actualizado: '+r.title+'.');render()}
+  try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;lastSignature=JSON.stringify(items.map(x=>[x.id,x.status,x.votes,x.updated_at,x.poster_path,x.title]));say('Estado actualizado: '+r.title+'.');render()}
   catch(e){say(e.message);stateButtons.forEach((b,i)=>b.disabled=[ 'pending','progress','added'][i]===r.status)}
  }
  const remove=document.createElement('button');remove.type='button';remove.className='mmhd-req-delete';remove.setAttribute('aria-label','Eliminar solicitud de '+r.title);remove.title='Eliminar solicitud';remove.textContent='×';
  remove.addEventListener('click',async()=>{
   if(!window.confirm('¿Eliminar definitivamente la solicitud «'+r.title+'»?\n\nSe borrarán el título y sus registros de solicitudes. Esta acción no se puede deshacer.'))return;
   remove.disabled=true;stateButtons.forEach(b=>b.disabled=true);
-  try{await api('DELETE','/api/requests',{id:r.id});items=items.filter(x=>x.id!==r.id);say('Solicitud eliminada: '+r.title+'.');render()}
+  try{await api('DELETE','/api/requests',{id:r.id});items=items.filter(x=>x.id!==r.id);lastSignature=JSON.stringify(items.map(x=>[x.id,x.status,x.votes,x.updated_at,x.poster_path,x.title]));say('Solicitud eliminada: '+r.title+'.');render()}
   catch(e){say('No se pudo eliminar «'+r.title+'»: '+e.message);remove.disabled=false;stateButtons.forEach((b,i)=>b.disabled=['pending','progress','added'][i]===r.status)}
  });
  actions.append(...stateButtons);row.append(actions,remove);list.append(row)})}
- async function load(){key=keyEl.value.trim();if(!key){say('Introduce tu clave administrativa.');return;}say('Consultando solicitudes…');try{
- const data=await api('GET','/api/requests');items=Array.isArray(data.items)?data.items:[];
- try{sessionStorage.setItem('mmhd_requests_admin_key',key);if(remember.checked)localStorage.setItem(savedKeyName,key);else localStorage.removeItem(savedKeyName)}catch{}
- say(items.length+' títulos solicitados.');render()
- }catch(e){say(e.message||'No se pudo conectar')}}
- document.getElementById('mmhd-admin-requests-load').addEventListener('click',load);
- document.getElementById('mmhd-admin-requests-logout').addEventListener('click',()=>{key='';items=[];keyEl.value='';remember.checked=false;try{sessionStorage.removeItem('mmhd_requests_admin_key');localStorage.removeItem(savedKeyName)}catch{}list.replaceChildren();stats.hidden=true;say('Conexión cerrada y clave recordada eliminada.')});
- if(savedPersistent&&key)load();
+ const requestsView=document.getElementById('view-requests');
+ let loading=false, lastSignature='',connected=false;
+ const REFRESH_MS=15000;
+ const isViewing=()=>requestsView&&!requestsView.hidden&&document.visibilityState==='visible';
+ async function load(silent=false){
+  if(loading)return;
+  const entered=keyEl.value.trim();
+  if(!entered){if(!silent)say('Introduce tu clave administrativa.');return;}
+  key=entered;
+  loading=true;
+  if(!silent)say('Consultando solicitudes…');
+  try{
+   const data=await api('GET','/api/requests');
+   const fresh=Array.isArray(data.items)?data.items:[];
+   const signature=JSON.stringify(fresh.map(r=>[r.id,r.status,r.votes,r.updated_at,r.poster_path,r.title]));
+   items=fresh;
+   connected=true;
+   try{sessionStorage.setItem('mmhd_requests_admin_key',key);if(remember.checked)localStorage.setItem(savedKeyName,key);else localStorage.removeItem(savedKeyName)}catch{}
+   if(signature!==lastSignature||stats.hidden){lastSignature=signature;render();say(items.length+' títulos solicitados. Actualización automática activa (cada 15 segundos).')}
+   else if(!silent)say(items.length+' títulos solicitados. Actualización automática activa (cada 15 segundos).');
+  }catch(e){
+   if(!silent||connected)say('No se pudo actualizar: '+(e.message||'Error de conexión')+'. Reintenta con «Conectar y actualizar».');
+   if(!connected)lastSignature='';
+  }finally{loading=false}
+ }
+ document.getElementById('mmhd-admin-requests-load').addEventListener('click',()=>load(false));
+ document.getElementById('mmhd-admin-requests-logout').addEventListener('click',()=>{
+  key='';items=[];keyEl.value='';remember.checked=false;connected=false;lastSignature='';
+  try{sessionStorage.removeItem('mmhd_requests_admin_key');localStorage.removeItem(savedKeyName)}catch{}
+  list.replaceChildren();stats.hidden=true;say('Conexión cerrada y clave recordada eliminada.');
+ });
+ // Consulta únicamente cuando el usuario ve Solicitudes; no hace peticiones en segundo plano.
+ setInterval(()=>{if(isViewing()&&keyEl.value.trim()&&connected)load(true)},REFRESH_MS);
+ // Actualiza al volver a esta sección o regresar a la pestaña, sin esperar 15 segundos.
+ document.addEventListener('click',event=>{
+  const button=event.target.closest('.rail-link[data-view="requests"]');
+  if(button&&keyEl.value.trim())queueMicrotask(()=>load(true));
+ });
+ document.addEventListener('visibilitychange',()=>{if(isViewing()&&keyEl.value.trim())load(true)});
+ if(savedPersistent&&key)load(false);
+
 })();
 </script>
 
