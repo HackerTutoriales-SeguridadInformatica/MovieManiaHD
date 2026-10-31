@@ -2454,6 +2454,17 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 .mmhd-req-submit:disabled{opacity:.5;cursor:not-allowed}.mmhd-req-message{min-height:24px;color:#b8d9bc;margin-top:10px;font-size:12px}
 @media(max-width:600px){.mmhd-request-card{padding:17px}.mmhd-req-launch{font-size:9px;padding:0}}
 
+
+/* Buscador de solicitudes: X visible solo al escribir. */
+.mmhd-req-search-wrap{position:relative}
+.mmhd-request-card .mmhd-req-search-wrap input{padding-right:44px}
+.mmhd-req-search-wrap input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.mmhd-req-clear{position:absolute;right:8px;top:calc(50% - 3px);transform:translateY(-50%);width:32px;height:32px;border-radius:7px;color:#dbe2f1;background:#2c3043;font-size:22px;display:grid;place-items:center;line-height:1;z-index:2}
+.mmhd-req-clear[hidden]{display:none!important}
+.mmhd-req-clear:hover,.mmhd-req-clear:focus-visible{background:#454b66;outline:2px solid #aebce8}
+.mmhd-req-captcha-box{min-height:62px;margin-top:12px;max-width:100%}
+.mmhd-req-captcha-box p{font-size:11px;margin:5px 0;color:#abb7ca}
+#mmhd-req-turnstile{max-width:100%;overflow:hidden}
 </style>
 </head>
 <body>
@@ -7762,8 +7773,8 @@ syncBackToTop();
  <div class="mmhd-request-card"><div class="mmhd-req-top"><h2 id="mmhd-request-title">🎬 Solicitar contenido</h2><button type="button" class="mmhd-req-close" id="mmhd-req-close" aria-label="Cerrar">×</button></div>
  <p>Solicita una película o serie de manera anónima. No pedimos nombre ni correo.</p>
  <label for="mmhd-req-type">Tipo de contenido</label><select id="mmhd-req-type"><option value="movie">Película</option><option value="tv">Serie</option></select>
- <label for="mmhd-req-query">Busca el título en TMDB</label><input id="mmhd-req-query" maxlength="100" placeholder="Nombre de la película o serie" autocomplete="off" />
- <div id="mmhd-req-results" class="mmhd-req-results" aria-live="polite"></div><div class="mmhd-req-message" id="mmhd-req-message" role="status"></div>
+ <label for="mmhd-req-query">Busca el título en TMDB</label><div class="mmhd-req-search-wrap"><input id="mmhd-req-query" type="search" maxlength="100" placeholder="Nombre de la película o serie" autocomplete="off" /><button type="button" id="mmhd-req-clear" class="mmhd-req-clear" aria-label="Borrar búsqueda" title="Borrar búsqueda" hidden>×</button></div>
+ <div id="mmhd-req-results" class="mmhd-req-results" aria-live="polite"></div><div class="mmhd-req-captcha-box"><div id="mmhd-req-turnstile"></div><p id="mmhd-req-captcha-help">Cargando verificación anti-bots…</p></div><div class="mmhd-req-message" id="mmhd-req-message" role="status"></div>
  <button id="mmhd-req-submit" class="mmhd-req-submit" disabled type="button">Enviar solicitud anónima</button></div>
 </div>
 
@@ -7771,16 +7782,27 @@ syncBackToTop();
 /* Solicitudes de catálogo: ninguna credencial administrativa en el navegador público. */
 (()=>{'use strict';
  const modal=document.getElementById('mmhd-request-modal');if(!modal)return;
+ const clearBtn=document.getElementById('mmhd-req-clear'),captchaHelp=document.getElementById('mmhd-req-captcha-help'),captchaBox=document.getElementById('mmhd-req-turnstile');
  const q=document.getElementById('mmhd-req-query'),type=document.getElementById('mmhd-req-type'),results=document.getElementById('mmhd-req-results'),msg=document.getElementById('mmhd-req-message'),submit=document.getElementById('mmhd-req-submit');
  let chosen=null, debounce=null,serial=0,busy=false;
+ let captchaToken='',widgetId=null,siteKey='',captchaInit=null;
+ function canSubmit(){submit.disabled=!chosen||!captchaToken||busy}
+ function resetCaptcha(){captchaToken='';if(widgetId!==null&&window.turnstile){window.turnstile.reset(widgetId)}canSubmit()}
+ function loadCaptchaScript(){return new Promise((resolve,reject)=>{if(window.turnstile)return resolve();const existing=document.getElementById('mmhd-turnstile-script');if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return;}const el=document.createElement('script');el.id='mmhd-turnstile-script';el.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';el.async=true;el.onload=resolve;el.onerror=reject;document.head.appendChild(el)})}
+ async function initCaptcha(){if(widgetId!==null)return;if(captchaInit)return captchaInit;
+   captchaInit=(async()=>{try{const response=await fetch('/api/request-config',{cache:'no-store'});const config=await response.json();if(!response.ok||!config.siteKey)throw Error('Verificación aún no configurada.');siteKey=config.siteKey;await loadCaptchaScript();if(modal.hidden)return;
+     widgetId=window.turnstile.render(captchaBox,{sitekey:siteKey,theme:'dark',callback:token=>{captchaToken=token;captchaHelp.textContent='Verificación completada.';canSubmit()},'expired-callback':()=>{captchaToken='';captchaHelp.textContent='Verificación vencida. Completa el control nuevamente.';canSubmit()},'error-callback':()=>{captchaToken='';captchaHelp.textContent='No se pudo verificar. Intenta nuevamente.';canSubmit()}});
+     captchaHelp.textContent='Completa la verificación antes de enviar.';
+   }catch(e){captchaHelp.textContent=e.message||'No se pudo cargar la verificación.';}finally{captchaInit=null}})();return captchaInit;
+ }
  const say=t=>{msg.textContent=t};
- function open(){modal.hidden=false;q.focus();}
+ function open(){modal.hidden=false;q.focus();initCaptcha()}
  function close(){modal.hidden=true;}
  document.querySelectorAll('[data-mmhd-request-open]').forEach(b=>b.addEventListener('click',open));
  document.getElementById('mmhd-req-close').addEventListener('click',close);
  modal.addEventListener('click',e=>{if(e.target===modal)close()});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)close()});
- function reset(){chosen=null;submit.disabled=true;results.replaceChildren();}
+ function reset(){chosen=null;canSubmit();results.replaceChildren();}
  async function search(){const seq=++serial;reset();say('');const term=q.value.trim();if(term.length<2)return;
    results.textContent='Buscando…';try{const response=await fetch('/api/request-search?type='+encodeURIComponent(type.value)+'&q='+encodeURIComponent(term));const payload=await response.json();if(seq!==serial)return;
    if(!response.ok)throw Error(payload.error||'No se pudo buscar');results.replaceChildren();
@@ -7788,14 +7810,16 @@ syncBackToTop();
    payload.results.forEach(m=>{const b=document.createElement('button');b.type='button';b.className='mmhd-req-result';b.setAttribute('aria-pressed','false');
       if(m.poster){const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w154'+m.poster;im.alt='Póster de '+m.title;im.loading='lazy';im.onerror=()=>{const ph=document.createElement('div');ph.className='mmhd-req-no-poster';ph.textContent='Sin póster';im.replaceWith(ph)};b.append(im)}else{const ph=document.createElement('div');ph.className='mmhd-req-no-poster';ph.textContent='Sin póster';b.append(ph)}
       const s=document.createElement('span'),strong=document.createElement('strong'),small=document.createElement('small');strong.textContent=m.title;small.textContent=m.year||'Sin año';s.append(strong,small);b.append(s);
-      b.addEventListener('click',()=>{results.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');chosen=m;submit.disabled=false;say('Seleccionado: '+m.title)});results.append(b);
+      b.addEventListener('click',()=>{results.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');chosen=m;canSubmit();say('Seleccionado: '+m.title)});results.append(b);
    });
  }catch(e){if(seq===serial){results.textContent='';say(e.message||'Error de búsqueda')}}}
- q.addEventListener('input',()=>{clearTimeout(debounce);++serial;reset();debounce=setTimeout(search,350)});
+ function syncClear(){clearBtn.hidden=!q.value}
+ clearBtn.addEventListener('click',()=>{q.value='';syncClear();clearTimeout(debounce);++serial;reset();say('');q.focus()});
+ q.addEventListener('input',()=>{syncClear();clearTimeout(debounce);++serial;reset();debounce=setTimeout(search,350)});syncClear();
  type.addEventListener('change',()=>{clearTimeout(debounce);search()});
- submit.addEventListener('click',async()=>{if(!chosen||busy)return;busy=true;submit.disabled=true;say('Enviando…');try{
- const res=await fetch('/api/requests',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:type.value,id:chosen.id})});const data=await res.json();if(!res.ok)throw Error(data.error||'No se pudo enviar');say(data.duplicate?'Ya habías solicitado este título recientemente.':'¡Solicitud enviada correctamente!');
- }catch(e){say(e.message||'No se pudo enviar')}finally{busy=false;submit.disabled=!chosen}});
+ submit.addEventListener('click',async()=>{if(!chosen||busy||!captchaToken)return;busy=true;canSubmit();say('Enviando…');try{
+ const res=await fetch('/api/requests',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:type.value,id:chosen.id,turnstileToken:captchaToken})});const data=await res.json();if(!res.ok)throw Error(data.error||'No se pudo enviar');say(data.duplicate?'Ya habías solicitado este título recientemente.':'¡Solicitud enviada correctamente!');
+ }catch(e){say(e.message||'No se pudo enviar')}finally{busy=false;resetCaptcha()}});
 })();
 </script>
 </body>
