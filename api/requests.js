@@ -17,6 +17,27 @@ module.exports=async function handler(req,res){
   if(req.method==='GET'){
    if(!admin(req))return fail(res,401,'Clave administrativa incorrecta.');
    const items=await supabase('content_requests?select=id,media_type,tmdb_id,title,release_year,poster_path,votes,status,created_at,updated_at&order=updated_at.desc&limit=500');
+   // Reparar automáticamente solicitudes antiguas sin póster (la validación previa
+   // rechazaba indebidamente las rutas .jpg de TMDB). Sin afectar votos ni estados.
+   const missing=Array.isArray(items)?items.filter(item=>!item.poster_path&&['movie','tv'].includes(item.media_type)&&Number.isSafeInteger(Number(item.tmdb_id))&&Number(item.tmdb_id)>0):[];
+   const tmdbKey=process.env.TMDB_API_KEY;
+   if(tmdbKey&&missing.length){
+    // Procesar en tandas pequeñas para no saturar TMDB ni exceder el tiempo de Vercel.
+    for(let i=0;i<Math.min(missing.length,24);i+=4){
+     await Promise.all(missing.slice(i,i+4).map(async(item)=>{
+      try{
+       const r=await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.tmdb_id}?language=es-MX`,{headers:{Authorization:'Bearer '+tmdbKey},signal:AbortSignal.timeout(4500)});
+       if(!r.ok)return;
+       const d=await r.json();
+       const poster=typeof d.poster_path==='string'&&/^\/[a-zA-Z0-9_/-]+\.(jpg|jpeg|png|webp)$/i.test(d.poster_path)?d.poster_path:null;
+       if(!poster)return;
+       item.poster_path=poster;
+       // Persistir para no volver a consultar TMDB la siguiente vez.
+       await supabase('content_requests?id=eq.'+encodeURIComponent(item.id),{method:'PATCH',body:{poster_path:poster},prefer:'return=minimal'});
+      }catch(e){console.warn('MMHD poster repair:',item.tmdb_id,e.message)}
+     }));
+    }
+   }
    return res.status(200).json({items});
   }
   if(req.method==='PATCH'){
@@ -53,7 +74,7 @@ module.exports=async function handler(req,res){
   const day=new Date().toISOString().slice(0,10);
   const fingerprint=crypto.createHmac('sha256',process.env.MMHD_REQUESTS_HASH_SECRET).update(day+'|'+ip).digest('hex');
   const year=String(d.release_date||d.first_air_date||'').slice(0,4);
-  const poster=/^\/[\w/-]+$/.test(d.poster_path||'')?d.poster_path:null;
+  const poster=typeof d.poster_path==='string'&&/^\/[a-zA-Z0-9_/-]+\.(jpg|jpeg|png|webp)$/i.test(d.poster_path)?d.poster_path:null;
   const result=await supabase('rpc/mmhd_submit_request',{method:'POST',body:{p_type:type,p_tmdb_id:id,p_title:title,p_year:/^\d{4}$/.test(year)?year:null,p_poster:poster,p_fingerprint:fingerprint}});
   if(result?.limited)return fail(res,429,'Límite diario alcanzado. Inténtalo mañana.');
   return res.status(200).json({ok:true,duplicate:!!result?.duplicate});
