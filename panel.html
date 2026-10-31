@@ -1269,9 +1269,9 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 
 <section aria-labelledby="mmhd-requests-heading" class="admin-view" data-page="requests" hidden id="view-requests">
  <div class="page-heading"><div><div class="eyebrow">COMUNIDAD</div><h2 id="mmhd-requests-heading">Solicitudes de visitantes</h2><p>Peticiones anónimas recibidas desde el catálogo, agrupadas por película o serie.</p></div></div>
- <div class="panel"><p class="support-text">Introduce la clave administrativa configurada en Vercel. Se conserva solo durante esta pestaña, nunca en el HTML publicado.</p>
+ <div class="panel"><p class="support-text">Introduce la clave administrativa configurada en Vercel. La conexión se mantiene durante esta pestaña. Opcionalmente puedes recordarla en este navegador de confianza. No se incluye en el HTML publicado.</p>
  <div class="mmhd-req-secret"><input id="mmhd-admin-requests-key" type="password" autocomplete="off" placeholder="Clave de solicitudes" aria-label="Clave administrativa" /><button class="primary" type="button" id="mmhd-admin-requests-load">Conectar y actualizar</button><button class="secondary" type="button" id="mmhd-admin-requests-logout">Desconectar</button></div>
- <p id="mmhd-admin-requests-status" class="support-text" role="status"></p><div id="mmhd-admin-requests-list"></div></div>
+ <label class="support-text" style="display:flex;align-items:center;gap:8px;margin:10px 0"><input type="checkbox" id="mmhd-req-remember" style="width:16px;height:16px"/> Recordar clave y conectar automáticamente en este navegador</label><p class="support-text" style="font-size:11px;opacity:.8">Solo en un equipo privado: esta opción guarda la clave en el almacenamiento local del navegador. Cualquier persona con acceso a este perfil o código malicioso de la misma página podría recuperarla. «Desconectar» borra la clave guardada.</p><p id="mmhd-admin-requests-status" class="support-text" role="status"></p><div id="mmhd-admin-requests-list"></div></div>
 </section>
 
 <section aria-labelledby="library-title" class="admin-view" data-page="library" hidden="" id="view-library">
@@ -5708,11 +5708,11 @@ renderCollection();
 <script>
 /* Acceso a solicitudes: la clave se solicita, nunca se incrusta en el panel. */
 (()=>{'use strict';const keyEl=document.getElementById('mmhd-admin-requests-key'),list=document.getElementById('mmhd-admin-requests-list'),status=document.getElementById('mmhd-admin-requests-status');if(!keyEl)return;
- let key='';try{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}catch{}keyEl.value=key;
+ const remember=document.getElementById('mmhd-req-remember'),savedKeyName='mmhd_requests_admin_key_persist_v1';let key='',savedPersistent=false;try{const saved=localStorage.getItem(savedKeyName);if(saved){key=saved;savedPersistent=true;remember.checked=true}else{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}}catch{try{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}catch{}}keyEl.value=key;
  const say=t=>status.textContent=t;
  async function api(method,path,data){const res=await fetch(path,{method,headers:{'content-type':'application/json','x-mmhd-admin-key':key},body:data?JSON.stringify(data):undefined,cache:'no-store'});const payload=await res.json();if(!res.ok)throw Error(payload.error||'Error de conexión');return payload}
  async function load(){key=keyEl.value.trim();if(!key){say('Introduce tu clave administrativa.');return;}say('Consultando solicitudes…');list.replaceChildren();try{
- const data=await api('GET','/api/requests');sessionStorage.setItem('mmhd_requests_admin_key',key);say(data.items.length+' títulos solicitados.');
+ const data=await api('GET','/api/requests');try{sessionStorage.setItem('mmhd_requests_admin_key',key);if(remember.checked){localStorage.setItem(savedKeyName,key)}else{localStorage.removeItem(savedKeyName)}}catch{}say(data.items.length+' títulos solicitados.');
  if(!data.items.length){list.textContent='Todavía no hay solicitudes.';return;}
  data.items.forEach(r=>{const row=document.createElement('div');row.className='mmhd-admin-req-row';if(r.poster_path){const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w92'+r.poster_path;im.alt='';row.append(im)}
  const info=document.createElement('div');info.className='details';const title=document.createElement('strong'),small=document.createElement('small');title.textContent=r.title;small.textContent=(r.media_type==='tv'?'Serie':'Película')+' · '+(r.release_year||'Sin año')+' · '+r.votes+' solicitud(es) · '+new Date(r.updated_at).toLocaleDateString('es-MX');info.append(title,small);row.append(info);
@@ -5720,7 +5720,7 @@ renderCollection();
  select.addEventListener('change',async()=>{select.disabled=true;try{await api('PATCH','/api/requests',{id:r.id,status:select.value});say('Estado actualizado.')}catch(e){say(e.message);select.value=r.status}finally{select.disabled=false}});row.append(select);list.append(row)});
  }catch(e){say(e.message||'No se pudo conectar');}}
  document.getElementById('mmhd-admin-requests-load').addEventListener('click',load);
- document.getElementById('mmhd-admin-requests-logout').addEventListener('click',()=>{key='';keyEl.value='';sessionStorage.removeItem('mmhd_requests_admin_key');list.replaceChildren();say('Conexión cerrada.')});
+ document.getElementById('mmhd-admin-requests-logout').addEventListener('click',()=>{key='';keyEl.value='';remember.checked=false;try{sessionStorage.removeItem('mmhd_requests_admin_key');localStorage.removeItem(savedKeyName)}catch{}list.replaceChildren();say('Conexión cerrada y clave recordada eliminada.')});if(savedPersistent&&key){load()}
 })();
 </script>
 
