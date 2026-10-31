@@ -27,6 +27,18 @@ module.exports=async function handler(req,res){
    return res.status(200).json({ok:true});
   }
   // POST público: solo TMDB ID y tipo, nunca se confía en título o póster enviados por el visitante.
+  // Turnstile obligatorio: validar en el servidor antes de consultar TMDB o guardar la solicitud.
+  const captchaSecret=process.env.MMHD_TURNSTILE_SECRET_KEY;
+  if(!captchaSecret)return fail(res,503,'Verificación anti-bots no configurada.');
+  const captchaToken=String(req.body?.turnstileToken||'');
+  if(!captchaToken||captchaToken.length>2048)return fail(res,400,'Completa la verificación anti-bots.');
+  const form=new URLSearchParams({secret:captchaSecret,response:captchaToken});
+  const captchaResponse=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:form.toString(),signal:AbortSignal.timeout(8500)});
+  if(!captchaResponse.ok)throw Error('Turnstile: '+captchaResponse.status);
+  const captcha=await captchaResponse.json();
+  if(!captcha.success)return fail(res,403,'Verificación fallida o vencida. Inténtalo de nuevo.');
+  const expectedHost=new URL(process.env.MMHD_REQUESTS_ALLOWED_ORIGIN||'https://moviemaniahd.vercel.app').hostname;
+  if(captcha.hostname!==expectedHost)return fail(res,403,'Origen de verificación inválido.');
   const type=req.body?.type,id=Number(req.body?.id);
   if(!['movie','tv'].includes(type)||!Number.isSafeInteger(id)||id<1||id>999999999)return fail(res,400,'Selecciona una película o serie válida.');
   if(!process.env.MMHD_REQUESTS_HASH_SECRET||process.env.MMHD_REQUESTS_HASH_SECRET.length<32)return fail(res,503,'Solicitudes todavía no configuradas.');
