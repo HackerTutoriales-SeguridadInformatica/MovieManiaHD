@@ -5516,11 +5516,13 @@ renderCollection();
  // Actualizar de inmediato al cambiar de sección o cancelar la edición.
  // Esperar al siguiente microturno permite que la navegación cambie el atributo hidden.
  document.addEventListener('click',event=>{
-   if(event.target.closest('[data-view], [data-create], #btnCancelEdit, #btnClear')){
-     setTimeout(()=>{if(connected){void heartbeat().then(()=>refreshPresence());}},0);
+   if(event.target.closest('[data-view], [data-create], [data-edit-id], [data-recent-edit], [data-audit-series], #btnCancelEdit, #btnClear')){
+     setTimeout(()=>{if(connected){void heartbeat().then(()=>refreshPresence());}},80);
    }
  });
- setInterval(()=>{void heartbeat();void refreshPresence()},4000);
+ // El envío regular permanece cada 4 segundos; la lectura ligera de presencia es cada 2 segundos.
+ setInterval(()=>{void heartbeat()},4000);
+ setInterval(()=>{void refreshPresence()},2000);
  setInterval(()=>{void loadExtras()},15000);
  document.addEventListener('visibilitychange',()=>{if(connected&&document.visibilityState==='visible'){void heartbeat();void refreshPresence();void loadExtras(true)}});
 
