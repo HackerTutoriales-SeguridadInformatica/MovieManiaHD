@@ -1203,21 +1203,24 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-req-actions .mmhd-req-state:disabled:not(.is-active){opacity:.55}
 @media(max-width:780px){.mmhd-req-actions{width:100%;justify-content:flex-start}.mmhd-req-actions .mmhd-req-state{flex:1 1 auto}}
 
-/* MMHD - Presencia global e historial independiente */
-.mmhd-connected-header{display:flex;align-items:center;gap:7px;position:relative;padding:8px 10px;border-radius:10px;background:#101b2c;border:1px solid #293c52;color:#a7b8cb;font-size:11px;white-space:nowrap;max-width:260px;cursor:help}
+/* MMHD: Estado y actividad de ambos administradores siempre visibles */
+.mmhd-connected-header{display:flex;align-items:center;gap:9px;flex:0 1 auto;min-width:0;max-width:none;border:0;background:transparent;padding:0;white-space:normal;cursor:default}
 .mmhd-head-dot{width:7px;height:7px;border-radius:50%;background:#718096;flex-shrink:0}
 .mmhd-connected-active .mmhd-head-dot{background:#18c88b;box-shadow:0 0 7px #18c88b77}
-.mmhd-admin-popover{display:none;position:absolute;top:calc(100% + 7px);right:0;width:max-content;max-width:min(360px,85vw);white-space:normal;background:#142136;color:#dae6f2;border:1px solid #45607b;border-radius:10px;padding:10px 12px;z-index:1001;box-shadow:0 9px 32px #0008;line-height:1.8}
-.mmhd-presence-entry{padding:8px 0;border-bottom:1px solid #2b4159;min-width:285px}
-.mmhd-presence-entry:last-child{border-bottom:0}
-.mmhd-presence-email{font-weight:650;overflow-wrap:anywhere;font-size:12px;margin-bottom:5px}
-.mmhd-presence-fields{display:grid;grid-template-columns:70px minmax(0,1fr);gap:3px 9px;font-size:11px;line-height:1.5}
-.mmhd-presence-label{color:#9cb3ce}
-.mmhd-presence-online{color:#55e0aa;font-weight:600}
-.mmhd-presence-activity{color:#e7edf8;overflow-wrap:anywhere}
-.mmhd-connected-header:hover .mmhd-admin-popover,.mmhd-connected-header:focus-within .mmhd-admin-popover{display:block}
+#mmhd-connected-header-text{font-size:10px;color:#a7b8cb;white-space:nowrap}
+.mmhd-presence-inline{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;min-width:0}
+.mmhd-presence-entry{display:flex;flex-direction:column;gap:3px;border:1px solid #2b4159;border-radius:9px;background:#101d2d;padding:6px 9px;min-width:155px;max-width:210px;box-sizing:border-box}
+.mmhd-presence-email{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ecf2ff;font-size:10px;line-height:1.3}
+.mmhd-presence-fields{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mmhd-presence-field{display:flex;align-items:baseline;gap:5px;font-size:10px;min-width:0}
+.mmhd-presence-label{color:#9cb3ce;flex:0 0 48px}
+.mmhd-presence-online{color:#55e0aa;font-weight:650}
+.mmhd-presence-activity{color:#e7edf8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 #mmhd-history-page-content>div{padding:12px 0 !important;gap:12px !important}
-@media(max-width:900px){.mmhd-connected-header{max-width:150px;padding:7px;font-size:10px}.mmhd-connected-header #mmhd-connected-header-text{overflow:hidden;text-overflow:ellipsis}}
+.workspace-header{min-height:64px;height:auto;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
+.workspace-header .header-right{flex-wrap:wrap;justify-content:flex-end;flex-shrink:1;min-width:0}
+@media(max-width:1200px){.workspace-header .header-right{flex:1 1 100%;justify-content:flex-start}.mmhd-presence-entry{max-width:230px}}
+@media(max-width:640px){.mmhd-connected-header{flex-wrap:wrap}.mmhd-presence-entry{min-width:130px;max-width:190px}.workspace-header .header-right{gap:6px}}
 
 </style>
 </head>
@@ -5424,15 +5427,15 @@ renderCollection();
    const label=id=>labels[id]||String(id||'Desconocido').slice(0,8);
    presenceEl.textContent=live.length?live.length+' conectado'+(live.length===1?'':'s'):'Sin administradores activos';
    topPresence.classList.toggle('mmhd-connected-active',true);
-   topPresence.title=live.length?live.map(x=>label(x.user_id)+' — Estado: Conectado — Actividad: '+(x.current_title?'Editando: '+x.current_title:'Sin edición activa')).join('\n'):'No se detectó actividad durante el último minuto';
-   topPresence.querySelector('.mmhd-admin-popover')?.remove();
+   topPresence.title='Estado de los administradores en la biblioteca compartida';
+   topPresence.querySelector('.mmhd-presence-inline')?.remove();
    if(!live.length)return;
-   const details=document.createElement('div');details.className='mmhd-admin-popover';
-   for(const x of live){
+   const details=document.createElement('div');details.className='mmhd-presence-inline';
+   for(const x of live.sort((a,b)=>Number(a.user_id!==me)-Number(b.user_id!==me))){
      const item=document.createElement('div');item.className='mmhd-presence-entry';
-     const name=document.createElement('div');name.className='mmhd-presence-email';name.textContent=label(x.user_id)+(x.user_id===me?' (tú)':'');
+     const name=document.createElement('div');name.className='mmhd-presence-email';name.textContent=label(x.user_id)+(x.user_id===me?' (tú)':'');name.title=name.textContent;
      const fields=document.createElement('div');fields.className='mmhd-presence-fields';
-     const add=(key,value,style)=>{const k=document.createElement('span');k.className='mmhd-presence-label';k.textContent=key;const v=document.createElement('span');v.className=style;v.textContent=value;fields.append(k,v)};
+     const add=(key,value,style)=>{const line=document.createElement('div');line.className='mmhd-presence-field';const k=document.createElement('span');k.className='mmhd-presence-label';k.textContent=key;const v=document.createElement('span');v.className=style;v.textContent=value;v.title=value;line.append(k,v);fields.append(line)};
      add('Estado','● Conectado','mmhd-presence-online');
      add('Actividad',x.current_title?'Editando: '+x.current_title:'Sin edición activa','mmhd-presence-activity');
      item.append(name,fields);details.append(item);
@@ -5591,7 +5594,7 @@ renderCollection();
      const h=await request('GET','/api/library?head=1');if(h.revision!==revision){await fullRefresh();msg('✓ Biblioteca actualizada automáticamente · versión '+revision);}
    }catch(e){msg('Conexión interrumpida: '+e.message+'. Los cambios locales permanecen disponibles.',true)}
  }
- function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Herramientas para ver administradores activos';topPresence.querySelector('.mmhd-admin-popover')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Herramientas para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);void refreshPresence();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
+ function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Herramientas para ver administradores activos';topPresence.querySelector('.mmhd-presence-inline')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Herramientas para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);void refreshPresence();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
  async function logout(){connectedUI(false);forgetSession();token=null;refreshToken=null;base.clear();revision=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
  remember.addEventListener('change',()=>{if(connected)saveSession();else if(!remember.checked)forgetSession()});
  async function resumeSavedSession(){
