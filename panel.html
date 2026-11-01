@@ -5419,6 +5419,13 @@ renderCollection();
 <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="secondary" id="mmhd-public-seed" style="display:none" disabled>Reconocer títulos del index (uso inicial)</button><button type="button" class="secondary" id="mmhd-public-reload">Consultar publicaciones</button></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="mmhd-public-select" style="flex:1;min-width:240px"><option value="">Selecciona un título</option></select><button type="button" class="secondary" id="mmhd-public-approve">Publicar / Actualizar título</button><button type="button" class="secondary" id="mmhd-public-approve-all">Publicar todos los nuevos</button><button type="button" class="secondary" id="mmhd-public-update-all">Actualizar todos los editados</button><button type="button" class="secondary" id="mmhd-public-withdraw">Retirar</button></div>
 <small id="mmhd-public-message" aria-live="polite">Conéctate a Supabase para administrar publicaciones.</small>
+<div id="mmhd-pub-kpis" style="display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:8px" aria-label="Resumen de publicaciones"><div class="panel" style="padding:8px">Publicados: <b id="mmhd-pub-kpi-live">—</b></div><div class="panel" style="padding:8px">Nuevos pendientes: <b id="mmhd-pub-kpi-new">—</b></div><div class="panel" style="padding:8px">Editados pendientes: <b id="mmhd-pub-kpi-edited">—</b></div></div>
+<div style="display:flex;flex-wrap:wrap;gap:8px"><button type="button" class="secondary" id="mmhd-pub-compare">Comparar antes de publicar</button><button type="button" class="secondary" id="mmhd-pub-history-refresh">Ver historial público</button><button type="button" class="secondary" id="mmhd-pub-health">Comprobar sincronización</button></div>
+<div id="mmhd-pub-pending" style="max-height:190px;overflow:auto;font-size:12px"></div>
+<div id="mmhd-pub-diff" style="display:none;max-height:320px;overflow:auto;border:1px solid #36506b;border-radius:8px;padding:10px"></div>
+<div id="mmhd-pub-history" style="max-height:240px;overflow:auto;font-size:12px"></div>
+<div id="mmhd-pub-health-result" aria-live="polite" style="font-size:12px"></div>
+
 </div>`;
  document.getElementById('mmhd-public-library-holder').appendChild(publicationHost);
  const q=id=>host.querySelector('#'+id)||publicationHost.querySelector('#'+id);
@@ -5565,6 +5572,15 @@ renderCollection();
    q('mmhd-public-approve-all').disabled=!connected||pending.length===0;
    q('mmhd-public-update-all').disabled=!connected||edited.length===0;
    publicSelect.title=pending.length+' nuevo(s) y '+edited.length+' editado(s) pendiente(s)';
+   q('mmhd-pub-kpi-live').textContent=publicApproved.size;
+   q('mmhd-pub-kpi-new').textContent=pending.length;
+   q('mmhd-pub-kpi-edited').textContent=edited.length;
+   const box=q('mmhd-pub-pending');box.replaceChildren();
+   const addRow=(item,label)=>{const row=document.createElement('button');row.type='button';row.className='secondary';row.style.cssText='margin:3px;padding:6px;max-width:100%;text-align:left';row.textContent=label+' '+String(item.title||item.id);row.onclick=()=>{publicSelect.value=String(item.id);paintPublicList();};box.append(row);};
+   pending.forEach(x=>addRow(x,'○ Nuevo:'));
+   edited.forEach(x=>addRow(x,'↻ Editado:'));
+   if(!pending.length&&!edited.length)box.textContent='No hay nuevas publicaciones ni ediciones pendientes.';
+
  }
  async function loadPublicList(){if(!connected)return;try{
    const data=await publicCall('list');
@@ -5590,6 +5606,48 @@ renderCollection();
  );
  publicSelect.addEventListener('change',paintPublicList);
  q('mmhd-public-reload').addEventListener('click',()=>void loadPublicList());
+ // Comparador: solo muestra nombres de campos y vistas previas de textos; nunca imprime URLs privadas.
+ const protectedFields=/^(m37|m22|m18|subtitlesUrl|subtitleTracks|seasons|sources|video|audio|episodes|m37En|m22En|m18En)/i;
+ q('mmhd-pub-compare').addEventListener('click',async()=>{
+   const chosen=publicSelect.value,output=q('mmhd-pub-diff');output.style.display='block';output.textContent='Cargando comparación…';
+   if(!chosen){output.textContent='Selecciona un título nuevo o editado para comparar.';return;}
+   try{const d=await publicCall('inspect',{id:chosen});output.replaceChildren();
+     const title=document.createElement('strong');title.textContent='Comparación de borrador administrativo y versión pública';output.append(title);
+     const old=d.published||{},latest=d.draft||{};
+     for(const key of new Set([...Object.keys(old),...Object.keys(latest)])){
+       if(JSON.stringify(old[key])===JSON.stringify(latest[key]))continue;
+       const line=document.createElement('div');line.style.cssText='padding:6px 0;border-bottom:1px solid #29394b;overflow-wrap:anywhere';
+       const k=document.createElement('b');k.textContent=key+': ';line.append(k);
+       const v=document.createElement('span');
+       v.textContent=protectedFields.test(key)?'Configuración multimedia modificada (contenido reservado)':
+         (['string','number','boolean'].includes(typeof latest[key])?String(latest[key]??'').slice(0,220):'Estructura o metadatos modificados');
+       line.append(v);output.append(line);
+     }
+     if(!output.querySelector('div')){const empty=document.createElement('p');empty.textContent='No hay diferencias.';output.append(empty);}
+   }catch(e){output.textContent='No se pudo comparar: '+e.message;}
+ });
+ q('mmhd-pub-history-refresh').addEventListener('click',async()=>{
+   const box=q('mmhd-pub-history');box.textContent='Consultando historial público…';
+   try{const data=await publicCall('history');box.replaceChildren();
+     if(!(data.entries||[]).length){box.textContent='No hay publicaciones nuevas desde que se instaló el historial.';return;}
+     for(const entry of data.entries){const div=document.createElement('div');div.style.cssText='display:flex;gap:8px;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #31465f';
+       const summary=document.createElement('span');summary.textContent=entry.item_id+' · '+entry.operation+' · '+showDate(entry.changed_at);div.append(summary);
+       if(entry.before_item){const b=document.createElement('button');b.className='secondary';b.type='button';b.textContent='Restaurar versión anterior';
+         b.onclick=async()=>{if(!confirm('¿Restaurar SOLO la versión pública anterior del título '+entry.item_id+'? El panel administrativo no cambiará.'))return;
+           try{const r=await publicCall('rollback',{historyId:Number(entry.id),itemId:String(entry.item_id)});if(!r.ok)throw Error('No se pudo restaurar');await loadPublicList();b.textContent='Versión restaurada';}
+           catch(e){alert('No se pudo restaurar: '+e.message)};};div.append(b);}
+       box.append(div);
+     }
+   }catch(e){box.textContent='Historial no disponible: '+e.message;}
+ });
+ q('mmhd-pub-health').addEventListener('click',async()=>{
+   const box=q('mmhd-pub-health-result');box.textContent='Consultando estado…';
+   try{const start=performance.now();const [head,report]=await Promise.all([fetch('/api/public-library?head=1',{cache:'no-store'}),publicCall('list')]);
+     if(!head.ok)throw Error('API pública HTTP '+head.status);const d=await head.json();
+     box.textContent='✓ API pública activa · versión '+String(d.version)+' · '+Math.round(performance.now()-start)+' ms · '+(report.ids||[]).length+' aprobados · '+(report.updatedIds||[]).length+' ediciones pendientes · '+Number(report.missingSnapshots||0)+' snapshots ausentes. Última comprobación: '+new Date().toLocaleTimeString('es-MX');
+   }catch(e){box.textContent='⚠ Error al consultar publicación: '+e.message;}
+ });
+
  q('mmhd-public-seed').addEventListener('click',async()=>{
    if(!connected)return alert('Conecta tu biblioteca de Supabase primero.');
    if(!confirm('Se aprobarán para publicación los títulos que están actualmente en index.html. No se publicarán los títulos nuevos que no estén en esa página. ¿Continuar?'))return;
