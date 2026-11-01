@@ -20,6 +20,10 @@ module.exports=async function handler(req,res){
    async function query(path,method='GET',body){const r=await fetch(url+'/rest/v1/'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(15000)});const data=await r.json().catch(()=>null);if(!r.ok)throw Error(data?.message||data?.error||'Supabase '+r.status);return data;}
    const meta=async()=>{const rows=await query('mmhd_library_meta?select=revision&id=eq.1');return Number(rows[0]?.revision||0)};
    if(req.method==='GET'){
+     if(req.query?.presence==='1'){
+       const presence=await query('mmhd_library_presence?select=user_id,current_item_id,current_title,last_seen&last_seen=gte.'+encodeURIComponent(new Date(Date.now()-60000).toISOString()));
+       return res.status(200).json({presence,me:user.id});
+     }
      const revision=await meta();
      if(req.query?.head==='1')return res.status(200).json({revision});
      if(req.query?.extra==='1'){
