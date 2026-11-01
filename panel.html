@@ -5406,12 +5406,19 @@ renderCollection();
      if(!history.length)historyEl.textContent='No hay ediciones registradas desde la instalación del historial.';
      history.forEach(x=>{
        const line=document.createElement('div');line.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #26384d;flex-wrap:wrap';
-       const desc=document.createElement('span');desc.textContent=showDate(x.changed_at)+' · '+label(x.actor)+' · '+x.operation+' · '+x.item_id;
+       const desc=document.createElement('div');desc.style.cssText='display:flex;align-items:center;gap:10px;flex:1;min-width:210px';
+       if(x.poster){const img=document.createElement('img');img.alt='Póster de '+String(x.title||'');img.loading='lazy';img.referrerPolicy='no-referrer';img.style.cssText='width:38px;height:57px;object-fit:cover;border-radius:5px;flex-shrink:0';img.src=x.poster.startsWith('/')?'https://image.tmdb.org/t/p/w92'+x.poster:x.poster;img.onerror=()=>img.remove();desc.append(img);}
+       const meta=document.createElement('div');meta.style.cssText='min-width:0;overflow-wrap:anywhere';
+       const title=document.createElement('strong');title.textContent=String(x.title||x.item_id)+(x.year?' ('+x.year+')':'');
+       const who=document.createElement('div');who.style.cssText='font-size:12px;opacity:.84;margin-top:3px';who.textContent=showDate(x.changed_at)+' · '+label(x.actor)+' · '+String(x.operation||'');
+       meta.append(title,who);
+       if(Array.isArray(x.fields)&&x.fields.length){const fields=document.createElement('div');fields.style.cssText='font-size:12px;color:#a6c9e9;margin-top:3px';fields.textContent='Cambios: '+x.fields.join(', ');meta.append(fields);}
+       desc.append(meta);
        const button=document.createElement('button');button.className='secondary';button.type='button';button.textContent='Deshacer cambio';
        button.addEventListener('click',async()=>{
          if(!connected||busy||extraWorking)return;
          if(mapChanged(snapshot(),base).length){alert('Primero guarda o revisa tus ediciones locales pendientes.');return;}
-         if(!confirm('¿Deshacer el cambio seleccionado del título '+x.item_id+'? Se registrará una nueva modificación y no afectará otros títulos.'))return;
+         if(!confirm('¿Deshacer el cambio seleccionado de «'+(x.title||x.item_id)+'»? Se registrará una nueva modificación y no afectará otros títulos.'))return;
          busy=true;
          try{const r=await request('POST','/api/library',{action:'undo',historyId:Number(x.id),expectedRevision:revision});if(!r.ok)throw Error('No se pudo recuperar');
            const d=await request('GET','/api/library');applying=true;
