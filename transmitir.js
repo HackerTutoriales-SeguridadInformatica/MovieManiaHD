@@ -53,6 +53,12 @@
       border:1px solid #6c98d9;background:#2e65ad;color:white;font-weight:750;cursor:pointer}
     .mmhd-transmit-action[disabled]{opacity:.5;cursor:not-allowed}
     .mmhd-transmit-action.secondary{background:#192b48;border-color:#3f5d82}
+    .mmhd-transmit-web-sources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:9px}
+    .mmhd-transmit-web-sources button{padding:9px 5px;min-height:42px;border-radius:9px;background:#1b2a42;
+      color:#e5f0ff;border:1px solid #466287;font-size:11px;font-weight:650;cursor:pointer}
+    .mmhd-transmit-web-sources button[aria-pressed="true"]{background:#2b619d;border-color:#9bc5ff}
+    .mmhd-transmit-diagnostic{font-size:11px;color:#c1d0e7;line-height:1.5;white-space:pre-line;overflow-wrap:anywhere;
+      background:#0b1323;border:1px solid #2a3c57;padding:10px;border-radius:9px;margin-top:9px}
     .mmhd-transmit-help{font-size:11px;line-height:1.55;color:#b5c5dc;margin:12px 0 0}
     @media(max-width:480px){#mmhdTransmitPanel{padding:14px;border-radius:14px}.mmhd-transmit-heading{font-size:18px}}
   `;
@@ -196,86 +202,217 @@
   function showAirPlay(variant) {
     var source = firstSource(variant);
     var dv = toDirectVideoUrl(source);
-    currentLanguage = String(variant.language||'Principal');
+    currentLanguage = String(variant.language || 'Principal');
     currentWebSource = source;
     header('Enviar video por AirPlay',
-      (currentMovie.title || 'Movie Mania HD')+' · '+currentLanguage,
+      (currentMovie.title || 'Movie Mania HD') + ' · ' + currentLanguage,
       function () { showLanguages(); });
     if (!dv) {
       panel.append(el('p','mmhd-transmit-status','No hay una URL HTTPS válida para este video.'));
       return;
     }
     var video = document.createElement('video');
-    video.id='mmhdAirPlayVideo';
-    video.className='mmhd-transmit-preview';
+    video.id = 'mmhdAirPlayVideo';
+    video.className = 'mmhd-transmit-preview';
     video.controls = true;
     video.playsInline = true;
     video.preload = 'metadata';
-    video.setAttribute('playsinline','');
-    video.setAttribute('webkit-playsinline','');
-    video.setAttribute('x-webkit-airplay','allow');
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    video.setAttribute('x-webkit-airplay', 'allow');
     try { video.webkitWirelessVideoPlaybackDisabled = false; } catch (_) {}
     if (currentMovie.poster) video.poster = currentMovie.poster;
-    // No fetch, crossOrigin ni proxy: Safari accede directamente al mismo =dv de Cast.
-    video.src = dv;
     activeVideo = video;
     panel.appendChild(video);
-    var status = el('div','mmhd-transmit-status','Comprobando si Safari puede mostrar el video original (=dv)…');
+
+    var status = el('div','mmhd-transmit-status','Cargando video original (=dv)…');
     status.setAttribute('role','status');
     ui.status = status;
     panel.appendChild(status);
+
     var actions = el('div','mmhd-transmit-actions');
     var play = button('mmhd-transmit-action secondary','▶ Reproducir video',function () {
-      var result = video.play();
-      if (result && typeof result.catch === 'function') result.catch(function () {
-        setStatus('Safari no consiguió reproducir esta fuente. Prueba la calidad web.');
-      });
+      setStatus('Solicitando reproducción de ' + sourceLabel + '…');
+      try {
+        var result = video.play();
+        if (result && typeof result.catch === 'function') result.catch(function (error) {
+          if (activeVideo === video) {
+            lastEvent = 'play() rechazado: ' + (error && error.name || 'desconocido');
+            setStatus('Safari no inició ' + sourceLabel + '. ' +
+              (error && error.name || 'Error desconocido') + '. Revisa el diagnóstico o prueba otra calidad.');
+            updateDiagnostic();
+          }
+        });
+      } catch (error) {
+        lastEvent = 'play() falló: ' + (error && error.name || 'desconocido');
+        setStatus('No se pudo iniciar el video. Prueba otra calidad.');
+        updateDiagnostic();
+      }
     });
     var send = button('mmhd-transmit-action','▵ Elegir TV AirPlay',function () {
-      // El selector exige clic directo del usuario y un video con imagen detectable.
       if (!activeVideo || activeVideo !== video) return;
-      if (!video.videoWidth || !video.videoHeight) {
-        setStatus('No se ha detectado imagen en esta fuente. Pulsa Reproducir o prueba la calidad web antes de transmitir.');
+      // Las dimensiones se conocen desde loadedmetadata; no significan que haya
+      // fotogramas. HAVE_CURRENT_DATA (2) es el primer estado con imagen disponible.
+      if (!firstFrameReady()) {
+        setStatus('Todavía no hay un fotograma reproducible. La duración por sí sola no es suficiente: prueba otra calidad.');
+        updateDiagnostic();
         return;
       }
       try { video.webkitShowPlaybackTargetPicker(); }
-      catch (error) { setStatus('Safari no pudo abrir AirPlay: '+error.message); }
+      catch (error) { setStatus('Safari no pudo abrir AirPlay: ' + error.message); }
     });
     send.disabled = true;
-    var fallback = button('mmhd-transmit-action secondary','Probar calidad web',function () {
-      // Alternativa manual cuando el original =dv es MKV u otro códec no apto para Safari.
-      var raw = String(currentWebSource||'').trim();
-      if (!raw) return;
-      var webUrl;
-      try { webUrl = new URL(raw, location.href); }
-      catch (_) { setStatus('No hay enlace web válido.'); return; }
-      if (webUrl.protocol !== 'https:') return;
-      video.pause();video.src = webUrl.href;video.load();send.disabled = true;
-      setStatus('Probando la fuente de calidad web. Espera a que aparezca imagen antes de elegir AirPlay.');
-    });
-    actions.append(play,send,fallback);
+    actions.append(play,send);
     panel.appendChild(actions);
-    function inspect() {
-      if (video !== activeVideo) return;
-      var valid = !!(video.videoWidth && video.videoHeight);
-      send.disabled = !valid || !airplaySupported();
-      if (valid) setStatus('Video detectado ('+video.videoWidth+' × '+video.videoHeight+'). Pulsa «Elegir TV AirPlay».');
+
+    var webOptions = [
+      {key:'m37',title:'1080p',url:variant.m37},
+      {key:'m22',title:'720p',url:variant.m22},
+      {key:'m18',title:'420p',url:variant.m18}
+    ].filter(function (x) {
+      if (!x.url) return false;
+      try { return new URL(String(x.url).trim(),location.href).protocol === 'https:'; }
+      catch (_) { return false; }
+    });
+    var lastEvent = 'esperando metadatos';
+    var sourceLabel = '=dv (original)';
+    var lastError = 'ninguno';
+    var sourceButtons = [];
+    var diagnostics = el('div','mmhd-transmit-diagnostic','');
+    var sourceContainer = el('div','mmhd-transmit-web-sources');
+    if (webOptions.length) {
+      panel.append(el('p','mmhd-transmit-help',
+        'Si el original se queda cargando, prueba una calidad web a la vez. Ver la duración NO significa que haya imagen.'));
+      webOptions.forEach(function (x) {
+        var b = button('',x.title,function () { switchTo(x.url,'Calidad web ' + x.title,x.key); });
+        b.setAttribute('aria-pressed','false');
+        b.setAttribute('title','Probar enlace ' + x.key + ' sin modificar Chromecast');
+        sourceContainer.appendChild(b);
+        sourceButtons.push({key:x.key,button:b});
+      });
+      panel.appendChild(sourceContainer);
     }
-    video.addEventListener('loadedmetadata',inspect);
-    video.addEventListener('loadeddata',inspect);
-    video.addEventListener('resize',inspect);
-    video.addEventListener('playing',inspect);
-    video.addEventListener('error',function () {
-      send.disabled=true;
-      setStatus('Safari no puede abrir este enlace como video. Si el original es MKV o usa un códec incompatible, prueba «Calidad web».');
+    var originalButton = button('mmhd-transmit-action secondary','Volver al video original (=dv)',function () {
+      switchTo(dv,'=dv (original)','dv');
     });
-    video.addEventListener('webkitcurrentplaybacktargetiswirelesschanged',function () {
-      if(video.webkitCurrentPlaybackTargetIsWireless) setStatus('AirPlay conectado. Si la TV solo muestra audio, el receptor no pudo reproducir la imagen de esta fuente.');
+    var tools = el('div','mmhd-transmit-actions');
+    tools.appendChild(originalButton);
+    var copy = button('mmhd-transmit-action secondary','Copiar diagnóstico',function () {
+      var report = makeDiagnostic();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(report).then(function(){
+          setStatus('Diagnóstico copiado. No incluye enlaces ni credenciales.');
+        }).catch(function(){ window.prompt('Copia este diagnóstico:', report); });
+      } else { window.prompt('Copia este diagnóstico:', report); }
     });
+    tools.appendChild(copy);
+    panel.appendChild(tools);
+    panel.appendChild(diagnostics);
+
+    function firstFrameReady() {
+      return video === activeVideo && video.readyState >= 2 &&
+        video.videoWidth > 0 && video.videoHeight > 0 && !video.error;
+    }
+    function formatDuration(n) {
+      if (!Number.isFinite(n) || n <= 0) return 'sin detectar';
+      var secs = Math.round(n);
+      var h = Math.floor(secs/3600), m = Math.floor(secs%3600/60), s=secs%60;
+      return (h ? h+':' + String(m).padStart(2,'0') : String(m)) + ':' + String(s).padStart(2,'0');
+    }
+    function makeDiagnostic() {
+      var states = ['sin datos','solo metadatos','primer fotograma disponible',
+        'datos futuros disponibles','datos suficientes'];
+      return 'Movie Mania HD · AirPlay\n' +
+        'Fuente: ' + sourceLabel + '\n' +
+        'Duración: ' + formatDuration(video.duration) + '\n' +
+        'Estado del video: ' + (states[video.readyState] || video.readyState) +
+          ' (readyState ' + video.readyState + ')\n' +
+        'Estado de red: ' + video.networkState + '\n' +
+        'Dimensiones: ' + video.videoWidth + ' × ' + video.videoHeight + '\n' +
+        'Reproduciendo: ' + (!video.paused && !video.ended ? 'solicitado' : 'no') + '\n' +
+        'Posición: ' + (Number.isFinite(video.currentTime) ? video.currentTime.toFixed(1) : '?') + ' s\n' +
+        'Primer fotograma: ' + (firstFrameReady() ? 'sí' : 'no') + '\n' +
+        'Error: ' + lastError + '\nÚltimo evento: ' + lastEvent;
+    }
+    function updateDiagnostic() {
+      if (video !== activeVideo) return;
+      diagnostics.textContent = makeDiagnostic();
+      send.disabled = !airplaySupported() || !firstFrameReady();
+    }
+    function switchTo(url,label,key) {
+      if (video !== activeVideo) return;
+      var target;
+      try { target = new URL(String(url).trim(),location.href); }
+      catch (_) { setStatus('La URL de esta calidad no es válida.'); return; }
+      if (target.protocol !== 'https:') { setStatus('Solo se admiten enlaces HTTPS.'); return; }
+      try { video.pause(); } catch (_) {}
+      sourceLabel = label;
+      lastError = 'ninguno';
+      lastEvent = 'cambio de fuente';
+      sourceButtons.forEach(function(x){x.button.setAttribute('aria-pressed',x.key===key?'true':'false');});
+      originalButton.hidden = key === 'dv';
+      video.src = target.href;
+      video.load();
+      setStatus('Cargando ' + label + '. Pulsa «Reproducir video» y espera a ver imagen antes de transmitir.');
+      updateDiagnostic();
+    }
+    video.addEventListener('loadedmetadata',function(){
+      if (video !== activeVideo) return;
+      lastEvent = 'loadedmetadata';
+      setStatus(sourceLabel + ': duración ' + formatDuration(video.duration) +
+        ' detectada. Esperando el primer fotograma; todavía NO está listo para AirPlay.');
+      updateDiagnostic();
+    });
+    video.addEventListener('loadeddata',function(){
+      if (video !== activeVideo) return;
+      lastEvent = 'loadeddata';
+      setStatus(sourceLabel + ': primer fotograma disponible. Ya puedes comprobar imagen y elegir AirPlay.');
+      updateDiagnostic();
+    });
+    video.addEventListener('playing',function(){
+      if (video !== activeVideo) return;
+      lastEvent = 'playing';
+      setStatus(sourceLabel + ': reproducción iniciada en Safari. Puedes elegir la TV, aunque esto no garantiza que el Roku admita el enlace.');
+      updateDiagnostic();
+    });
+    video.addEventListener('timeupdate',function(){
+      if (video !== activeVideo) return;
+      updateDiagnostic();
+    });
+    video.addEventListener('waiting',function(){
+      if (video !== activeVideo) return;
+      lastEvent = 'waiting';
+      setStatus(sourceLabel + ': esperando datos de video. Si no aparece imagen, prueba otra calidad.');
+      updateDiagnostic();
+    });
+    video.addEventListener('stalled',function(){
+      if (video !== activeVideo) return;
+      lastEvent = 'stalled';
+      setStatus(sourceLabel + ': el servidor dejó de enviar datos temporalmente. Prueba otra calidad.');
+      updateDiagnostic();
+    });
+    video.addEventListener('error',function(){
+      if (video !== activeVideo) return;
+      var codes = {1:'carga cancelada',2:'error de red',3:'error de decodificación',4:'fuente no compatible'};
+      lastError = video.error ? ((codes[video.error.code] || 'error') + ' (código ' + video.error.code + ')') : 'desconocido';
+      lastEvent = 'error';
+      setStatus(sourceLabel + ': ' + lastError + '. Prueba otra calidad.');
+      updateDiagnostic();
+    });
+    video.addEventListener('webkitcurrentplaybacktargetiswirelesschanged',function(){
+      if(video !== activeVideo) return;
+      if(video.webkitCurrentPlaybackTargetIsWireless){
+        lastEvent = 'AirPlay conectado';
+        setStatus('AirPlay conectado. Si el Roku sigue cargando, esta fuente podría no ser compatible o accesible desde la TV.');
+      } else {lastEvent = 'AirPlay desconectado';}
+      updateDiagnostic();
+    });
+    video.src = dv;
     video.load();
+    updateDiagnostic();
     play.focus();
     panel.append(el('p','mmhd-transmit-help',
-      'El enlace =dv puede ser un archivo original no compatible con Safari/Roku. Verificar imagen en esta vista reduce las transmisiones de solo audio. Los subtítulos externos no se envían automáticamente con esta prueba.'));
+      'Diagnóstico sin URLs ni credenciales. Chromecast continúa igual. Si ninguna calidad funciona en Safari/Roku, puede ser necesario un archivo MP4/H.264/AAC o HLS con acceso directo y estable.'));
   }
   function open(movie) {
     if (!movie || typeof movie !== 'object') return;
