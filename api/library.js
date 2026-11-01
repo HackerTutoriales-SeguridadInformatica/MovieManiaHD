@@ -23,7 +23,25 @@ module.exports=async function handler(req,res){
      const revision=await meta();
      if(req.query?.head==='1')return res.status(200).json({revision});
      if(req.query?.extra==='1'){
-       const history=await query('mmhd_library_history?select=id,item_id,operation,actor,changed_at&order=id.desc&limit=60');
+       const rawHistory=await query('mmhd_library_history?select=id,item_id,operation,actor,changed_at,before_item,after_item&order=id.desc&limit=60');
+       // Only return compact descriptions: never expose full historical playback URLs in the activity feed.
+       const fieldLabels={title:'Título',subtitle:'Subtítulo',overview:'Sinopsis',description:'Descripción',synopsis:'Sinopsis',plot:'Sinopsis',year:'Año',releaseDate:'Fecha de estreno',release_date:'Fecha de estreno',poster:'Póster',backdrop:'Fondo',logo:'Logo',genres:'Géneros',genre:'Género',runtime:'Duración',rating:'Calificación',cert:'Clasificación',platforms:'Plataformas',platform:'Plataforma',featured:'Destacados',season:'Temporada',seasons:'Temporadas',episodes:'Episodios',chapters:'Episodios',subtitleTracks:'Subtítulos',subtitlesUrl:'Subtítulos',audioTracks:'Audios',primaryLanguage:'Idioma principal',language:'Idioma',languages:'Idiomas',m18:'Enlace 360p',m22:'Enlace 720p',m37:'Enlace 1080p',m18En:'Enlace Inglés 360p',m22En:'Enlace Inglés 720p',m37En:'Enlace Inglés 1080p'};
+       function changedFields(before,after){
+         if(!before||!after)return [];
+         const keys=new Set([...Object.keys(before),...Object.keys(after)]);
+         const result=[];
+         for(const k of keys){
+           if(JSON.stringify(before[k])===JSON.stringify(after[k]))continue;
+           const label=fieldLabels[k]||(/^(?:m18|m22|m37)/i.test(k)?'Enlaces de reproducción':/subtit|caption|srt|vtt/i.test(k)?'Subtítulos':/episod|season|temporad|chapter/i.test(k)?'Episodios o temporadas':/link|url|video|source|audio|quality|calidad/i.test(k)?'Enlaces o audio':k);
+           if(!result.includes(label))result.push(label);
+         }
+         return result.slice(0,12);
+       }
+       const history=rawHistory.map(({before_item,after_item,...entry})=>{
+         const item=after_item||before_item||{};
+         const poster=typeof item.poster==='string'&&(/^https:\/\/image\.tmdb\.org\/t\/p\//.test(item.poster)||/^\/[a-zA-Z0-9_-]+\.(?:jpg|jpeg|png|webp)$/.test(item.poster))?item.poster:null;
+         return {...entry,title:String(item.title||item.name||entry.item_id).slice(0,180),year:String(item.year||'').slice(0,8),poster,fields:changedFields(before_item,after_item)};
+       });
        const backups=await query('mmhd_library_backups?select=id,revision,reason,item_count,created_at&order=id.desc&limit=20');
        const presence=await query('mmhd_library_presence?select=user_id,current_item_id,current_title,last_seen&last_seen=gte.'+encodeURIComponent(new Date(Date.now()-60000).toISOString()));
        const admins=await query('mmhd_library_admins?select=user_id');
