@@ -40,6 +40,43 @@
       const key = id(item);
       const pos = positions.get(key);
       const incoming = clone(item);
+      // Las respuestas de Supabase pueden omitir campos multimedia antiguos.
+      // En títulos ya incrustados, conservar las fuentes y pistas existentes
+      // cuando faltan en la respuesta; nunca reemplazar una fuente por vacío.
+      // Los valores nuevos NO vacíos sí tienen prioridad.
+      if (pos !== undefined) {
+        const previous = next[pos];
+        const sourceKeys = ['m37','m22','m18','m37En','m22En','m18En'];
+        const fallbackMedia = (dst, prior) => {
+          if (!dst || !prior || typeof dst !== 'object' || typeof prior !== 'object') return;
+          for (const key of sourceKeys) {
+            if ((!dst[key] || typeof dst[key] !== 'string' || !dst[key].trim()) &&
+                typeof prior[key] === 'string' && prior[key].trim()) dst[key] = prior[key];
+          }
+          if ((!Array.isArray(dst.subtitleTracks) || !dst.subtitleTracks.some(t=>t && t.url)) &&
+              Array.isArray(prior.subtitleTracks) && prior.subtitleTracks.some(t=>t && t.url))
+            dst.subtitleTracks = clone(prior.subtitleTracks);
+          if ((!dst.subtitlesUrl || typeof dst.subtitlesUrl !== 'string' || !dst.subtitlesUrl.trim()) &&
+              typeof prior.subtitlesUrl === 'string' && prior.subtitlesUrl.trim())
+            dst.subtitlesUrl = prior.subtitlesUrl;
+          if ((!dst.audioAlt || typeof dst.audioAlt !== 'object') && prior.audioAlt)
+            dst.audioAlt = clone(prior.audioAlt);
+          if ((!dst.primaryLanguage || !String(dst.primaryLanguage).trim()) && prior.primaryLanguage)
+            dst.primaryLanguage = prior.primaryLanguage;
+          if ((!dst.seriesDefaultLanguage || !String(dst.seriesDefaultLanguage).trim()) && prior.seriesDefaultLanguage)
+            dst.seriesDefaultLanguage = prior.seriesDefaultLanguage;
+        };
+        fallbackMedia(incoming,previous);
+        if (incoming.kind === 'SERIES' && Array.isArray(incoming.seasons) && Array.isArray(previous.seasons)) {
+          const oldSeasons = new Map(previous.seasons.map(season=>[String(season.number),season]));
+          incoming.seasons.forEach(season=>{
+            const oldSeason = oldSeasons.get(String(season.number));
+            if (!oldSeason || !Array.isArray(season.episodes) || !Array.isArray(oldSeason.episodes)) return;
+            const oldEpisodes = new Map(oldSeason.episodes.map(ep=>[String(ep.number),ep]));
+            season.episodes.forEach(ep=>fallbackMedia(ep,oldEpisodes.get(String(ep.number))));
+          });
+        }
+      }
       // addedAt es opcional en títulos antiguos. Preservar su fecha conocida;
       // para nuevos títulos sin fecha, usar updatedAt o una fecha fija válida.
       if (!incoming.addedAt || !Number.isFinite(Date.parse(incoming.addedAt))) {
