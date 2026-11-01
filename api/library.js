@@ -22,10 +22,42 @@ module.exports=async function handler(req,res){
    if(req.method==='GET'){
      const revision=await meta();
      if(req.query?.head==='1')return res.status(200).json({revision});
+     if(req.query?.extra==='1'){
+       const history=await query('mmhd_library_history?select=id,item_id,operation,actor,changed_at&order=id.desc&limit=60');
+       const backups=await query('mmhd_library_backups?select=id,revision,reason,item_count,created_at&order=id.desc&limit=20');
+       const presence=await query('mmhd_library_presence?select=user_id,current_item_id,current_title,last_seen&last_seen=gte.'+encodeURIComponent(new Date(Date.now()-60000).toISOString()));
+       const admins=await query('mmhd_library_admins?select=user_id');
+       const emailMap={};for(const a of admins){const ar=await fetch(url+'/auth/v1/admin/users/'+encodeURIComponent(a.user_id),{headers,signal:AbortSignal.timeout(9000)});if(ar.ok){const u=await ar.json();emailMap[a.user_id]=u.email||a.user_id.slice(0,8);}}
+       return res.status(200).json({revision,history,backups,presence,admins:emailMap,me:user.id});
+     }
+
      const rows=[];for(let offset=0;offset<5000;offset+=1000){const page=await query('mmhd_library_items?select=id,item,version&order=id.asc&limit=1000&offset='+offset);rows.push(...page);if(page.length<1000)break;}
      return res.status(200).json({revision,items:rows});
    }
    const payload=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
+   if(payload.action==='undo'){
+     if(!Number.isSafeInteger(payload.historyId)||!Number.isSafeInteger(payload.expectedRevision))return res.status(400).json({error:'Datos de recuperación incorrectos'});
+     if(await meta()!==payload.expectedRevision)return res.status(409).json({error:'La biblioteca cambió. Sincroniza y revisa antes de deshacer'});
+     const hs=await query('mmhd_library_history?select=item_id,before_item&id=eq.'+payload.historyId+'&limit=1');
+     if(!hs.length)return res.status(404).json({error:'Cambio no encontrado'});
+     const id=hs[0].item_id;
+     const current=await query('mmhd_library_items?select=id,version&id=eq.'+encodeURIComponent(id)+'&limit=1');
+     const result=await query('rpc/mmhd_library_apply','POST',{p_changes:[{id,expectedVersion:current.length?current[0].version:null,item:hs[0].before_item}],p_actor:user.id});
+     return res.status(result.ok?200:409).json(result);
+   }
+   if(payload.action==='backup'){
+     const r=await query('rpc/mmhd_library_take_backup','POST',{p_actor:user.id,p_reason:'manual'});
+     return res.status(200).json(r);
+   }
+   if(payload.action==='restore'){
+     if(!Number.isSafeInteger(payload.backupId)||!Number.isSafeInteger(payload.expectedRevision))return res.status(400).json({error:'Identificadores incorrectos'});
+     const r=await query('rpc/mmhd_library_restore','POST',{p_backup_id:payload.backupId,p_expected_revision:payload.expectedRevision,p_actor:user.id});
+     return res.status(r.ok?200:409).json(r);
+   }
+   if(payload.action==='presence'){
+     const r=await query('rpc/mmhd_library_heartbeat','POST',{p_actor:user.id,p_item_id:typeof payload.itemId==='string'?payload.itemId:null,p_title:typeof payload.title==='string'?payload.title:null});
+     return res.status(200).json(r);
+   }
    if(payload.action==='seed'){
      if(!Array.isArray(payload.items)||payload.items.length>5000)return res.status(400).json({error:'Biblioteca inicial inválida'});
      const result=await query('rpc/mmhd_library_seed','POST',{p_items:payload.items,p_actor:user.id});
