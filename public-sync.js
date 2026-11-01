@@ -1,58 +1,85 @@
-/* Movie Mania HD V3 - catálogo vivo. No reemplaza el reproductor ni sus datos locales. */
-(function(){
- 'use strict';
- if(typeof MOVIES==='undefined'||typeof renderAll!=='function')return;
- const endpoint='/api/public-library';
- let activeVersion=null,busy=false,pending=null;
- function safeData(raw){
-  const m=Object.assign({},raw);
-  m.id=raw.id;
-  m.title=String(raw.title||'');m.kind=raw.kind==='SERIES'?'SERIES':'MOVIE';
-  m.year=String(raw.year||'');m.poster=String(raw.poster||'');m.backdrop=String(raw.backdrop||'');
-  m.rating=Number(raw.rating)||0;m.genres=String(raw.genres||'');m.overview=String(raw.overview||'');
-  m.searchTitles=Array.isArray(raw.searchTitles)?raw.searchTitles:[];
-  m.manualSearchTitles=Array.isArray(raw.manualSearchTitles)?raw.manualSearchTitles:[];
-  m.cast=Array.isArray(raw.cast)?raw.cast:[];
-  m.watchProvidersMx=Array.isArray(raw.watchProvidersMx)?raw.watchProvidersMx:[];
-  m.providerOverridesMx=raw.providerOverridesMx||{};
-  m.featured=raw.featured===true;m.featuredOrder=Number(raw.featuredOrder??999);
-  m.subtitleTracks=Array.isArray(raw.subtitleTracks)?raw.subtitleTracks:[];
-  m.seasons=Array.isArray(raw.seasons)?raw.seasons:[];
-  for(const season of m.seasons){if(!Array.isArray(season.episodes))season.episodes=[];}
-  return m;
- }
- function apply(data){
-  const allowed=new Set((data.approvedIds||[]).map(String));
-  const existing=new Map(MOVIES.map(m=>[String(m.id),m]));
-  const approvedItems=new Map((data.items||[]).filter(m=>m&&m.id!=null).map(m=>[String(m.id),safeData(m)]));
-  // Los IDs aprobados que ya no existen en Supabase deben retirarse de la web.
-  for(let i=MOVIES.length-1;i>=0;i--){const id=String(MOVIES[i].id);if(allowed.has(id)&&!approvedItems.has(id))MOVIES.splice(i,1);}
-  for(const [id,m] of approvedItems){const old=existing.get(id);if(old){Object.keys(old).forEach(k=>{if(!(k in m))delete old[k];});Object.assign(old,m);}else MOVIES.push(m);}
-  activeVersion=data.version;
-  // No cerrar ni reiniciar un reproductor activo o una ficha que está abierta.
-  const playing=!!document.getElementById('playerModal')?.classList.contains('show');
-  const detail=!!document.getElementById('detailScreen')?.classList.contains('show');
-  if(playing||detail){pending=true;return;}
-  renderAll();
-  if(typeof renderHero==='function')renderHero();
-  pending=false;
- }
- async function check(){
-  if(busy||document.visibilityState==='hidden')return;
-  busy=true;
-  try{
-   const head=await fetch(endpoint+'?head=1',{cache:'no-store'});
-   if(!head.ok)return;
-   const meta=await head.json();
-   if(meta.version!==activeVersion){const response=await fetch(endpoint,{cache:'no-store'});
-    if(!response.ok)return;
-    const data=await response.json();apply(data);
-   }else if(pending&&!document.getElementById('playerModal')?.classList.contains('show')&&!document.getElementById('detailScreen')?.classList.contains('show')){
-    renderAll();if(typeof renderHero==='function')renderHero();pending=false;
-   }
-  }catch(e){console.warn('[Movie Mania HD] Sincronización pública no disponible:',e.message)}finally{busy=false;}
- }
- window.addEventListener('load',()=>{void check();setInterval(()=>void check(),20000)},{once:true});
- document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void check()});
- window.addEventListener('pageshow',e=>{if(e.persisted)void check()});
+/* Movie Mania HD V3: sincronización pública a prueba de fallos. */
+(function () {
+  'use strict';
+  if (typeof MOVIES === 'undefined' || !Array.isArray(MOVIES) || typeof renderAll !== 'function') return;
+  const endpoint = '/api/public-library';
+  let activeVersion = null;
+  let busy = false;
+  let pending = false;
+  let lastKnownGood = MOVIES.map(x => structuredClone(x));
+  function isOpen() {
+    return !!document.getElementById('playerModal')?.classList.contains('show') ||
+           !!document.getElementById('detailScreen')?.classList.contains('show');
+  }
+  function validItem(m) {
+    return m && typeof m === 'object' && !Array.isArray(m) && m.id != null &&
+      String(m.id).length <= 120 && typeof m.title === 'string' && m.title.trim().length > 0 &&
+      (m.kind === 'MOVIE' || m.kind === 'SERIES');
+  }
+  function apply(data) {
+    // No permitir que una respuesta parcial o vacía borre el catálogo existente.
+    if (!data || !Array.isArray(data.items) || !Array.isArray(data.approvedIds) ||
+        typeof data.version !== 'string' || !data.items.length) return false;
+    if (!data.items.every(validItem)) return false;
+    const ids = new Set();
+    for (const item of data.items) {
+      const id = String(item.id);
+      if (ids.has(id)) return false;
+      ids.add(id);
+    }
+    // No eliminar títulos estáticos de forma automática. Retirar contenido exige
+    // una publicación estática coordinada para garantizar coherencia sin conexión.
+    const next = MOVIES.map(x => structuredClone(x));
+    const index = new Map(next.map((m,i) => [String(m.id),i]));
+    for (const item of data.items) {
+      const id = String(item.id);
+      const pos = index.get(id);
+      if (pos !== undefined) {
+        // Mantener todos los campos originales, incluyendo enlaces m18/m22/m37,
+        // temporadas, subtítulos, cast, logos, poster, runtime y configuraciones.
+        next[pos] = Object.assign({}, next[pos], item);
+      } else {
+        next.push(structuredClone(item));
+      }
+    }
+    if (!next.length || !next.every(validItem)) return false;
+    const previous = MOVIES.slice();
+    try {
+      MOVIES.splice(0, MOVIES.length, ...next);
+      if (!isOpen()) {
+        renderAll();
+        if (typeof renderHero === 'function') renderHero();
+        pending = false;
+      } else pending = true;
+      activeVersion = data.version;
+      lastKnownGood = next.map(x => structuredClone(x));
+      return true;
+    } catch (error) {
+      MOVIES.splice(0, MOVIES.length, ...previous);
+      console.warn('[MMHD] Se conservó el catálogo tras un error de renderizado', error);
+      try { renderAll(); } catch (_) {}
+      return false;
+    }
+  }
+  async function check() {
+    if (busy || document.visibilityState === 'hidden') return;
+    busy = true;
+    try {
+      const h = await fetch(endpoint + '?head=1', {cache:'no-store'});
+      if (!h.ok) return;
+      const meta = await h.json();
+      if (typeof meta.version !== 'string') return;
+      if (meta.version !== activeVersion) {
+        const r = await fetch(endpoint, {cache:'no-store'});
+        if (!r.ok) return;
+        const data = await r.json();
+        if (!apply(data)) console.warn('[MMHD] Respuesta pública incompleta; se conserva el catálogo estático.');
+      } else if (pending && !isOpen()) {
+        try {renderAll(); if (typeof renderHero === 'function') renderHero(); pending=false;} catch(e) {console.warn('[MMHD] Error al redibujar',e);}
+      }
+    } catch(e) {console.warn('[MMHD] Sincronización no disponible; catálogo local conservado.',e);}
+    finally {busy = false;}
+  }
+  window.addEventListener('load', () => {void check();setInterval(() => void check(),20000);}, {once:true});
+  document.addEventListener('visibilitychange', () => {if(document.visibilityState==='visible')void check();});
 })();
