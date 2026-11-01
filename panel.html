@@ -5396,14 +5396,7 @@ renderCollection();
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px"><input id="mmhd-cloud-email" type="email" autocomplete="username" placeholder="Correo administrativo" style="min-width:190px;flex:1"><input id="mmhd-cloud-pass" type="password" autocomplete="current-password" placeholder="Contraseña" style="min-width:190px;flex:1"><button type="button" id="mmhd-cloud-login">Conectar</button><button type="button" class="secondary" id="mmhd-cloud-logout" disabled>Desconectar</button></div>
  <label style="display:flex;align-items:center;gap:7px;margin:0 0 9px;font-size:12px"><input id="mmhd-cloud-remember" type="checkbox" checked style="width:auto;min-width:auto"> Mantener mi sesión iniciada en este navegador (solo equipo de confianza)</label>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px"><button type="button" class="secondary" id="mmhd-cloud-seed" disabled>Subir biblioteca local a Supabase (primera vez)</button><button type="button" class="secondary" id="mmhd-cloud-refresh" disabled>Sincronizar ahora</button></div>
- <div style="border:1px solid #2b5364;border-radius:10px;padding:12px;margin:10px 0;display:grid;gap:8px">
-<strong>🌐 Publicación automática del catálogo web</strong>
-<small>Las ediciones de títulos aprobados aparecerán en index.html sin generar otro archivo. Los títulos nuevos requieren aprobación.</small>
-<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="secondary" id="mmhd-public-seed">Activar títulos actualmente publicados</button><button type="button" class="secondary" id="mmhd-public-reload">Consultar publicaciones</button></div>
-<div style="display:flex;gap:8px;flex-wrap:wrap"><select id="mmhd-public-select" style="flex:1;min-width:240px"><option value="">Selecciona un título</option></select><button type="button" class="secondary" id="mmhd-public-approve">Publicar título</button><button type="button" class="secondary" id="mmhd-public-withdraw">Retirar</button></div>
-<small id="mmhd-public-message" aria-live="polite">Conéctate a Supabase para administrar publicaciones.</small>
-</div>
-<p role="status" aria-live="polite" id="mmhd-cloud-message" style="font-size:13px;margin:0">Desconectado: tus datos locales siguen intactos.</p>
+ <p role="status" aria-live="polite" id="mmhd-cloud-message" style="font-size:13px;margin:0">Desconectado: tus datos locales siguen intactos.</p>
  <div id="mmhd-cloud-extras" style="display:none;margin-top:16px;padding-top:12px;border-top:1px solid #33465b">
 
   <h4 style="margin:0 0 7px">🛡 Respaldos de Supabase</h4>
@@ -5533,37 +5526,6 @@ renderCollection();
  setInterval(()=>{void loadExtras()},15000);
  document.addEventListener('visibilitychange',()=>{if(connected&&document.visibilityState==='visible'){void heartbeat();void refreshPresence();void loadExtras(true)}});
 
- // Controles de publicación pública (solo administradores autenticados).
- const publicSelect=q('mmhd-public-select'),publicInfo=q('mmhd-public-message');
- let publicApproved=new Set();
- async function publicCall(action,extra={}){return request('POST','/api/public-library',{action,...extra});}
- function paintPublicList(){const current=publicSelect.value;publicSelect.replaceChildren(new Option('Selecciona un título',''));
-   [...state.collection].sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''),'es')).forEach(x=>{
-     const opt=new Option((publicApproved.has(String(x.id))?'✓ ':'○ ')+String(x.title||x.id).slice(0,95),String(x.id));publicSelect.add(opt);
-   });publicSelect.value=current;
- }
- async function loadPublicList(){if(!connected)return;try{const data=await publicCall('list');publicApproved=new Set((data.ids||[]).map(String));paintPublicList();publicInfo.textContent='✓ '+publicApproved.size+' títulos aprobados para la web.';}catch(e){publicInfo.textContent=e.message}}
- q('mmhd-public-reload').addEventListener('click',()=>void loadPublicList());
- q('mmhd-public-seed').addEventListener('click',async()=>{
-   if(!connected)return alert('Conecta tu biblioteca de Supabase primero.');
-   if(!confirm('Se aprobarán para publicación los títulos que están actualmente en index.html. No se publicarán los títulos nuevos que no estén en esa página. ¿Continuar?'))return;
-   try{
-     const response=await fetch('/index.html',{cache:'no-store'});if(!response.ok)throw Error('No se pudo leer index.html');const html=await response.text();
-     const found=/const MOVIES = (\[.*?\]);\s*const SHARED_PLAYER_B64/s.exec(html);
-     if(!found)throw Error('No se encontró la biblioteca original en index.html.');
-     const items=JSON.parse(found[1]);const ids=[...new Set(items.map(m=>String(m.id)))];
-     for(let i=0;i<ids.length;i+=200)await publicCall('publish',{ids:ids.slice(i,i+200)});
-     await loadPublicList();publicInfo.textContent='✓ '+ids.length+' títulos existentes autorizados para sincronización pública.';
-   }catch(e){publicInfo.textContent='Error: '+e.message;}
- });
- q('mmhd-public-approve').addEventListener('click',async()=>{const id=publicSelect.value;if(!connected||!id)return;
-   if(!confirm('¿Publicar este título en la web para todos los visitantes?'))return;
-   try{await publicCall('publish',{ids:[id]});await loadPublicList();publicInfo.textContent='✓ Título aprobado para la web.'}catch(e){publicInfo.textContent=e.message}
- });
- q('mmhd-public-withdraw').addEventListener('click',async()=>{const id=publicSelect.value;if(!connected||!id)return;
-   if(!confirm('¿Retirar este título de la sincronización automática? Esto NO lo elimina de la biblioteca ni de un index.html estático antiguo.'))return;
-   try{await publicCall('unpublish',{id});await loadPublicList();publicInfo.textContent='✓ Publicación retirada (el HTML estático no se modifica).'}catch(e){publicInfo.textContent=e.message}
- });
  const snapshot=()=>new Map(state.collection.map(x=>[String(x.id),JSON.stringify(x)]));
  const rowMap=rows=>new Map(rows.map(r=>[String(r.id),{version:Number(r.version),json:JSON.stringify(r.item)}]));
  const mapChanged=(local,old)=>{const all=new Set([...local.keys(),...old.keys()]);return [...all].filter(k=>local.get(k)!==(old.get(k)?.json??undefined));};
@@ -5680,7 +5642,7 @@ renderCollection();
      const h=await request('GET','/api/library?head=1');if(h.revision!==revision){if(await incrementalRefresh())msg('✓ Cambios recibidos sin descargar la biblioteca completa · versión '+revision);}
    }catch(e){msg('Conexión interrumpida: '+e.message+'. Los cambios locales permanecen disponibles.',true)}
  }
- function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Herramientas para ver administradores activos';topPresence.querySelector('.mmhd-presence-inline')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Herramientas para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);void refreshPresence();void loadPublicList();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
+ function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Herramientas para ver administradores activos';topPresence.querySelector('.mmhd-presence-inline')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Herramientas para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);void refreshPresence();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
  async function logout(){connectedUI(false);forgetSession();token=null;refreshToken=null;base.clear();revision=0;historyCursor=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
  remember.addEventListener('change',()=>{if(connected)saveSession();else if(!remember.checked)forgetSession()});
  async function resumeSavedSession(){
