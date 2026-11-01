@@ -5420,10 +5420,10 @@ renderCollection();
 <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="mmhd-public-select" style="flex:1;min-width:240px"><option value="">Selecciona un título</option></select><button type="button" class="secondary" id="mmhd-public-approve">Publicar / Actualizar título</button><button type="button" class="secondary" id="mmhd-public-approve-all">Publicar todos los nuevos</button><button type="button" class="secondary" id="mmhd-public-update-all">Actualizar todos los editados</button><button type="button" class="secondary" id="mmhd-public-withdraw">Retirar</button></div>
 <small id="mmhd-public-message" aria-live="polite">Conéctate a Supabase para administrar publicaciones.</small>
 <div id="mmhd-pub-kpis" style="display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:8px" aria-label="Resumen de publicaciones"><div class="panel" style="padding:8px">Publicados: <b id="mmhd-pub-kpi-live">—</b></div><div class="panel" style="padding:8px">Nuevos pendientes: <b id="mmhd-pub-kpi-new">—</b></div><div class="panel" style="padding:8px">Editados pendientes: <b id="mmhd-pub-kpi-edited">—</b></div></div>
-<div style="display:flex;flex-wrap:wrap;gap:8px"><button type="button" class="secondary" id="mmhd-pub-compare">Comparar antes de publicar</button><button type="button" class="secondary" id="mmhd-pub-history-refresh">Ver historial público</button><button type="button" class="secondary" id="mmhd-pub-health">Comprobar sincronización</button></div>
+<div style="display:flex;flex-wrap:wrap;gap:8px"><button type="button" class="secondary" id="mmhd-pub-compare">Comparar antes de publicar</button><button type="button" class="secondary" id="mmhd-pub-history-refresh">Ver publicaciones recientes</button><button type="button" class="secondary" id="mmhd-pub-health">Comprobar sincronización</button></div>
 <div id="mmhd-pub-pending" style="max-height:190px;overflow:auto;font-size:12px"></div>
-<div id="mmhd-pub-diff" style="display:none;max-height:320px;overflow:auto;border:1px solid #36506b;border-radius:8px;padding:10px"></div>
-<div id="mmhd-pub-history" style="max-height:240px;overflow:auto;font-size:12px"></div>
+<div id="mmhd-pub-diff" style="display:none;max-height:480px;overflow:auto;border:1px solid #36506b;border-radius:10px;padding:12px" aria-live="polite"></div>
+<div id="mmhd-pub-history" style="max-height:370px;overflow:auto;font-size:12px" aria-live="polite"></div>
 <div id="mmhd-pub-health-result" aria-live="polite" style="font-size:12px"></div>
 
 </div>`;
@@ -5608,11 +5608,15 @@ renderCollection();
  q('mmhd-public-reload').addEventListener('click',()=>void loadPublicList());
  // Comparador visual sin URLs privadas ni dependencias nuevas.
  const pubStyles=document.createElement('style');pubStyles.textContent=`
- #mmhd-pub-diff .mmhd-visual-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
- #mmhd-pub-diff .mmhd-posterpair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:10px 0 15px}
- #mmhd-pub-diff .mmhd-poster-card{background:#101c2c;border:1px solid #36506b;border-radius:12px;padding:10px;min-width:0}
- #mmhd-pub-diff .mmhd-poster-card img{width:92px;max-width:100%;height:138px;object-fit:cover;border-radius:8px;border:1px solid #47617d;display:block;margin:8px auto}
- #mmhd-pub-diff .mmhd-poster-placeholder{height:138px;display:grid;place-items:center;color:#9cb0c9;font-size:12px}
+ #mmhd-pub-diff .mmhd-visual-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:11px;border-bottom:1px solid #29445e}
+ #mmhd-pub-diff .mmhd-posterpair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0 16px}
+ #mmhd-pub-diff .mmhd-poster-card{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;background:#101c2c;border:1px solid #36506b;border-radius:12px;padding:14px 10px;min-width:0}
+ #mmhd-pub-diff .mmhd-poster-card.mmhd-poster-next{border-color:#377e77;background:#10242b}
+ #mmhd-pub-diff .mmhd-poster-version{font-size:11px;letter-spacing:.035em;color:#c0d3e7;font-weight:800}
+ #mmhd-pub-diff .mmhd-poster-next .mmhd-poster-version{color:#95e4c4}
+ #mmhd-pub-diff .mmhd-poster-card img{width:102px;max-width:100%;height:153px;object-fit:cover;border-radius:8px;border:1px solid #47617d;display:block;margin:4px auto}
+ #mmhd-pub-diff .mmhd-poster-placeholder{height:153px;width:102px;max-width:100%;display:grid;place-items:center;border:1px dashed #46607a;border-radius:9px;color:#9cb0c9;font-size:12px;padding:8px}
+ #mmhd-pub-diff .mmhd-poster-explain{font-size:11px;color:#9eb3c9;line-height:1.45}
  #mmhd-pub-diff .mmhd-diff-section{border:1px solid #31465f;border-radius:11px;padding:11px;margin:9px 0;background:#0c1928}
  #mmhd-pub-diff .mmhd-diff-section h5{font-size:13px;margin:0 0 9px;color:#dbeaff}
  #mmhd-pub-diff .mmhd-diff-row{border-top:1px solid #28384c;padding:7px 0;font-size:12px;overflow-wrap:anywhere}
@@ -5620,7 +5624,19 @@ renderCollection();
  #mmhd-pub-diff .mmhd-diff-pill{display:inline-block;padding:3px 8px;border-radius:7px;margin:2px 3px 2px 0;background:#1b3654;color:#d8e9ff;font-size:11px}
  #mmhd-pub-diff .mmhd-diff-old{color:#f6b3b3}#mmhd-pub-diff .mmhd-diff-new{color:#8af0b6}
  #mmhd-pub-diff .mmhd-diff-note{font-size:12px;color:#b3c5db;line-height:1.6}
- @media(max-width:480px){#mmhd-pub-diff .mmhd-posterpair{gap:6px}#mmhd-pub-diff .mmhd-poster-card{padding:6px}}
+ #mmhd-pub-history .mmhd-history-head{font-size:13px;font-weight:800;color:#e8effb;margin:10px 0 8px}
+ #mmhd-pub-history .mmhd-history-card{display:flex;flex-wrap:wrap;align-items:center;gap:11px;background:#0c1928;border:1px solid #2d4760;border-radius:11px;padding:10px;margin:8px 0}
+ #mmhd-pub-history .mmhd-history-cover{width:48px;height:70px;object-fit:cover;border-radius:7px;border:1px solid #48617b;flex-shrink:0;background:#1a2d43}
+ #mmhd-pub-history .mmhd-history-placeholder{width:48px;height:70px;display:grid;place-items:center;border-radius:7px;border:1px dashed #48617b;flex-shrink:0;color:#9cb5d0}
+ #mmhd-pub-history .mmhd-history-copy{display:flex;flex:1 1 180px;min-width:0;flex-direction:column;gap:4px;overflow-wrap:anywhere}
+ #mmhd-pub-history .mmhd-history-title{font-weight:800;font-size:13px;color:#f2f6ff}
+ #mmhd-pub-history .mmhd-history-meta{color:#aebfd5;font-size:11px;line-height:1.5}
+ #mmhd-pub-history .mmhd-history-tag{display:inline-flex;align-items:center;align-self:flex-start;padding:3px 9px;border-radius:20px;background:#173852;color:#b9e1ff;font-size:11px;font-weight:700}
+ #mmhd-pub-history .mmhd-history-tag.mmhd-history-new{background:#143c35;color:#9ce9c6}
+ #mmhd-pub-history .mmhd-history-tag.mmhd-history-retired{background:#48242c;color:#ffbaba}
+ #mmhd-pub-history .mmhd-history-changes{color:#bdd8e9;font-size:11px;line-height:1.45}
+ #mmhd-pub-history .mmhd-history-restore{flex:0 0 auto;align-self:center;white-space:normal;max-width:100%}
+ @media(max-width:480px){#mmhd-pub-diff .mmhd-posterpair{gap:6px}#mmhd-pub-diff .mmhd-poster-card{padding:10px 5px}#mmhd-pub-history .mmhd-history-restore{width:100%}}
  `;document.head.append(pubStyles);
  const node=(tag,cls,txt)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(txt!==undefined)el.textContent=String(txt);return el;};
  const present=x=>x!==undefined&&x!==null&&String(x).trim()!=='';
@@ -5640,14 +5656,23 @@ renderCollection();
    const old=d.published&&typeof d.published==='object'?d.published:null,latest=d.draft&&typeof d.draft==='object'?d.draft:null;
    if(!latest){output.append(node('p','mmhd-diff-note','No se recibió la versión administrativa para comparar.'));return;}
    const isNew=!old;
-   const h=node('div','mmhd-visual-head');h.append(node('span','',isNew?'🆕':'📝'));
+   const h=node('div','mmhd-visual-head');h.append(node('span','',isNew?'🆕':'✏️'));
    const title=node('div');title.append(node('strong','',isNew?'Vista previa de título nuevo':'Cambios antes de actualizar la web'));
-   title.append(node('div','mmhd-diff-note',String(latest.title||latest.id||'Título')+' · '+(isNew?'Aún no publicado':'Última versión pública frente al borrador')));h.append(title);output.append(h);
+   title.append(node('div','mmhd-diff-note',String(latest.title||latest.id||'Título')+' · '+(isNew?'Aún no publicado':'Revisa los cambios antes de aprobarlos')));h.append(title);output.append(h);
    const posters=node('div','mmhd-posterpair');
-   for(const [label,obj] of [['Versión pública',old],['Versión administrativa',latest]]){
-     const card=node('div','mmhd-poster-card');card.append(node('strong','',label));const url=posterURL(obj?.poster);
-     if(url){const img=node('img');img.src=url;img.alt='Póster de '+String(obj.title||'la película');img.loading='lazy';img.referrerPolicy='no-referrer';card.append(img);}else card.append(node('div','mmhd-poster-placeholder',obj?'Sin póster de TMDB':'Todavía no publicado'));
-     card.append(node('div','mmhd-diff-note',obj?String(obj.title||'Título sin nombre'):'Sin versión pública'));posters.append(card);
+   const versions=[
+     {label:'🌐 EN LA WEB AHORA',obj:old,explain:isNew?'Esta película aún no aparece en la web.':'Es la versión que ven actualmente los visitantes.',next:false},
+     {label:isNew?'✅ LISTA PARA PUBLICAR':'✏️ PENDIENTE DE PUBLICAR',obj:latest,explain:'Los visitantes verán esta versión solo después de aprobarla.',next:true}
+   ];
+   for(const v of versions){
+     const card=node('div','mmhd-poster-card'+(v.next?' mmhd-poster-next':''));
+     card.append(node('div','mmhd-poster-version',v.label));
+     const url=posterURL(v.obj?.poster);
+     if(url){const img=node('img');img.src=url;img.alt='Portada de '+String(v.obj.title||'la película');img.loading='lazy';img.referrerPolicy='no-referrer';img.onerror=()=>img.replaceWith(node('div','mmhd-poster-placeholder','Portada no disponible'));card.append(img);}
+     else card.append(node('div','mmhd-poster-placeholder',v.obj?'Portada no disponible':'Sin publicación anterior'));
+     card.append(node('strong','',v.obj?String(v.obj.title||'Título sin nombre'):'Aún no publicada'));
+     card.append(node('div','mmhd-poster-explain',v.explain));
+     posters.append(card);
    }output.append(posters);
    const changed=fields.filter(([k])=>isNew?present(latest[k]):!eq(old[k],latest[k]));
    if(changed.length){const sec=node('section','mmhd-diff-section');sec.append(node('h5','','🎞️ Información y diseño ('+changed.length+')'));
@@ -5676,11 +5701,10 @@ renderCollection();
    const recognized=new Set([...fields.map(x=>x[0]),...sourceKeys.map(x=>x[0]),'id','kind','seasons','subtitleTracks','subtitlesUrl','updatedAt','addedAt']);
    const others=[...new Set([...Object.keys(old||{}),...Object.keys(latest)])].filter(k=>!recognized.has(k)&&!/^m(?:18|22|37)[A-Za-z]+$/.test(k)&& (isNew?present(latest[k]):!eq(old?.[k],latest[k])));
    if(others.length){const sec=node('section','mmhd-diff-section');sec.append(node('h5','','⚙️ Otros cambios'));
-     sec.append(node('div','mmhd-diff-note',others.length+' campo(s) adicionales modificados. Su contenido sensible no se muestra.'));
-     others.forEach(k=>sec.append(node('span','mmhd-diff-pill',k)));output.append(sec);
+     sec.append(node('div','mmhd-diff-note','También se detectaron '+others.length+' cambio(s) de configuración complementaria. Sus detalles técnicos y datos sensibles se mantienen ocultos.'));output.append(sec);
    }
    if(!isNew&&!changed.length&&!changedSources.length&&!audioOther.length&&eq(old?.subtitleTracks,latest.subtitleTracks)&&eq(old?.subtitlesUrl,latest.subtitlesUrl)&&eq(old?.seasons,latest.seasons)&&!others.length)output.append(node('p','mmhd-diff-note','Las versiones pública y administrativa coinciden.'));
-   output.append(node('p','mmhd-diff-note','Esta vista es solo de lectura. Publicar y actualizar siguen requiriendo una acción explícita.'));
+   output.append(node('p','mmhd-diff-note','La comparación no publica cambios. Para hacerlos visibles, usa Publicar / Actualizar título.'));
  }
  q('mmhd-pub-compare').addEventListener('click',async()=>{
    const chosen=publicSelect.value,output=q('mmhd-pub-diff');output.style.display='block';output.textContent='Preparando vista previa…';
@@ -5688,25 +5712,74 @@ renderCollection();
    try{const d=await publicCall('inspect',{id:chosen});output.replaceChildren();visualCompare(d,output);}
    catch(e){output.textContent='No se pudo comparar: '+e.message;}
  });
+ // Historial de publicaciones, con nombres y portadas (sin identificadores ni URLs de video).
+ function publicationChangeSummary(entry){
+   const previous=entry.before_item,following=entry.after_item;
+   if(!previous)return 'Primera versión publicada';
+   if(!following)return 'Se retiró la versión pública';
+   const labels=[];
+   if(!eq(previous.poster,following.poster))labels.push('Portada');
+   if(!eq(previous.logo,following.logo)||!eq(previous.backdrop,following.backdrop))labels.push('Imágenes');
+   if(['title','originalTitle','overview','genres','rating','runtime','year','cert','platforms'].some(k=>!eq(previous[k],following[k])))labels.push('Información');
+   const sourceKeys=[...new Set([...Object.keys(previous),...Object.keys(following)])].filter(k=>/^m(?:18|22|37)[A-Za-z]*$/.test(k));
+   if(sourceKeys.some(k=>!eq(previous[k],following[k]))||!eq(previous.primaryLanguage,following.primaryLanguage))labels.push('Audio y calidades');
+   if(!eq(previous.subtitleTracks,following.subtitleTracks)||!eq(previous.subtitlesUrl,following.subtitlesUrl))labels.push('Subtítulos');
+   if(!eq(previous.seasons,following.seasons))labels.push('Temporadas y episodios');
+   return labels.length?'Cambios: '+labels.join(' · '):'Configuración actualizada';
+ }
+ function publicationActor(actor){
+   if(!actor)return 'Administrador';
+   if(actor===presenceMe)return 'Tú';
+   return presenceNames[actor]||'Otro administrador';
+ }
  q('mmhd-pub-history-refresh').addEventListener('click',async()=>{
-   const box=q('mmhd-pub-history');box.textContent='Consultando historial público…';
-   try{const data=await publicCall('history');box.replaceChildren();
-     if(!(data.entries||[]).length){box.textContent='No hay publicaciones nuevas desde que se instaló el historial.';return;}
-     for(const entry of data.entries){const div=document.createElement('div');div.style.cssText='display:flex;gap:8px;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #31465f';
-       const summary=document.createElement('span');summary.textContent=entry.item_id+' · '+entry.operation+' · '+showDate(entry.changed_at);div.append(summary);
-       if(entry.before_item){const b=document.createElement('button');b.className='secondary';b.type='button';b.textContent='Restaurar versión anterior';
-         b.onclick=async()=>{if(!confirm('¿Restaurar SOLO la versión pública anterior del título '+entry.item_id+'? El panel administrativo no cambiará.'))return;
-           try{const r=await publicCall('rollback',{historyId:Number(entry.id),itemId:String(entry.item_id)});if(!r.ok)throw Error('No se pudo restaurar');await loadPublicList();b.textContent='Versión restaurada';}
-           catch(e){alert('No se pudo restaurar: '+e.message)};};div.append(b);}
+   const box=q('mmhd-pub-history');box.textContent='Consultando las publicaciones recientes…';
+   try{
+     const data=await publicCall('history');box.replaceChildren();
+     if(!(data.entries||[]).length){box.textContent='Aún no hay publicaciones nuevas registradas en el historial.';return;}
+     box.append(node('div','mmhd-history-head','🕘 Publicaciones recientes'));
+     for(const entry of data.entries){
+       const previous=entry.before_item&&typeof entry.before_item==='object'?entry.before_item:null;
+       const following=entry.after_item&&typeof entry.after_item==='object'?entry.after_item:null;
+       const movie=following||previous||{};
+       const movieTitle=String(movie.title||'Título sin nombre');
+       const name=movieTitle+(movie.year?' ('+movie.year+')':'');
+       const op=String(entry.operation||'').toLowerCase();
+       const status=op==='insert'?'Primera publicación':op==='delete'?'Publicación retirada':'Versión actualizada';
+       const div=node('article','mmhd-history-card');
+       const url=posterURL(movie.poster);
+       if(url){const img=node('img','mmhd-history-cover');img.src=url;img.alt='Portada de '+movieTitle;img.loading='lazy';img.referrerPolicy='no-referrer';img.onerror=()=>img.replaceWith(node('div','mmhd-history-placeholder','🎬'));div.append(img);}
+       else div.append(node('div','mmhd-history-placeholder','🎬'));
+       const body=node('div','mmhd-history-copy');
+       body.append(node('strong','mmhd-history-title',name));
+       body.append(node('span','mmhd-history-tag'+(op==='insert'?' mmhd-history-new':op==='delete'?' mmhd-history-retired':''),status));
+       body.append(node('span','mmhd-history-meta',showDate(entry.changed_at)+' · '+publicationActor(entry.actor)));
+       body.append(node('span','mmhd-history-changes',publicationChangeSummary(entry)));
+       div.append(body);
+       if(previous){
+         const button=node('button','secondary mmhd-history-restore','Restaurar versión anterior');button.type='button';
+         button.addEventListener('click',async()=>{
+           if(button.disabled)return;
+           if(!confirm('¿Restaurar una versión pública anterior de «'+movieTitle+'»?\n\nSolo cambiará lo que se muestra en la web. La biblioteca administrativa y los cambios de tu compañero no se modificarán.'))return;
+           button.disabled=true;button.textContent='Restaurando…';
+           try{
+             const r=await publicCall('rollback',{historyId:Number(entry.id),itemId:String(entry.item_id)});
+             if(!r.ok)throw Error('Supabase rechazó la restauración. Puede existir una publicación más reciente.');
+             await loadPublicList();
+             button.textContent='Versión restaurada';
+             q('mmhd-pub-history-refresh').click();
+           }catch(e){button.disabled=false;button.textContent='Restaurar versión anterior';alert('No se pudo restaurar: '+e.message);}
+         });div.append(button);
+       }
        box.append(div);
      }
-   }catch(e){box.textContent='Historial no disponible: '+e.message;}
+   }catch(e){box.textContent='No se pudo mostrar el historial: '+e.message;}
  });
  q('mmhd-pub-health').addEventListener('click',async()=>{
    const box=q('mmhd-pub-health-result');box.textContent='Consultando estado…';
    try{const start=performance.now();const [head,report]=await Promise.all([fetch('/api/public-library?head=1',{cache:'no-store'}),publicCall('list')]);
      if(!head.ok)throw Error('API pública HTTP '+head.status);const d=await head.json();
-     box.textContent='✓ API pública activa · versión '+String(d.version)+' · '+Math.round(performance.now()-start)+' ms · '+(report.ids||[]).length+' aprobados · '+(report.updatedIds||[]).length+' ediciones pendientes · '+Number(report.missingSnapshots||0)+' snapshots ausentes. Última comprobación: '+new Date().toLocaleTimeString('es-MX');
+     box.textContent='✓ Catálogo público conectado · '+(report.ids||[]).length+' títulos publicados · '+(report.updatedIds||[]).length+' cambios por aprobar · '+Number(report.missingSnapshots||0)+' copias públicas faltantes · Comprobado a las '+new Date().toLocaleTimeString('es-MX');box.title='Diagnóstico técnico: revisión '+String(d.version)+' · respuesta '+Math.round(performance.now()-start)+' ms';
    }catch(e){box.textContent='⚠ Error al consultar publicación: '+e.message;}
  });
 
