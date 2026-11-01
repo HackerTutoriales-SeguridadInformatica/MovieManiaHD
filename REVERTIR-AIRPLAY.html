@@ -36,7 +36,7 @@ function restore(source){
  for(const p of patches){exactlyOnce(s,p.from,p.name);s=s.replace(p.from,p.to);}
  const matches=[...s.matchAll(scriptRe)];
  if(matches.length!==1)throw Error('Referencia a transmitir.js: se esperaban 1 y se encontraron '+matches.length+'.');
- s=s.replace(scriptRe,'<script src="/airplay.js?v=20261101a" defer></script>');
+ s=s.replace(scriptRe,'<script src="/airplay.js?v=20261101a" defer><' + '/script>');
  if(s.includes('mmhdOfferTransmit(')||s.includes('/transmitir.js'))throw Error('Quedaron referencias del selector nuevo. Detenido por seguridad.');
  return s;
 }
