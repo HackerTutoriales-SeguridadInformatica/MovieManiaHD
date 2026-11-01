@@ -5537,12 +5537,25 @@ renderCollection();
  const publicSelect=q('mmhd-public-select'),publicInfo=q('mmhd-public-message');
  let publicApproved=new Set();
  async function publicCall(action,extra={}){return request('POST','/api/public-library',{action,...extra});}
- function paintPublicList(){const current=publicSelect.value;publicSelect.replaceChildren(new Option('Selecciona un título',''));
-   [...state.collection].sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''),'es')).forEach(x=>{
-     const opt=new Option((publicApproved.has(String(x.id))?'✓ ':'○ ')+String(x.title||x.id).slice(0,95),String(x.id));publicSelect.add(opt);
-   });publicSelect.value=current;
+ function paintPublicList(){
+   const current=publicSelect.value;
+   const items=[...state.collection].sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''),'es'));
+   const pending=items.filter(x=>!publicApproved.has(String(x.id)));
+   publicSelect.replaceChildren(new Option('Selecciona un título',''));
+   pending.forEach(x=>publicSelect.add(new Option('○ '+String(x.title||x.id).slice(0,95)+' — Pendiente',String(x.id))));
+   items.filter(x=>publicApproved.has(String(x.id))).forEach(x=>publicSelect.add(new Option('✓ '+String(x.title||x.id).slice(0,95)+' — Publicado',String(x.id))));
+   if([...publicSelect.options].some(o=>o.value===current&&current))publicSelect.value=current;
+   else if(pending.length)publicSelect.value=String(pending[0].id);
+   else publicSelect.value='';
+   q('mmhd-public-approve').disabled=!pending.length;
+   publicSelect.title=pending.length?pending.length+' título(s) pendiente(s) de publicación':'No hay títulos pendientes';
  }
- async function loadPublicList(){if(!connected)return;try{const data=await publicCall('list');publicApproved=new Set((data.ids||[]).map(String));paintPublicList();publicInfo.textContent='✓ '+publicApproved.size+' títulos aprobados para la web.';}catch(e){publicInfo.textContent=e.message}}
+ async function loadPublicList(){if(!connected)return;try{
+   const data=await publicCall('list');
+   publicApproved=new Set((data.ids||[]).map(String));paintPublicList();
+   const pending=state.collection.filter(x=>!publicApproved.has(String(x.id))).length;
+   publicInfo.textContent='✓ '+publicApproved.size+' títulos aprobados para la web · '+pending+' pendientes de publicación.';
+ }catch(e){publicInfo.textContent='Error al consultar publicaciones: '+e.message}}
  q('mmhd-public-reload').addEventListener('click',()=>void loadPublicList());
  q('mmhd-public-seed').addEventListener('click',async()=>{
    if(!connected)return alert('Conecta tu biblioteca de Supabase primero.');
@@ -5556,9 +5569,21 @@ renderCollection();
      await loadPublicList();publicInfo.textContent='✓ '+ids.length+' títulos existentes autorizados para sincronización pública.';
    }catch(e){publicInfo.textContent='Error: '+e.message;}
  });
- q('mmhd-public-approve').addEventListener('click',async()=>{const id=publicSelect.value;if(!connected||!id)return;
-   if(!confirm('¿Publicar este título en la web para todos los visitantes?'))return;
-   try{await publicCall('publish',{ids:[id]});await loadPublicList();publicInfo.textContent='✓ Título aprobado para la web.'}catch(e){publicInfo.textContent=e.message}
+ q('mmhd-public-approve').addEventListener('click',async()=>{
+   if(!connected){publicInfo.textContent='Conecta tu biblioteca de Supabase primero.';return;}
+   const id=publicSelect.value;
+   if(!id){publicInfo.textContent='Selecciona primero una película o serie del menú.';return;}
+   const selected=state.collection.find(x=>String(x.id)===id);
+   if(!selected){publicInfo.textContent='El título ya no está disponible. Pulsa Consultar publicaciones.';return;}
+   if(publicApproved.has(id)){publicInfo.textContent='Este título ya está aprobado para publicación.';return;}
+   if(!confirm('¿Publicar «'+String(selected.title||id)+'» para todos los visitantes?'))return;
+   const button=q('mmhd-public-approve');button.disabled=true;
+   try{
+     const result=await publicCall('publish',{ids:[id]});
+     if(Number(result.published)!==1)throw Error('Supabase no confirmó la publicación (missing: '+result.missing+').');
+     await loadPublicList();publicInfo.textContent='✓ «'+String(selected.title||id)+'» aprobado para la web. Comprueba la actualización del index.';
+   }catch(e){publicInfo.textContent='No se pudo publicar: '+e.message}
+   finally{button.disabled=false;}
  });
  q('mmhd-public-withdraw').addEventListener('click',async()=>{const id=publicSelect.value;if(!connected||!id)return;
    if(!confirm('¿Retirar este título de la sincronización automática? Esto NO lo elimina de la biblioteca ni de un index.html estático antiguo.'))return;
