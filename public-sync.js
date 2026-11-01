@@ -18,8 +18,7 @@
     if (x.kind === 'SERIES' && !Array.isArray(x.seasons)) return false;
     // No aceptar objetos parciales que podrían borrar enlaces o episodios.
     return Object.prototype.hasOwnProperty.call(x,'overview') &&
-      Object.prototype.hasOwnProperty.call(x,'poster') &&
-      Object.prototype.hasOwnProperty.call(x,'addedAt');
+      Object.prototype.hasOwnProperty.call(x,'poster');
   }
   function prepare(payload) {
     if (!available() || !payload || typeof payload.version !== 'string' ||
@@ -40,11 +39,21 @@
     for (const item of payload.items) {
       const key = id(item);
       const pos = positions.get(key);
+      const incoming = clone(item);
+      // addedAt es opcional en títulos antiguos. Preservar su fecha conocida;
+      // para nuevos títulos sin fecha, usar updatedAt o una fecha fija válida.
+      if (!incoming.addedAt || !Number.isFinite(Date.parse(incoming.addedAt))) {
+        const prior = pos === undefined ? null : next[pos];
+        incoming.addedAt = (prior && prior.addedAt && Number.isFinite(Date.parse(prior.addedAt)))
+          ? prior.addedAt
+          : (incoming.updatedAt && Number.isFinite(Date.parse(incoming.updatedAt))
+              ? incoming.updatedAt : '1970-01-01T00:00:00.000Z');
+      }
       if (pos === undefined) {
-        next.push(clone(item));
+        next.push(incoming);
         changes++;
-      } else if (JSON.stringify(next[pos]) !== JSON.stringify(item)) {
-        next[pos] = clone(item);
+      } else if (JSON.stringify(next[pos]) !== JSON.stringify(incoming)) {
+        next[pos] = incoming;
         changes++;
       }
     }
