@@ -1235,6 +1235,37 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-library-pending-content{padding-top:4px}
 .mmhd-library-pending-content .page-heading{margin-bottom:16px}
 @media(max-width:720px){.mmhd-library-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.mmhd-library-tab{font-size:11px;justify-content:center;padding:10px 5px}.mmhd-library-tab i{display:none}}
+
+/* FASE 13 — Credenciales agrupadas en Configuración; conserva los controles originales. */
+.mmhd-settings-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;border-bottom:1px solid var(--line-2);padding-bottom:10px}
+.mmhd-settings-tab{border:1px solid #263950;border-radius:10px;background:#101d2e;color:#aec3d8;padding:12px 16px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:9px;cursor:pointer;min-height:43px}
+.mmhd-settings-tab:hover{color:#fff;border-color:#54708f}
+.mmhd-settings-tab.is-active{background:linear-gradient(135deg,#1a4c7b,#25639c);border-color:#4b91ca;color:#fff;box-shadow:0 4px 12px #0003}
+.mmhd-settings-pane[hidden]{display:none!important}
+.mmhd-settings-intro{display:flex;align-items:center;gap:12px;padding:14px 17px;background:#101f32;border:1px solid #243e59;border-radius:12px;margin-bottom:15px;line-height:1.6;color:#b9d5f0}
+.mmhd-settings-intro i{font-size:20px;color:#82b8eb;flex-shrink:0}
+.mmhd-credentials-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch}
+.mmhd-credentials-grid>*{min-width:0}
+.mmhd-credentials-grid .panel{height:100%;padding:20px;background:linear-gradient(145deg,#111d2f,#0b1524)}
+.mmhd-credentials-grid #credentialsHolder .panel{height:100%}
+.mmhd-credentials-grid #mmhd-credentials-requests{grid-column:1/-1}
+.mmhd-credentials-grid .panel-title{font-size:13px}
+.mmhd-credentials-grid .support-text{margin:0 0 12px}
+.mmhd-credential-input{display:flex;align-items:stretch;gap:8px;margin:5px 0 12px}
+.mmhd-credential-input>input{flex:1;min-width:0;width:100%;margin:0}
+.mmhd-secret-toggle{flex:0 0 auto;white-space:nowrap}
+.mmhd-credential-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:13px 0}
+.mmhd-credential-actions button{margin:0;width:auto}
+.mmhd-credential-check{display:flex;align-items:center;gap:9px;cursor:pointer;margin-top:12px!important}
+.mmhd-credential-check input{width:17px;height:17px;flex-shrink:0;min-width:17px;margin:0}
+.mmhd-security-note{font-size:11px!important;opacity:.84}
+.mmhd-requests-connect-notice{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.mmhd-requests-connect-notice>div:first-child{flex:1 1 300px}
+.mmhd-requests-connect-notice #mmhd-admin-requests-status,.mmhd-requests-connect-notice #mmhd-admin-requests-stats,.mmhd-requests-connect-notice .mmhd-req-toolbar,.mmhd-requests-connect-notice #mmhd-admin-requests-list{flex:1 0 100%}
+#mmhd-shared-maintenance{margin-bottom:16px}
+#mmhd-shared-library{border-color:#2d5575!important}
+@media(max-width:810px){.mmhd-credentials-grid{grid-template-columns:1fr}.mmhd-credentials-grid #mmhd-credentials-requests{grid-column:auto}}
+@media(max-width:490px){.mmhd-settings-tabs{display:grid;grid-template-columns:1fr}.mmhd-settings-tab{justify-content:center}.mmhd-credential-actions>button{flex:1 1 150px}}
 </style>
 </head>
 <body>
@@ -1292,7 +1323,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <section class="panel overview-shortcuts"><div class="panel-title"><span class="icon"><i class="fa-solid fa-bolt"></i></span> Accesos rápidos</div><div class="quick-grid">
 <button class="quick-tile" data-view="library" type="button"><i class="fa-solid fa-film"></i><span><strong>Administrar títulos</strong><small>Buscar, editar y ordenar</small></span><i class="fa-solid fa-arrow-right"></i></button>
 <button class="quick-tile" data-view="pending" type="button"><i class="fa-solid fa-circle-exclamation"></i><span><strong>Resolver pendientes</strong><small>Enlaces y temporadas</small></span><i class="fa-solid fa-arrow-right"></i></button>
-<button class="quick-tile" data-view="appearance" type="button"><i class="fa-solid fa-palette"></i><span><strong>Preparar publicación</strong><small>Destacados y catálogo</small></span><i class="fa-solid fa-arrow-right"></i></button>
+<button class="quick-tile" data-view="appearance" data-mmhd-settings-open="catalog" type="button"><i class="fa-solid fa-palette"></i><span><strong>Preparar publicación</strong><small>Destacados y catálogo</small></span><i class="fa-solid fa-arrow-right"></i></button>
 <button class="quick-tile" data-view="tools" type="button"><i class="fa-solid fa-cloud-arrow-down"></i><span><strong>Respaldos y herramientas</strong><small>Protege tu colección</small></span><i class="fa-solid fa-arrow-right"></i></button>
 </div></section>
 <section class="panel"><div class="section-head"><div class="panel-title"><span class="icon"><i class="fa-solid fa-clock-rotate-left"></i></span> Últimos títulos</div><button class="text-button" data-view="library" type="button">Ver biblioteca <i class="fa-solid fa-arrow-right"></i></button></div><div class="recent-list" id="adminRecentList"></div></section>
@@ -1344,9 +1375,14 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 
 <section aria-labelledby="mmhd-requests-heading" class="admin-view" data-page="requests" hidden id="view-requests">
  <div class="page-heading"><div><div class="eyebrow">COMUNIDAD</div><h2 id="mmhd-requests-heading">Solicitudes de visitantes</h2><p>Peticiones anónimas recibidas desde el catálogo, agrupadas por película o serie.</p></div></div>
- <div class="panel"><p class="support-text">Introduce la clave administrativa configurada en Vercel. La conexión se mantiene durante esta pestaña. Opcionalmente puedes recordarla en este navegador de confianza. No se incluye en el HTML publicado.</p>
- <div class="mmhd-req-secret"><input id="mmhd-admin-requests-key" type="password" autocomplete="off" placeholder="Clave de solicitudes" aria-label="Clave administrativa" /><button class="primary" type="button" id="mmhd-admin-requests-load">Conectar y actualizar</button><button class="secondary" type="button" id="mmhd-admin-requests-logout">Desconectar</button></div>
- <label class="support-text" style="display:flex;align-items:center;gap:8px;margin:10px 0"><input type="checkbox" id="mmhd-req-remember" style="width:16px;height:16px"/> Recordar clave y conectar automáticamente en este navegador</label><p class="support-text" style="font-size:11px;opacity:.8">Solo en un equipo privado: esta opción guarda la clave en el almacenamiento local del navegador. Cualquier persona con acceso a este perfil o código malicioso de la misma página podría recuperarla. «Desconectar» borra la clave guardada.</p><p id="mmhd-admin-requests-status" class="support-text" role="status"></p><div id="mmhd-admin-requests-stats" class="mmhd-req-stats" hidden aria-label="Resumen de solicitudes"><div class="mmhd-req-stat"><strong id="mmhd-req-pending">0</strong><span>Pendiente</span></div><div class="mmhd-req-stat"><strong id="mmhd-req-progress">0</strong><span>En proceso</span></div><div class="mmhd-req-stat"><strong id="mmhd-req-added">0</strong><span>Agregada</span></div></div><div class="mmhd-req-toolbar" style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0"><select id="mmhd-req-filter" aria-label="Filtrar solicitudes" style="max-width:220px"><option value="all">Todos los estados</option><option value="pending">Pendiente</option><option value="progress">En proceso</option><option value="added">Agregada</option><option value="existing">Ya está en mi catálogo</option></select><select id="mmhd-req-sort" aria-label="Ordenar solicitudes" style="max-width:240px"><option value="recent">Más recientes</option><option value="oldest">Más antiguas</option><option value="votes">Más solicitadas</option><option value="title">Título A–Z</option></select><span id="mmhd-req-filter-count" class="support-text" aria-live="polite"></span></div><div id="mmhd-admin-requests-list"></div></div>
+ <div class="panel mmhd-requests-connect-notice">
+  <div><strong><i class="fa-solid fa-shield-halved"></i> Acceso administrativo</strong><p class="support-text">La clave para consultar y administrar solicitudes ahora se gestiona junto con las demás credenciales del panel.</p></div>
+  <button type="button" class="secondary" data-view="appearance" data-mmhd-settings-open="credentials"><i class="fa-solid fa-key"></i> Administrar credenciales</button>
+  <p id="mmhd-admin-requests-status" class="support-text" role="status"></p>
+  <div id="mmhd-admin-requests-stats" class="mmhd-req-stats" hidden aria-label="Resumen de solicitudes"><div class="mmhd-req-stat"><strong id="mmhd-req-pending">0</strong><span>Pendiente</span></div><div class="mmhd-req-stat"><strong id="mmhd-req-progress">0</strong><span>En proceso</span></div><div class="mmhd-req-stat"><strong id="mmhd-req-added">0</strong><span>Agregada</span></div></div>
+  <div class="mmhd-req-toolbar" style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0"><select id="mmhd-req-filter" aria-label="Filtrar solicitudes" style="max-width:220px"><option value="all">Todos los estados</option><option value="pending">Pendiente</option><option value="progress">En proceso</option><option value="added">Agregada</option><option value="existing">Ya está en mi catálogo</option></select><select id="mmhd-req-sort" aria-label="Ordenar solicitudes" style="max-width:240px"><option value="recent">Más recientes</option><option value="oldest">Más antiguas</option><option value="votes">Más solicitadas</option><option value="title">Título A–Z</option></select><span id="mmhd-req-filter-count" class="support-text" aria-live="polite"></span></div>
+  <div id="mmhd-admin-requests-list"></div>
+ </div>
 </section>
 
 <section aria-labelledby="library-title" class="admin-view" data-page="library" hidden="" id="view-library">
@@ -1635,7 +1671,42 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </section>
 
 <section aria-labelledby="appearance-title" class="admin-view" data-page="appearance" hidden="" id="view-appearance">
-<div class="page-heading"><div><div class="eyebrow">CONFIGURACIÓN</div><h2 id="appearance-title">Ajustes del catálogo público</h2><p>Elige qué destacar y configura su presentación. Para previsualizar o generar el catálogo, entra a Mi biblioteca.</p></div></div>
+<div class="page-heading"><div><div class="eyebrow">CONFIGURACIÓN</div><h2 id="appearance-title">Configuración del panel</h2><p>Todas tus credenciales y conexiones en un solo lugar, además de los ajustes visuales del catálogo.</p></div></div>
+<div class="mmhd-settings-tabs" role="tablist" aria-label="Configuración del panel">
+ <button type="button" class="mmhd-settings-tab is-active" id="mmhd-settings-tab-credentials" data-mmhd-settings-tab="credentials" role="tab" aria-selected="true" aria-controls="mmhd-settings-pane-credentials"><i class="fa-solid fa-key"></i> Credenciales y conexiones</button>
+ <button type="button" class="mmhd-settings-tab" id="mmhd-settings-tab-catalog" data-mmhd-settings-tab="catalog" role="tab" aria-selected="false" aria-controls="mmhd-settings-pane-catalog"><i class="fa-solid fa-palette"></i> Catálogo público</button>
+</div>
+<div id="mmhd-settings-pane-credentials" class="mmhd-settings-pane" role="tabpanel" aria-labelledby="mmhd-settings-tab-credentials">
+ <div class="mmhd-settings-intro"><i class="fa-solid fa-shield-halved"></i><span>Administra aquí TMDB, tu cuenta de Supabase y la clave de Solicitudes. Las conexiones siguen siendo independientes y puedes desconectarlas por separado.</span></div>
+ <div class="mmhd-credentials-grid">
+<div class="tools-group" id="credentialsHolder"><section class="panel">
+<div class="panel-title"><span class="icon"><i class="fa-solid fa-key"></i></span> TMDB · Películas y series</div>
+<p class="support-text">Tu API Key o token para consultar títulos, pósters y temporadas desde TMDB.</p>
+<label for="credentialType">Tipo de credencial</label>
+<select id="credentialType">
+<option value="apikey">API Key v3</option>
+<option value="token">API Read Access Token (Bearer)</option>
+</select>
+<label for="apiKey">API Key de TMDB</label>
+<input id="apiKey" placeholder="Ingresa tu credencial" type="password" autocomplete="off" autocapitalize="off" spellcheck="false"/>
+<button type="button" class="secondary mmhd-secret-toggle" data-mmhd-reveal="apiKey" aria-label="Mostrar u ocultar credencial TMDB"><i class="fa-solid fa-eye"></i> Mostrar / ocultar</button>
+<button class="primary full" id="btnValidate"><i class="fa-solid fa-check"></i> Validar credencial</button>
+<div class="status" id="keyStatus"></div>
+</section></div>
+  <div id="mmhd-credentials-supabase-holder"></div>
+  <section class="panel" id="mmhd-credentials-requests">
+   <div class="panel-title"><span class="icon"><i class="fa-solid fa-inbox"></i></span> Solicitudes de visitantes</div>
+   <p class="support-text">Clave administrativa configurada en Vercel para gestionar las solicitudes del catálogo.</p>
+   <label for="mmhd-admin-requests-key">Clave de solicitudes</label>
+   <div class="mmhd-credential-input"><input id="mmhd-admin-requests-key" type="password" autocomplete="off" placeholder="Introduce tu clave" aria-label="Clave administrativa de solicitudes"/><button type="button" class="secondary mmhd-secret-toggle" data-mmhd-reveal="mmhd-admin-requests-key" aria-label="Mostrar u ocultar clave de solicitudes"><i class="fa-solid fa-eye"></i></button></div>
+   <div class="mmhd-credential-actions"><button class="primary" type="button" id="mmhd-admin-requests-load"><i class="fa-solid fa-plug"></i> Conectar y actualizar</button><button class="secondary" type="button" id="mmhd-admin-requests-logout">Desconectar</button><button class="secondary" type="button" data-view="requests"><i class="fa-solid fa-inbox"></i> Ver solicitudes</button></div>
+   <label class="support-text mmhd-credential-check"><input type="checkbox" id="mmhd-req-remember" /> Recordar clave y conectar automáticamente en este navegador</label>
+   <p class="support-text mmhd-security-note">Utilízalo solo en un equipo privado: recordar la clave la guarda en el almacenamiento local del navegador. «Desconectar» elimina la clave guardada.</p>
+   <p id="mmhd-requests-credential-status" class="support-text" role="status">Sin conectar.</p>
+  </section>
+ </div>
+</div>
+<div id="mmhd-settings-pane-catalog" class="mmhd-settings-pane" role="tabpanel" aria-labelledby="mmhd-settings-tab-catalog" hidden>
 <div class="appearance-columns"><section class="panel" id="appearanceFeatureHolder"><div class="featured-panel f101-flush-panel">
 <h3><i class="fa-solid fa-star"></i> Títulos destacados <span class="badge" id="featuredCount">0/6</span></h3>
 <div class="tmdb">Marca la estrella junto a una película o serie para mostrarla en el carrusel principal. Ordena con las flechas. Si no eliges ninguna, aparecerán las mejor valoradas como antes.</div>
@@ -1659,26 +1730,15 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </div>
 <div class="tmdb">Estos cambios se guardan en tu navegador y se aplican al generar nuevamente index.html.</div>
 </div></section></div>
-
+</div>
 </section>
 <section aria-labelledby="mmhd-history-title" class="admin-view" data-page="history" hidden id="view-history">
 <div class="page-heading"><div><div class="eyebrow">BIBLIOTECA COMPARTIDA</div><h2 id="mmhd-history-title">Historial de modificaciones</h2><p>Consulta qué títulos se editaron y quién realizó cada cambio. Las acciones de deshacer están sujetas al control de versiones.</p></div><div class="page-actions"><button type="button" class="secondary" id="mmhd-history-refresh"><i class="fa-solid fa-rotate"></i> Actualizar historial</button></div></div>
-<section class="panel"><div id="mmhd-history-page-content" style="font-size:13px;min-height:100px">Conecta tu biblioteca compartida desde Herramientas para consultar el historial.</div></section>
+<section class="panel"><div id="mmhd-history-page-content" style="font-size:13px;min-height:100px">Conecta tu biblioteca compartida desde Configuración → Credenciales para consultar el historial.</div></section>
 </section>
 <section aria-labelledby="tools-title" class="admin-view" data-page="tools" hidden="" id="view-tools">
-<div class="page-heading"><div><div class="eyebrow">MANTENIMIENTO</div><h2 id="tools-title">Herramientas y respaldos</h2><p>Credenciales TMDB, respaldos, recuperación y mantenimiento del catálogo.</p></div></div>
-<div class="tools-columns"><div class="tools-group" id="credentialsHolder"><section class="panel">
-<div class="panel-title"><span class="icon"><i class="fa-solid fa-key"></i></span> Credencial TMDB</div>
-<label for="credentialType">Tipo de credencial</label>
-<select id="credentialType">
-<option value="apikey">API Key v3</option>
-<option value="token">API Read Access Token (Bearer)</option>
-</select>
-<label for="apiKey">API Key de TMDB</label>
-<input id="apiKey" placeholder="Ingresa tu credencial" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="-webkit-text-security:disc"/>
-<button class="primary full" id="btnValidate"><i class="fa-solid fa-check"></i> Validar credencial</button>
-<div class="status" id="keyStatus"></div>
-</section></div></div>
+<div class="page-heading"><div><div class="eyebrow">MANTENIMIENTO</div><h2 id="tools-title">Herramientas y respaldos</h2><p>Sincronización, respaldos, recuperación y mantenimiento del catálogo. Las claves están en Configuración → Credenciales.</p></div></div>
+<div id="mmhd-cloud-maintenance-holder"></div>
 <section class="panel"><div class="panel-title"><span class="icon"><i class="fa-solid fa-box-archive"></i></span> Respaldos y mantenimiento</div><p class="support-text">Antes de restaurar respaldos o hacer cambios masivos, descarga una copia de tu colección.</p><div id="toolsActionsHolder"><div class="actions" style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap">
 <button class="secondary" id="btnBackupCollection" type="button"><i class="fa-solid fa-file-export"></i> Respaldar colección</button>
 <button class="secondary" id="btnEnrichMedia" type="button"><i class="fa-solid fa-users"></i> Completar logos y reparto (TMDB)</button>
@@ -2191,7 +2251,7 @@ function mmhdRenderProviderEditor(){
 async function mmhdRefreshSelectedProviders(){
   const media=state.movie,key=credentialValue(),button=$("mmhdPlatformRefresh");
   if(!media)return;
-  if(!key){$("mmhdPlatformStatus").textContent="Configura primero la credencial de TMDB en Herramientas.";return;}
+  if(!key){$("mmhdPlatformStatus").textContent="Configura primero la credencial de TMDB en Configuración → Credenciales.";return;}
   const id=mmhdMediaId(media);
   if(!id){$("mmhdPlatformStatus").textContent="Esta ficha no tiene identificador TMDB válido.";return;}
   button.disabled=true;
@@ -4673,23 +4733,29 @@ renderCollection();
 /* Biblioteca compartida: no altera el catálogo público ni se conecta hasta iniciar sesión. */
 (function mmhdSharedLibraryInit(){
  const host=document.createElement('section');host.className='panel';host.id='mmhd-shared-library';
- host.style.cssText='margin:16px 0;border:1px solid #416b82;padding:16px;border-radius:12px';
- host.innerHTML=`<h3 style="margin:0 0 8px">☁ Biblioteca compartida · Supabase</h3>
- <p style="margin:0 0 10px;font-size:13px;opacity:.85">Opcional. No se sustituye ningún título hasta que conectes y confirmes la migración.</p>
- <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px"><input id="mmhd-cloud-email" type="email" autocomplete="username" placeholder="Correo administrativo" style="min-width:190px;flex:1"><input id="mmhd-cloud-pass" type="password" autocomplete="current-password" placeholder="Contraseña" style="min-width:190px;flex:1"><button type="button" id="mmhd-cloud-login">Conectar</button><button type="button" class="secondary" id="mmhd-cloud-logout" disabled>Desconectar</button></div>
- <label style="display:flex;align-items:center;gap:7px;margin:0 0 9px;font-size:12px"><input id="mmhd-cloud-remember" type="checkbox" checked style="width:auto;min-width:auto"> Mantener mi sesión iniciada en este navegador (solo equipo de confianza)</label>
- <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px"><button type="button" class="secondary" id="mmhd-cloud-seed" disabled>Subir biblioteca local a Supabase (primera vez)</button><button type="button" class="secondary" id="mmhd-cloud-refresh" disabled>Sincronizar ahora</button></div>
-
-<p role="status" aria-live="polite" id="mmhd-cloud-message" style="font-size:13px;margin:0">Desconectado: tus datos locales siguen intactos.</p>
+ host.innerHTML=`<div class="panel-title"><span class="icon"><i class="fa-solid fa-cloud"></i></span> Biblioteca compartida · Supabase</div>
+ <p class="support-text">Correo y contraseña de administrador para compartir la biblioteca. Tu sesión se puede recuperar automáticamente en este navegador.</p>
+ <label for="mmhd-cloud-email">Correo administrativo</label>
+ <input id="mmhd-cloud-email" type="email" autocomplete="username" placeholder="Correo de administrador" style="width:100%;margin-bottom:11px" />
+ <label for="mmhd-cloud-pass">Contraseña</label>
+ <div class="mmhd-credential-input"><input id="mmhd-cloud-pass" type="password" autocomplete="current-password" placeholder="Contraseña de Supabase" /><button type="button" class="secondary mmhd-secret-toggle" data-mmhd-reveal="mmhd-cloud-pass" aria-label="Mostrar u ocultar contraseña de Supabase"><i class="fa-solid fa-eye"></i></button></div>
+ <div class="mmhd-credential-actions"><button type="button" class="primary" id="mmhd-cloud-login"><i class="fa-solid fa-plug"></i> Conectar</button><button type="button" class="secondary" id="mmhd-cloud-logout" disabled>Desconectar</button></div>
+ <label class="support-text mmhd-credential-check"><input id="mmhd-cloud-remember" type="checkbox" checked /> Mantener mi sesión iniciada en este navegador</label>
+ <p class="support-text mmhd-security-note">Solo en un equipo de confianza. Se recuerda la sesión, no tu contraseña.</p>
+ <p role="status" aria-live="polite" id="mmhd-cloud-message" class="support-text">Desconectado: tus datos locales siguen intactos.</p>`;
+ document.getElementById('mmhd-credentials-supabase-holder').appendChild(host);
+ // Mantenimiento y respaldo compartido permanecen en Herramientas.
+ const maintenanceHost=document.createElement('section');maintenanceHost.className='panel';maintenanceHost.id='mmhd-shared-maintenance';
+ maintenanceHost.innerHTML=`<div class="panel-title"><span class="icon"><i class="fa-solid fa-cloud-arrow-down"></i></span> Sincronización y respaldos de Supabase</div>
+ <p class="support-text">La cuenta se administra en Configuración → Credenciales. Estas acciones trabajan sobre la biblioteca de ambos administradores.</p>
+ <div class="mmhd-credential-actions"><button type="button" class="secondary" id="mmhd-cloud-refresh" disabled><i class="fa-solid fa-rotate"></i> Sincronizar ahora</button><button type="button" class="secondary" id="mmhd-cloud-seed" disabled>Subir biblioteca local a Supabase (primera vez)</button></div>
  <div id="mmhd-cloud-extras" style="display:none;margin-top:16px;padding-top:12px;border-top:1px solid #33465b">
-
-  <h4 style="margin:0 0 7px">🛡 Respaldos de Supabase</h4>
-  <p style="font-size:12px;opacity:.8;margin:0 0 8px">Se crea un respaldo automático al guardar cambios, como máximo uno cada 24 horas con actividad. Puedes crear otro manualmente. Restaurar afecta a ambos administradores.</p>
-  <button type="button" class="secondary" id="mmhd-cloud-backup">Crear respaldo ahora</button>
-  <div id="mmhd-cloud-backups" style="margin-top:9px;max-height:200px;overflow:auto;font-size:13px">Sin respaldos</div>
+ <h4 style="margin:0 0 7px">Respaldos automáticos y manuales</h4>
+ <p class="support-text">Se crea un respaldo automático al guardar cambios, como máximo uno cada 24 horas con actividad. También puedes crear otro manualmente. Restaurar afecta a ambos administradores.</p>
+ <button type="button" class="secondary" id="mmhd-cloud-backup">Crear respaldo ahora</button>
+ <div id="mmhd-cloud-backups" style="margin-top:9px;max-height:200px;overflow:auto;font-size:13px">Sin respaldos</div>
  </div>`;
- const target=document.getElementById('toolsActionsHolder')||document.getElementById('collectionCard')?.parentElement||document.body;
- target.parentElement.insertBefore(host,target);
+ document.getElementById('mmhd-cloud-maintenance-holder').appendChild(maintenanceHost);
  // Los controles de publicación son exclusivos de Mi biblioteca, no de Herramientas.
  const publicationHost=document.createElement('section');
  publicationHost.className='panel';
@@ -4710,7 +4776,7 @@ renderCollection();
 
 </div>`;
  document.getElementById('mmhd-public-library-holder').appendChild(publicationHost);
- const q=id=>host.querySelector('#'+id)||publicationHost.querySelector('#'+id);
+ const q=id=>document.getElementById(id);
  const info=q('mmhd-cloud-message');let config=null,token=null,refreshToken=null,base=new Map(),revision=0,historyCursor=0,connected=false,busy=false,pending=false,applying=false,conflicted=false,timer=null,lock=false;
  const SESSION_KEY='mmhd_shared_library_session_v1';
  const remember=q('mmhd-cloud-remember');
@@ -5244,8 +5310,8 @@ renderCollection();
      const h=await request('GET','/api/library?head=1');if(h.revision!==revision){if(await incrementalRefresh())msg('✓ Cambios recibidos sin descargar la biblioteca completa · versión '+revision);}
    }catch(e){msg('Conexión interrumpida: '+e.message+'. Los cambios locales permanecen disponibles.',true)}
  }
- function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Herramientas para ver administradores activos';topPresence.querySelector('.mmhd-presence-inline')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Herramientas para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);void refreshPresence();void loadPublicList();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
- async function logout(){connectedUI(false);forgetSession();token=null;refreshToken=null;base.clear();revision=0;historyCursor=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
+ function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Configuración → Credenciales para ver administradores activos';topPresence.querySelector('.mmhd-presence-inline')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Configuración → Credenciales para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);void refreshPresence();void loadPublicList();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
+ async function logout(){connectedUI(false);forgetSession();token=null;refreshToken=null;q('mmhd-cloud-pass').value='';base.clear();revision=0;historyCursor=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
  remember.addEventListener('change',()=>{if(connected)saveSession();else if(!remember.checked)forgetSession()});
  async function resumeSavedSession(){
    const saved=loadSaved();if(!saved)return;
@@ -5311,6 +5377,13 @@ renderCollection();
   const navButtons=[...document.querySelectorAll('.rail-link[data-view]')];
   const views=[...document.querySelectorAll('.admin-view[data-page]')];
   const navTitles={overview:'Resumen',analytics:'Estadísticas',library:'Mi biblioteca',editor:'Agregar / editar',requests:'Solicitudes',pending:'Pendientes',diagnostic:'Diagnóstico',appearance:'Configuración',history:'Historial de modificaciones',tools:'Herramientas'};
+  const settingsTabs=[...document.querySelectorAll('[data-mmhd-settings-tab]')];
+  const settingsPanes=new Map(['credentials','catalog'].map(name=>[name,document.getElementById('mmhd-settings-pane-'+name)]));
+  function selectSettingsTab(name){
+    if(!settingsPanes.has(name))name='credentials';
+    settingsPanes.forEach((pane,key)=>{pane.hidden=key!==name;});
+    settingsTabs.forEach(tab=>{const active=tab.dataset.mmhdSettingsTab===name;tab.classList.toggle('is-active',active);tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;});
+  }
   const libraryTabs=[...document.querySelectorAll('[data-library-tab]')];
   const libraryPanes=new Map(['catalog','publications','pending'].map(name=>[name,document.getElementById('mmhd-library-pane-'+name)]));
   function selectLibraryTab(name){
@@ -5328,6 +5401,7 @@ renderCollection();
     const pendingTab=name==='pending';
     const page=pendingTab?'library':name;
     if(page==='library')selectLibraryTab(pendingTab?'pending':'catalog');
+    if(page==='appearance')selectSettingsTab('credentials');
     views.forEach(el=>{el.hidden=el.dataset.page!==page});
     navButtons.forEach(el=>{
       const active=el.dataset.view===page;
@@ -5341,10 +5415,12 @@ renderCollection();
   window.MMHDAdminView=setPanelView;
   function editFromLibrary(id){setPanelView('editor');editSavedMovie(id)}
   document.addEventListener('click',e=>{
+    const settingsTab=e.target.closest('[data-mmhd-settings-tab]');
+    if(settingsTab){selectSettingsTab(settingsTab.dataset.mmhdSettingsTab);return;}
     const libraryTab=e.target.closest('[data-library-tab]');
     if(libraryTab){selectLibraryTab(libraryTab.dataset.libraryTab);return;}
     const navigation=e.target.closest('[data-view]');
-    if(navigation){setPanelView(navigation.dataset.view);return;}
+    if(navigation){setPanelView(navigation.dataset.view);if(navigation.dataset.mmhdSettingsOpen)selectSettingsTab(navigation.dataset.mmhdSettingsOpen);return;}
     const create=e.target.closest('[data-create]');
     if(create){
       setPanelView('editor');
@@ -5363,6 +5439,14 @@ renderCollection();
     const recent=e.target.closest('[data-recent-edit]');
     if(recent){editFromLibrary(recent.dataset.recentEdit);}
   });
+  document.addEventListener('click',e=>{
+    const toggle=e.target.closest('[data-mmhd-reveal]');if(!toggle)return;
+    const field=document.getElementById(toggle.dataset.mmhdReveal);
+    if(!field||!['password','text'].includes(field.type))return;
+    const showing=field.type==='password';field.type=showing?'text':'password';
+    toggle.setAttribute('aria-pressed',String(showing));
+    const icon=toggle.querySelector('i');if(icon)icon.className='fa-solid '+(showing?'fa-eye-slash':'fa-eye');
+  });
   // Cambiar de pantalla antes de que la lógica actual abra los editores.
   document.getElementById('collectionList').addEventListener('click',e=>{
     if(e.target.closest('[data-edit-id]'))setPanelView('editor');
@@ -5370,7 +5454,7 @@ renderCollection();
   document.getElementById('adminAuditList').addEventListener('click',e=>{
     if(e.target.closest('[data-audit-series]'))setPanelView('editor');
   },true);
-  document.getElementById('openToolsView').addEventListener('click',()=>setPanelView('tools'));
+  document.getElementById('openToolsView').addEventListener('click',()=>setPanelView('appearance'));
   document.getElementById('collectionFilter').addEventListener('change',()=>{
     const current=document.getElementById('collectionFilter').value;
     document.querySelectorAll('.library-pill').forEach(b=>b.classList.toggle('active',b.dataset.filter===current));
@@ -5745,7 +5829,8 @@ renderCollection();
  filterEl.addEventListener('change',()=>render());sortEl.addEventListener('change',()=>render());
 
  try{const saved=localStorage.getItem(savedKeyName);if(saved){key=saved;savedPersistent=true;remember.checked=true}else{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}}catch{try{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}catch{}}keyEl.value=key;
- const say=t=>status.textContent=t;
+ const say=t=>{status.textContent=t;const mirror=document.getElementById('mmhd-requests-credential-status');if(mirror)mirror.textContent=t;};
+ say(key?(savedPersistent?'Clave guardada. Conectando automáticamente…':'Clave disponible para conectar.'): 'Sin conexión. Introduce la clave en Configuración → Credenciales.');
  async function api(method,path,data){const res=await fetch(path,{method,headers:{'content-type':'application/json','x-mmhd-admin-key':key},body:data?JSON.stringify(data):undefined,cache:'no-store'});const payload=await res.json();if(!res.ok)throw Error(payload.error||'Error de conexión');return payload}
  function renderStats(){pendingEl.textContent=items.filter(x=>x.status==='pending').length;progressEl.textContent=items.filter(x=>x.status==='progress').length;addedEl.textContent=items.filter(x=>x.status==='added').length;stats.hidden=false}
  function render(){list.replaceChildren();renderStats();if(!items.length){list.textContent='Todavía no hay solicitudes.';countEl.textContent='';return;}
