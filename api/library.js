@@ -26,6 +26,26 @@ module.exports=async function handler(req,res){
      }
      const revision=await meta();
      if(req.query?.head==='1')return res.status(200).json({revision});
+     // Cursor de eventos: registrar ANTES de leer la biblioteca completa para evitar
+     // perder eventos que ocurran durante la paginación inicial.
+     if(req.query?.delta==='1'){
+       const since=Number(req.query.since);
+       if(!Number.isSafeInteger(since)||since<0)return res.status(400).json({error:'Cursor incremental inválido'});
+       const events=await query('mmhd_library_history?select=id,item_id&id=gt.'+since+'&order=id.asc&limit=501');
+       const batch=events.slice(0,500),nextCursor=batch.length?Number(batch[batch.length-1].id):since;
+       const ids=[...new Set(batch.map(x=>String(x.item_id)))];
+       const items=[];
+       // Consultas acotadas: la respuesta nunca contiene los títulos no modificados.
+       for(let i=0;i<ids.length;i+=35){
+         const part=ids.slice(i,i+35);
+         const inFilter='('+part.map(x=>'"'+x.replace(/[\\"]/g,'')+'"').join(',')+')';
+         items.push(...await query('mmhd_library_items?select=id,item,version&id=in.'+encodeURIComponent(inFilter)));
+       }
+       const found=new Set(items.map(x=>String(x.id)));
+       return res.status(200).json({revision,items,deleted:ids.filter(x=>!found.has(x)),cursor:nextCursor,hasMore:events.length>500});
+     }
+     const beginCursorRows=await query('mmhd_library_history?select=id&order=id.desc&limit=1');
+     const beginCursor=Number(beginCursorRows[0]?.id||0);
      if(req.query?.extra==='1'){
        const rawHistory=await query('mmhd_library_history?select=id,item_id,operation,actor,changed_at,before_item,after_item&order=id.desc&limit=60');
        // Only return compact descriptions: never expose full historical playback URLs in the activity feed.
@@ -54,7 +74,7 @@ module.exports=async function handler(req,res){
      }
 
      const rows=[];for(let offset=0;offset<5000;offset+=1000){const page=await query('mmhd_library_items?select=id,item,version&order=id.asc&limit=1000&offset='+offset);rows.push(...page);if(page.length<1000)break;}
-     return res.status(200).json({revision,items:rows});
+     return res.status(200).json({revision,items:rows,cursor:beginCursor});
    }
    const payload=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
    if(payload.action==='undo'){
