@@ -1728,7 +1728,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </select>
 </label>
 </div>
-<div class="tmdb">Estos cambios se guardan en tu navegador y se aplican al generar nuevamente index.html.</div>
+<div class="tmdb">Los ajustes de esta sección se aplican al generar index.html. Para ver nuevos títulos destacados en la web sin regenerarla, revisa y aprueba esos títulos en Mi biblioteca → Publicaciones. Al publicar un título también se aprueban sus demás cambios pendientes.</div>
 </div></section></div>
 </div>
 </section>
@@ -3504,7 +3504,11 @@ function featuredMovies(){
 function changeFeatured(id,move){
   const match=state.collection.find(m=>String(m.id)===String(id));
   if(!match)return;
-  let featured=featuredMovies().map(m=>String(m.id));
+  // Nunca reescribir los cientos de títulos que no están involucrados.
+  // La publicación controlada compara el JSON completo y una marca nueva
+  // featured:false/featuredOrder:null provoca falsos "editados pendientes".
+  const previous=featuredMovies().map(m=>String(m.id));
+  let featured=previous.slice();
   const key=String(match.id),idx=featured.indexOf(key);
   if(move===0){
     if(idx>=0)featured.splice(idx,1);
@@ -3512,16 +3516,25 @@ function changeFeatured(id,move){
       showStatus(`Puedes destacar hasta ${MAX_FEATURED} películas. Quita una estrella primero.`,"err");return;
     }else featured.push(key);
   }else if(idx>=0){
-    const next=idx+move;
-    if(next<0||next>=featured.length)return;
-    [featured[idx],featured[next]]=[featured[next],featured[idx]];
+    const pos=idx+move;
+    if(pos<0||pos>=featured.length)return;
+    [featured[idx],featured[pos]]=[featured[pos],featured[idx]];
   }else return;
-  const rank=new Map(featured.map((key,index)=>[key,index]));
-  const next=state.collection.map(m=>({...m,
-    featured:rank.has(String(m.id)),
-    featuredOrder:rank.has(String(m.id)) ? rank.get(String(m.id)) : null
-  }));
-  if(!commitCollection(next))showStatus("No se pudo guardar el cambio de destacados.","err");
+  const previousSet=new Set(previous);
+  const rank=new Map(featured.map((itemId,index)=>[itemId,index]));
+  let changed=false;
+  const next=state.collection.map(m=>{
+    const itemId=String(m.id);
+    // Solo pueden cambiar los títulos destacados antes o después del movimiento.
+    if(!previousSet.has(itemId)&&!rank.has(itemId))return m;
+    const isFeatured=rank.has(itemId);
+    const desiredOrder=isFeatured?rank.get(itemId):null;
+    if((m.featured===true)===isFeatured &&
+       (m.featuredOrder===undefined?null:m.featuredOrder)===desiredOrder)return m;
+    changed=true;
+    return {...m,featured:isFeatured,featuredOrder:desiredOrder};
+  });
+  if(changed&&!commitCollection(next))showStatus("No se pudo guardar el cambio de destacados.","err");
 }
 function renderFeatured(){
   const selected=featuredMovies().slice(0,MAX_FEATURED);
