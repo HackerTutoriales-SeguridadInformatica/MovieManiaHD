@@ -1208,6 +1208,13 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-head-dot{width:7px;height:7px;border-radius:50%;background:#718096;flex-shrink:0}
 .mmhd-connected-active .mmhd-head-dot{background:#18c88b;box-shadow:0 0 7px #18c88b77}
 .mmhd-admin-popover{display:none;position:absolute;top:calc(100% + 7px);right:0;width:max-content;max-width:min(360px,85vw);white-space:normal;background:#142136;color:#dae6f2;border:1px solid #45607b;border-radius:10px;padding:10px 12px;z-index:1001;box-shadow:0 9px 32px #0008;line-height:1.8}
+.mmhd-presence-entry{padding:8px 0;border-bottom:1px solid #2b4159;min-width:285px}
+.mmhd-presence-entry:last-child{border-bottom:0}
+.mmhd-presence-email{font-weight:650;overflow-wrap:anywhere;font-size:12px;margin-bottom:5px}
+.mmhd-presence-fields{display:grid;grid-template-columns:70px minmax(0,1fr);gap:3px 9px;font-size:11px;line-height:1.5}
+.mmhd-presence-label{color:#9cb3ce}
+.mmhd-presence-online{color:#55e0aa;font-weight:600}
+.mmhd-presence-activity{color:#e7edf8;overflow-wrap:anywhere}
 .mmhd-connected-header:hover .mmhd-admin-popover,.mmhd-connected-header:focus-within .mmhd-admin-popover{display:block}
 #mmhd-history-page-content>div{padding:12px 0 !important;gap:12px !important}
 @media(max-width:900px){.mmhd-connected-header{max-width:150px;padding:7px;font-size:10px}.mmhd-connected-header #mmhd-connected-header-text{overflow:hidden;text-overflow:ellipsis}}
@@ -5412,24 +5419,33 @@ renderCollection();
  let extraWorking=false,lastExtraFetch=0,presenceWorking=false,presenceNames={},presenceMe=null;
  const safe=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const showDate=(s)=>{try{return new Date(s).toLocaleString('es-MX');}catch(_){return String(s||'')}};
+ function drawPresence(rows,me,labels){
+   const live=(rows||[]).filter(x=>Date.now()-new Date(x.last_seen).getTime()<60000);
+   const label=id=>labels[id]||String(id||'Desconocido').slice(0,8);
+   presenceEl.textContent=live.length?live.length+' conectado'+(live.length===1?'':'s'):'Sin administradores activos';
+   topPresence.classList.toggle('mmhd-connected-active',true);
+   topPresence.title=live.length?live.map(x=>label(x.user_id)+' — Estado: Conectado — Actividad: '+(x.current_title?'Editando: '+x.current_title:'Sin edición activa')).join('\n'):'No se detectó actividad durante el último minuto';
+   topPresence.querySelector('.mmhd-admin-popover')?.remove();
+   if(!live.length)return;
+   const details=document.createElement('div');details.className='mmhd-admin-popover';
+   for(const x of live){
+     const item=document.createElement('div');item.className='mmhd-presence-entry';
+     const name=document.createElement('div');name.className='mmhd-presence-email';name.textContent=label(x.user_id)+(x.user_id===me?' (tú)':'');
+     const fields=document.createElement('div');fields.className='mmhd-presence-fields';
+     const add=(key,value,style)=>{const k=document.createElement('span');k.className='mmhd-presence-label';k.textContent=key;const v=document.createElement('span');v.className=style;v.textContent=value;fields.append(k,v)};
+     add('Estado','● Conectado','mmhd-presence-online');
+     add('Actividad',x.current_title?'Editando: '+x.current_title:'Sin edición activa','mmhd-presence-activity');
+     item.append(name,fields);details.append(item);
+   }
+   topPresence.append(details);
+ }
  async function loadExtras(force=false){
    if(!connected||extraWorking||document.visibilityState==='hidden'||(!force&&Date.now()-lastExtraFetch<10000))return;
    extraWorking=true;
    try{
      const d=await request('GET','/api/library?extra=1');lastExtraFetch=Date.now();
      const names=d.admins||{};presenceNames=names;presenceMe=d.me;const label=id=>names[id]||String(id||'Desconocido').slice(0,8);
-     const live=(d.presence||[]).filter(x=>Date.now()-new Date(x.last_seen).getTime()<60000);
-     topPresence.classList.toggle('mmhd-connected-active',true);
-     topPresence.querySelector('.mmhd-admin-popover')?.remove();
-     presenceEl.replaceChildren();
-     if(!live.length){presenceEl.textContent='Sin administradores activos';topPresence.title='No se detectó actividad durante el último minuto';}
-     else{
-       presenceEl.textContent=live.length+' conectado'+(live.length===1?'':'s');
-       topPresence.title=live.map(x=>label(x.user_id)+(x.user_id===d.me?' (tú)':'')+(x.current_title?' · Editando: '+x.current_title:' · Conectado')).join('\n');
-       const details=document.createElement('div');details.className='mmhd-admin-popover';
-       live.forEach(x=>{const line=document.createElement('div');line.textContent='🟢 '+label(x.user_id)+(x.user_id===d.me?' (tú)':'')+(x.current_title?' · Editando: '+x.current_title:' · Conectado');details.append(line)});
-       topPresence.querySelector('.mmhd-admin-popover')?.remove();topPresence.append(details);
-     }
+     drawPresence(d.presence,d.me,names);
      const history=d.history||[];
      historyEl.replaceChildren();
      if(!history.length)historyEl.textContent='No hay ediciones registradas desde la instalación del historial.';
@@ -5481,16 +5497,7 @@ renderCollection();
    presenceWorking=true;
    try{
      const d=await request('GET','/api/library?presence=1');
-     const live=(d.presence||[]).filter(x=>Date.now()-new Date(x.last_seen).getTime()<60000);
-     const label=id=>presenceNames[id]||String(id||'Desconocido').slice(0,8);
-     presenceEl.textContent=live.length?live.length+' conectado'+(live.length===1?'':'s'):'Sin administradores activos';
-     topPresence.title=live.length?live.map(x=>label(x.user_id)+(x.user_id===d.me?' (tú)':'')+(x.current_title?' · Editando: '+x.current_title:' · Conectado')).join('\n'):'No se detectó actividad durante el último minuto';
-     topPresence.querySelector('.mmhd-admin-popover')?.remove();
-     if(live.length){
-       const details=document.createElement('div');details.className='mmhd-admin-popover';
-       live.forEach(x=>{const line=document.createElement('div');line.textContent='🟢 '+label(x.user_id)+(x.user_id===d.me?' (tú)':'')+(x.current_title?' · Editando: '+x.current_title:' · Conectado');details.append(line)});
-       topPresence.append(details);
-     }
+     drawPresence(d.presence,d.me,presenceNames);
    }catch(_){/* keep previous status on temporary network issues */}
    finally{presenceWorking=false}
  }
