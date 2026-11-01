@@ -5415,9 +5415,9 @@ renderCollection();
  publicationHost.style.cssText='border:1px solid #416b82;padding:14px;border-radius:12px';
  publicationHost.innerHTML=`<div style="border:1px solid #2b5364;border-radius:10px;padding:12px;margin:10px 0;display:grid;gap:8px">
 <strong>🌐 Publicación automática del catálogo web</strong>
-<small>Los títulos publicados se actualizan automáticamente en la web. Los nuevos aparecen aquí como pendientes y requieren tu aprobación individual.</small>
-<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="secondary" id="mmhd-public-seed">Reconocer títulos del index (uso inicial)</button><button type="button" class="secondary" id="mmhd-public-reload">Consultar publicaciones</button></div>
-<div style="display:flex;gap:8px;flex-wrap:wrap"><select id="mmhd-public-select" style="flex:1;min-width:240px"><option value="">Selecciona un título</option></select><button type="button" class="secondary" id="mmhd-public-approve">Publicar título</button><button type="button" class="secondary" id="mmhd-public-withdraw">Retirar</button></div>
+<small>Los títulos nuevos y las ediciones de títulos publicados requieren aprobación. La biblioteca administrativa sigue sincronizándose normalmente.</small>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="secondary" id="mmhd-public-seed" style="display:none" disabled>Reconocer títulos del index (uso inicial)</button><button type="button" class="secondary" id="mmhd-public-reload">Consultar publicaciones</button></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><select id="mmhd-public-select" style="flex:1;min-width:240px"><option value="">Selecciona un título</option></select><button type="button" class="secondary" id="mmhd-public-approve">Publicar / Actualizar título</button><button type="button" class="secondary" id="mmhd-public-approve-all">Publicar todos los nuevos</button><button type="button" class="secondary" id="mmhd-public-update-all">Actualizar todos los editados</button><button type="button" class="secondary" id="mmhd-public-withdraw">Retirar</button></div>
 <small id="mmhd-public-message" aria-live="polite">Conéctate a Supabase para administrar publicaciones.</small>
 </div>`;
  document.getElementById('mmhd-public-library-holder').appendChild(publicationHost);
@@ -5543,28 +5543,38 @@ renderCollection();
 
  // Controles de publicación pública (solo administradores autenticados).
  const publicSelect=q('mmhd-public-select'),publicInfo=q('mmhd-public-message');
- let publicApproved=new Set();
+ let publicApproved=new Set(), publicEdited=new Set();
  async function publicCall(action,extra={}){return request('POST','/api/public-library',{action,...extra});}
+ function publicPartitions(){
+   const items=[...state.collection].sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''),'es'));
+   return {items,pending:items.filter(x=>!publicApproved.has(String(x.id))),
+       edited:items.filter(x=>publicApproved.has(String(x.id))&&publicEdited.has(String(x.id)))};
+ }
  function paintPublicList(){
    const current=publicSelect.value;
-   const items=[...state.collection].sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''),'es'));
-   const pending=items.filter(x=>!publicApproved.has(String(x.id)));
+   const {items,pending,edited}=publicPartitions();
    publicSelect.replaceChildren(new Option('Selecciona un título',''));
-   pending.forEach(x=>publicSelect.add(new Option('○ '+String(x.title||x.id).slice(0,95)+' — Pendiente',String(x.id))));
-   items.filter(x=>publicApproved.has(String(x.id))).forEach(x=>publicSelect.add(new Option('✓ '+String(x.title||x.id).slice(0,95)+' — Publicado',String(x.id))));
+   pending.forEach(x=>publicSelect.add(new Option('○ '+String(x.title||x.id).slice(0,95)+' — Nuevo pendiente',String(x.id))));
+   edited.forEach(x=>publicSelect.add(new Option('↻ '+String(x.title||x.id).slice(0,95)+' — Actualización pendiente',String(x.id))));
+   items.filter(x=>publicApproved.has(String(x.id))&&!publicEdited.has(String(x.id))).forEach(x=>publicSelect.add(new Option('✓ '+String(x.title||x.id).slice(0,95)+' — Publicado',String(x.id))));
    if([...publicSelect.options].some(o=>o.value===current&&current))publicSelect.value=current;
-   else if(pending.length)publicSelect.value=String(pending[0].id);
+   else if(pending.length||edited.length)publicSelect.value=String((pending[0]||edited[0]).id);
    else publicSelect.value='';
-   q('mmhd-public-approve').disabled=!pending.length||!publicSelect.value||publicApproved.has(publicSelect.value);
-   publicSelect.title=pending.length?pending.length+' título(s) pendiente(s) de publicación':'No hay títulos pendientes';
+   const actionable=publicSelect.value&&(!publicApproved.has(publicSelect.value)||publicEdited.has(publicSelect.value));
+   q('mmhd-public-approve').disabled=!connected||!actionable;
+   q('mmhd-public-approve-all').disabled=!connected||pending.length===0;
+   q('mmhd-public-update-all').disabled=!connected||edited.length===0;
+   publicSelect.title=pending.length+' nuevo(s) y '+edited.length+' editado(s) pendiente(s)';
  }
  async function loadPublicList(){if(!connected)return;try{
    const data=await publicCall('list');
-   publicApproved=new Set((data.ids||[]).map(String));paintPublicList();
-   const pending=state.collection.filter(x=>!publicApproved.has(String(x.id))).length;
-   publicInfo.textContent='✓ '+publicApproved.size+' títulos aprobados para la web · '+pending+' pendientes de publicación.';
+   publicApproved=new Set((data.ids||[]).map(String));
+   publicEdited=new Set((data.updatedIds||[]).map(String));
+   paintPublicList();
+   const {pending,edited}=publicPartitions();
+   publicInfo.textContent='✓ '+publicApproved.size+' publicados · '+pending.length+' nuevos pendientes · '+edited.length+' ediciones pendientes.';
+   if(data.missingSnapshots)publicInfo.textContent+=' ⚠ '+data.missingSnapshots+' versiones públicas sin inicializar. Ejecuta primero el SQL de migración.';
  }catch(e){publicInfo.textContent='Error al consultar publicaciones: '+e.message}}
- // Al guardar o recibir cambios compartidos, actualizar títulos y pendientes en Biblioteca.
  let publicRefreshTimer=null;
  function schedulePublicRefresh(){
    clearTimeout(publicRefreshTimer);
@@ -5578,7 +5588,7 @@ renderCollection();
  document.querySelectorAll('[data-view="library"]').forEach(button=>
    button.addEventListener('click',()=>setTimeout(()=>{if(connected)void loadPublicList()},100))
  );
- publicSelect.addEventListener('change',()=>{q('mmhd-public-approve').disabled=!publicSelect.value||publicApproved.has(publicSelect.value)});
+ publicSelect.addEventListener('change',paintPublicList);
  q('mmhd-public-reload').addEventListener('click',()=>void loadPublicList());
  q('mmhd-public-seed').addEventListener('click',async()=>{
    if(!connected)return alert('Conecta tu biblioteca de Supabase primero.');
@@ -5595,19 +5605,50 @@ renderCollection();
  q('mmhd-public-approve').addEventListener('click',async()=>{
    if(!connected){publicInfo.textContent='Conecta tu biblioteca de Supabase primero.';return;}
    const id=publicSelect.value;
-   if(!id){publicInfo.textContent='Selecciona primero una película o serie del menú.';return;}
+   if(!id){publicInfo.textContent='Selecciona primero un título.';return;}
    const selected=state.collection.find(x=>String(x.id)===id);
-   if(!selected){publicInfo.textContent='El título ya no está disponible. Pulsa Consultar publicaciones.';return;}
-   if(publicApproved.has(id)){publicInfo.textContent='Este título ya está aprobado para publicación.';return;}
-   if(!confirm('¿Publicar «'+String(selected.title||id)+'» para todos los visitantes?'))return;
+   if(!selected){publicInfo.textContent='Título no encontrado. Consulta de nuevo.';return;}
+   const isEdited=publicEdited.has(id),isNew=!publicApproved.has(id);
+   if(!isNew&&!isEdited){publicInfo.textContent='Este título ya está actualizado en la web.';return;}
+   if(!confirm('¿'+(isEdited?'Actualizar la versión pública de':'Publicar')+' «'+String(selected.title||id)+'» para todos los visitantes?'))return;
    const button=q('mmhd-public-approve');button.disabled=true;
    try{
      const result=await publicCall('publish',{ids:[id]});
-     if(Number(result.published)!==1)throw Error('Supabase no confirmó la publicación (missing: '+result.missing+').');
-     await loadPublicList();publicInfo.textContent='✓ «'+String(selected.title||id)+'» aprobado para la web. Comprueba la actualización del index.';
-   }catch(e){publicInfo.textContent='No se pudo publicar: '+e.message}
-   finally{button.disabled=false;}
+     if(Number(result.published)!==1)throw Error('Supabase no confirmó la operación.');
+     await loadPublicList();publicInfo.textContent='✓ «'+String(selected.title||id)+'» '+(isEdited?'actualizado':'publicado')+' en la web.';
+   }catch(e){publicInfo.textContent='Error al publicar: '+e.message}
+   finally{paintPublicList()}
  });
+ async function publishBatch(mode){
+   if(!connected)return publicInfo.textContent='Conecta primero Supabase.';
+   const button=q(mode==='edited'?'mmhd-public-update-all':'mmhd-public-approve-all');
+   button.disabled=true;
+   let confirmed=0,finished=false;
+   try{
+     // Consultar los pendientes reales justo antes de aprobar; no confiar en estado antiguo.
+     const latest=await publicCall('list');
+     publicApproved=new Set((latest.ids||[]).map(String));
+     publicEdited=new Set((latest.updatedIds||[]).map(String));
+     const parts=publicPartitions();
+     const chosen=mode==='edited'?parts.edited:parts.pending;
+     if(!chosen.length){publicInfo.textContent='✓ No hay cambios de ese tipo pendientes.';finished=true;return;}
+     const labels=chosen.slice(0,8).map(x=>'• '+String(x.title||x.id)).join('\n');
+     if(!confirm((mode==='edited'?'¿Actualizar':'¿Publicar')+' '+chosen.length+' títulos en la web?\n\n'+labels+(chosen.length>8?'\n… y '+(chosen.length-8)+' más':'')+'\n\nSe aplicarán todos los cambios aprobados.'))return;
+     const ids=chosen.map(x=>String(x.id));
+     for(let i=0;i<ids.length;i+=50){
+       const batch=ids.slice(i,i+50);
+       const result=await publicCall('publish',{ids:batch});
+       if(!result.ok||Number(result.published)!==batch.length||Number(result.missing||0)!==0)
+         throw Error('No se confirmó el lote '+(Math.floor(i/50)+1));
+       confirmed+=batch.length;
+       publicInfo.textContent='Procesando… '+confirmed+' de '+ids.length;
+     }
+     finished=true;
+   }catch(e){publicInfo.textContent='Error ('+confirmed+' confirmados): '+e.message}
+   finally{try{await loadPublicList();}catch(_){};if(finished&&confirmed)publicInfo.textContent='✓ '+confirmed+' títulos '+(mode==='edited'?'actualizados':'publicados')+' para la web.';paintPublicList()}
+ }
+ q('mmhd-public-approve-all').addEventListener('click',()=>void publishBatch('new'));
+ q('mmhd-public-update-all').addEventListener('click',()=>void publishBatch('edited'));
  q('mmhd-public-withdraw').addEventListener('click',async()=>{const id=publicSelect.value;if(!connected||!id)return;
    if(!confirm('¿Retirar este título de la sincronización automática? Esto NO lo elimina de la biblioteca ni de un index.html estático antiguo.'))return;
    try{await publicCall('unpublish',{id});await loadPublicList();publicInfo.textContent='✓ Publicación retirada (el HTML estático no se modifica).'}catch(e){publicInfo.textContent=e.message}
