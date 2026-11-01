@@ -5812,12 +5812,27 @@ window.__onGCastApiAvailable = function(available) {
   script.onerror = () => castMessage('No se pudo cargar el SDK de Google Cast.');
   document.head.appendChild(script);
 })();
+// La entrada «Transmitir» permite AirPlay en Safari aunque Google Cast no exista.
+// No se modifica handleCast ni su panel de cuatro controles.
+function mmhdOfferTransmit(movie) {
+  if (!movie) return;
+  if (window.MMHD_TRANSMIT_MENU && typeof window.MMHD_TRANSMIT_MENU.open === 'function') {
+    window.MMHD_TRANSMIT_MENU.open(movie);
+  } else {
+    handleCast(movie); // respaldo si todavía no cargó el menú externo
+  }
+}
+function mmhdCanOfferAirPlay() {
+  return !!(window.HTMLVideoElement &&
+    typeof HTMLVideoElement.prototype.webkitShowPlaybackTargetPicker === 'function');
+}
 function prepareCastVideo(movie) { updateCastButton(); }
 function updateCastButton() {
   const btn = document.getElementById('btnCast');
   if (!btn) return;
-  btn.disabled = !castReady;
-  btn.title = castReady ? 'Transmitir a Chromecast' : 'Esperando Google Cast';
+  const airplay = mmhdCanOfferAirPlay();
+  btn.disabled = !castReady && !airplay;
+  btn.title = castReady || airplay ? 'Elegir Chromecast o AirPlay' : 'Transmisión no compatible con este navegador';
 }
 /* Chromecast necesita una URL HTTPS pública para cada pista; los blob: del navegador no sirven.
    /api/cast-subtitles descarga SRT/VTT permitido y responde en formato text/vtt. */
@@ -6526,7 +6541,7 @@ function renderSeriesSeasons(series,chosenSeason){
     const actions=document.createElement("div");actions.className="detail-episode-actions";
     const buttons=[
       {name:"Reproducir",icon:"play",primary:true,action:()=>openPlayer(playableForSeries(series,current.number,ep))},
-      {name:"Transmitir",icon:"tv",action:()=>handleCast(playableForSeries(series,current.number,ep))},
+      {name:"Transmitir",icon:"tv",action:()=>mmhdOfferTransmit(playableForSeries(series,current.number,ep))},
       {name:"Descargar",icon:"download",action:()=>showDownloadBox(playableForSeries(series,current.number,ep))}
     ];
     buttons.forEach(item=>{
@@ -7187,7 +7202,7 @@ $("btnExit").addEventListener("click", () => {
 
 $("btnDetailBack").addEventListener("click", closeDetail);
 $("btnPlay").addEventListener("click", () => openPlayer(selectedPlayable()));
-$("btnCast").addEventListener("click", () => handleCast(selectedPlayable()));
+$("btnCast").addEventListener("click", () => mmhdOfferTransmit(selectedPlayable()));
 $("mmhdCastPause").addEventListener("click", castPause);
 $("mmhdCastVolDown").addEventListener("click", () => castVolume(-0.1));
 $("mmhdCastVolUp").addEventListener("click", () => castVolume(0.1));
@@ -7837,6 +7852,6 @@ syncBackToTop();
 })();
 </script>
 <script src="/public-sync.js" defer></script>
-<script src="/airplay.js?v=20261101a" defer></script>
+<script src="/transmitir.js?v=20261101b" defer></script>
 </body>
 </html>
