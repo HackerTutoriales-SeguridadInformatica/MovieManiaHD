@@ -5407,7 +5407,7 @@ renderCollection();
  const target=document.getElementById('toolsActionsHolder')||document.getElementById('collectionCard')?.parentElement||document.body;
  target.parentElement.insertBefore(host,target);
  const q=id=>host.querySelector('#'+id);
- const info=q('mmhd-cloud-message');let config=null,token=null,refreshToken=null,base=new Map(),revision=0,connected=false,busy=false,pending=false,applying=false,conflicted=false,timer=null,lock=false;
+ const info=q('mmhd-cloud-message');let config=null,token=null,refreshToken=null,base=new Map(),revision=0,historyCursor=0,connected=false,busy=false,pending=false,applying=false,conflicted=false,timer=null,lock=false;
  const SESSION_KEY='mmhd_shared_library_session_v1';
  const remember=q('mmhd-cloud-remember');
  const loadSaved=()=>{try{const x=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');return x&&typeof x.refreshToken==='string'&&x.refreshToken.length>10?x:null;}catch(_){return null}};
@@ -5489,7 +5489,7 @@ renderCollection();
          busy=true;
          try{const r=await request('POST','/api/library',{action:'restore',backupId:Number(b.id),expectedRevision:revision});if(!r.ok)throw Error(r.reason||'No se restauró');
            const data=await request('GET','/api/library');applying=true;try{state.collection=data.items.map(x=>x.item);if(!saveCollection())throw Error('No se pudo guardar la copia local');renderCollection();}finally{applying=false}
-           base=rowMap(data.items);revision=data.revision;msg('✓ Respaldo restaurado y compartido: '+r.count+' títulos.');lastExtraFetch=0;
+           base=rowMap(data.items);revision=data.revision;historyCursor=Number(data.cursor||0);msg('✓ Respaldo restaurado y compartido: '+r.count+' títulos.');lastExtraFetch=0;
          }catch(e){msg('Restauración detenida: '+e.message+'. Si alguien guardó cambios, sincroniza antes de intentarlo.',true)}finally{busy=false;void loadExtras(true)}
        });line.append(desc,btn);backupsEl.append(line);
      });
@@ -5551,6 +5551,39 @@ renderCollection();
    if(mapChanged(snapshot(),base).length)queue();
    return true;
  }
+ async function incrementalRefresh(){
+   // Cada lote identifica exclusivamente los IDs cambiados desde el último cursor.
+   // No sustituye el resto de la colección ni envía cambios locales de otro título.
+   for(let page=0;page<20;page++){
+     const d=await request('GET','/api/library?delta=1&since='+historyCursor);
+     // Si una revisión antigua no generó eventos de auditoría, recuperar
+     // mediante comparación segura completa en vez de omitirla silenciosamente.
+     if(!(d.items||[]).length&&!(d.deleted||[]).length&&!d.hasMore&&d.revision!==revision){
+       await fullRefresh();return true;
+     }
+     const changed=new Map((d.items||[]).map(r=>[String(r.id),{version:Number(r.version),json:JSON.stringify(r.item)}]));
+     for(const id of d.deleted||[])changed.set(String(id),null);
+     const own=snapshot(), conflicts=[];
+     for(const [id,row] of changed){const prev=base.get(id)?.json,next=row?.json,local=own.get(id);
+       if(prev!==next&&local!==prev&&local!==next)conflicts.push(id);
+     }
+     if(conflicts.length){conflicted=true;msg('Conflicto al sincronizar '+conflicts.join(', ')+'. Tus ediciones locales se conservan; revisa el título antes de continuar.',true);return false;}
+     const merged=new Map(own);
+     for(const [id,row] of changed){const prev=base.get(id)?.json,next=row?.json,local=own.get(id);
+       if(local===prev||local===next){if(next===undefined)merged.delete(id);else merged.set(id,next);}
+     }
+     if(changed.size){
+       applying=true;
+       try{state.collection=[...merged.values()].map(JSON.parse);if(!saveCollection())throw Error('No se pudo guardar la actualización local');renderCollection();}finally{applying=false}
+       for(const [id,row] of changed){if(row)base.set(id,row);else base.delete(id)}
+     }
+     historyCursor=Number(d.cursor||historyCursor);
+     if(!d.hasMore){revision=d.revision;if(mapChanged(snapshot(),base).length)queue();return true;}
+     if(!changed.size)break;
+   }
+   // Nunca asumir sincronización completa si la cola de eventos excede el límite.
+   return false;
+ }
  async function fullRefresh(){
    const data=await request('GET','/api/library');
    const rows=data.items||[];
@@ -5560,9 +5593,9 @@ renderCollection();
      // La biblioteca remota existente es la fuente inicial. No publicar ni modificar título alguno.
      applying=true;
      try {snapshotCollection();state.collection=rows.map(r=>r.item);if(!saveCollection())throw Error('Sin espacio local');renderCollection();}finally{applying=false}
-     base=rowMap(rows);revision=data.revision;return;
+     base=rowMap(rows);revision=data.revision;historyCursor=Number(data.cursor||0);return;
    }
-   paint(rows,data.revision);
+   if(paint(rows,data.revision))historyCursor=Number(data.cursor||0);
  }
  async function flush(){
    if(!connected||busy||conflicted||document.visibilityState==='hidden')return;
@@ -5573,16 +5606,29 @@ renderCollection();
      const changes=changed.map(id=>({id,expectedVersion:base.get(id)?.version??null,item:local.has(id)?JSON.parse(local.get(id)):null}));
      const result=await request('POST','/api/library',{action:'apply',changes});
      if(!result.ok)throw Error('No se pudieron guardar los cambios');
-     // Relectura para obtener las versiones oficiales de cada título.
+     // Se reciben los estados oficiales. Aplicar solo las diferencias reales
+     // sin convertir una copia vieja de otro título en una edición del usuario.
      const data=await request('GET','/api/library');
-     const rows=data.items||[];const updated=rowMap(rows);
-     // El usuario pudo seguir editando mientras se procesaban los cambios.
-     const newest=snapshot();
-     const merged=new Map(newest);
-     for(const id of changed){if(newest.get(id)===local.get(id)){const j=updated.get(id)?.json;if(j===undefined)merged.delete(id);else merged.set(id,j)}}
+     const rows=data.items||[], updated=rowMap(rows), newest=snapshot();
+     const merged=new Map(newest), all=new Set([...base.keys(),...updated.keys()]);
+     const postConflicts=[];
+     for(const id of all){
+       const old=base.get(id)?.json, remote=updated.get(id)?.json;
+       const current=newest.get(id),sent=local.get(id);
+       if(changed.includes(id)){
+         if(current===sent){if(remote===undefined)merged.delete(id);else merged.set(id,remote);}
+       }else if(current===old||current===remote){
+         if(remote===undefined)merged.delete(id);else merged.set(id,remote);
+       }else if(old!==remote){postConflicts.push(id)}
+     }
+     if(postConflicts.length){
+       conflicted=true;
+       msg('Hay ediciones simultáneas pendientes en '+postConflicts.join(', ')+'. Se conservaron los cambios locales; revisa antes de continuar.',true);
+       return;
+     }
      applying=true;
-     try{state.collection=[...merged.values()].map(j=>JSON.parse(j));saveCollection();renderCollection();}finally{applying=false}
-     base=updated;revision=data.revision;
+     try{state.collection=[...merged.values()].map(JSON.parse);if(!saveCollection())throw Error('No se pudo guardar localmente');renderCollection();}finally{applying=false}
+     base=updated;revision=data.revision;historyCursor=Number(data.cursor||historyCursor);
      didSucceed=true;msg('✓ Cambios guardados y compartidos. '+rows.length+' títulos · versión '+revision);
    }catch(e){conflicted=Array.isArray(e.conflicts)&&e.conflicts.length>0;
      msg(conflicted?'Edición simultánea detectada: '+e.conflicts.join(', ')+'. No se sobrescribió el trabajo de tu compañero. Descarga un respaldo y reconecta para resolver.':'No se pudo sincronizar: '+e.message+'. Tu copia local se conserva.',true);
@@ -5593,11 +5639,11 @@ renderCollection();
  window.MMHDLibraryShared={onLocalSaved:queue};
  async function poll(){if(!connected||busy||conflicted||document.visibilityState==='hidden')return;
    try{if(mapChanged(snapshot(),base).length){await flush();return;}
-     const h=await request('GET','/api/library?head=1');if(h.revision!==revision){await fullRefresh();msg('✓ Biblioteca actualizada automáticamente · versión '+revision);}
+     const h=await request('GET','/api/library?head=1');if(h.revision!==revision){if(await incrementalRefresh())msg('✓ Cambios recibidos sin descargar la biblioteca completa · versión '+revision);}
    }catch(e){msg('Conexión interrumpida: '+e.message+'. Los cambios locales permanecen disponibles.',true)}
  }
  function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Herramientas para ver administradores activos';topPresence.querySelector('.mmhd-presence-inline')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Herramientas para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);void refreshPresence();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
- async function logout(){connectedUI(false);forgetSession();token=null;refreshToken=null;base.clear();revision=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
+ async function logout(){connectedUI(false);forgetSession();token=null;refreshToken=null;base.clear();revision=0;historyCursor=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
  remember.addEventListener('change',()=>{if(connected)saveSession();else if(!remember.checked)forgetSession()});
  async function resumeSavedSession(){
    const saved=loadSaved();if(!saved)return;
@@ -5620,9 +5666,9 @@ renderCollection();
          try{snapshotCollection();state.collection=rows.map(r=>r.item);if(!saveCollection())throw Error('No se pudo guardar localmente');renderCollection()}finally{applying=false}
        }
      }
-     base=rowMap(rows);revision=d.revision;conflicted=false;connectedUI(true);saveSession();
+     base=rowMap(rows);revision=d.revision;historyCursor=Number(d.cursor||0);conflicted=false;connectedUI(true);saveSession();
      msg('✓ Sesión restaurada automáticamente. '+rows.length+' títulos compartidos · versión '+revision);
-   }catch(e){connectedUI(false);token=null;refreshToken=null;base.clear();revision=0;config=null;forgetSession();msg('No se pudo restaurar la sesión: '+e.message+'. Tus datos locales se conservan.',true)}
+   }catch(e){connectedUI(false);token=null;refreshToken=null;base.clear();revision=0;historyCursor=0;config=null;forgetSession();msg('No se pudo restaurar la sesión: '+e.message+'. Tus datos locales se conservan.',true)}
  }
  void resumeSavedSession();
  q('mmhd-cloud-logout').addEventListener('click',logout);
@@ -5640,7 +5686,7 @@ renderCollection();
      if(rows.length){if(state.collection.length&&!confirm('Hay una biblioteca compartida con '+rows.length+' títulos. ¿Quieres cargarla en este navegador?\n\nAntes descarga un respaldo si tienes cambios locales sin compartir.'))throw Error('Conexión cancelada por el administrador');
        applying=true;try{snapshotCollection();state.collection=rows.map(r=>r.item);if(!saveCollection())throw Error('No se pudo guardar localmente');renderCollection();}finally{applying=false}
      }
-     base=rowMap(rows);revision=data.revision;conflicted=false;connectedUI(true);saveSession();
+     base=rowMap(rows);revision=data.revision;historyCursor=Number(data.cursor||0);conflicted=false;connectedUI(true);saveSession();
      msg(rows.length?'✓ Sincronización activa. '+rows.length+' títulos compartidos.':'✓ Conectado. Supabase está vacío: utiliza «Subir biblioteca local» para comenzar.');
    }catch(e){await logout();msg('Conexión no iniciada: '+e.message,true)}finally{busy=false}
  });
@@ -5648,7 +5694,7 @@ renderCollection();
    if(!connected||busy||base.size||!state.collection.length)return;
    if(!confirm('¿Ya descargaste un respaldo de tu catálogo?\n\nSe copiarán '+state.collection.length+' títulos a Supabase. Esta acción solo funciona si la biblioteca compartida está vacía.'))return;
    busy=true;try{const result=await request('POST','/api/library',{action:'seed',items:state.collection});if(!result.ok)throw Error('La biblioteca central ya contiene datos');
-      const data=await request('GET','/api/library');base=rowMap(data.items);revision=data.revision;q('mmhd-cloud-seed').disabled=true;msg('✓ Biblioteca inicial copiada: '+data.items.length+' títulos. Tu compañero puede iniciar sesión.');
+      const data=await request('GET','/api/library');base=rowMap(data.items);revision=data.revision;historyCursor=Number(data.cursor||0);q('mmhd-cloud-seed').disabled=true;msg('✓ Biblioteca inicial copiada: '+data.items.length+' títulos. Tu compañero puede iniciar sesión.');
    }catch(e){msg('No se completó la migración: '+e.message,true)}finally{busy=false}
  });
  q('mmhd-cloud-refresh').addEventListener('click',async()=>{if(!connected||busy)return;busy=true;try{await fullRefresh();msg('✓ Biblioteca actualizada · '+revision)}catch(e){msg(e.message,true)}finally{busy=false}});
