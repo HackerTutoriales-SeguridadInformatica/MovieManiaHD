@@ -5495,12 +5495,20 @@ renderCollection();
    finally{presenceWorking=false}
  }
  async function heartbeat(){if(!connected||document.visibilityState==='hidden')return;
-   const current=state.editingId==null?null:state.collection.find(x=>String(x.id)===String(state.editingId));
+   const editorVisible=!document.getElementById('view-editor')?.hidden;
+   const current=editorVisible&&state.editingId!=null?state.collection.find(x=>String(x.id)===String(state.editingId)):null;
    try{await request('POST','/api/library',{action:'presence',itemId:current?String(current.id):null,title:current?String(current.title||''):null});}catch(_){/* conexión ocasionalmente interrumpida */}
  }
  q('mmhd-cloud-backup').addEventListener('click',async()=>{if(!connected||busy)return;busy=true;
    try{const r=await request('POST','/api/library',{action:'backup'});msg('✓ Respaldo creado: '+r.count+' títulos.');lastExtraFetch=0;}
    catch(e){msg('No se pudo crear el respaldo: '+e.message,true)}finally{busy=false;void loadExtras(true)}
+ });
+ // Actualizar de inmediato al cambiar de sección o cancelar la edición.
+ // Esperar al siguiente microturno permite que la navegación cambie el atributo hidden.
+ document.addEventListener('click',event=>{
+   if(event.target.closest('[data-view], [data-create], #btnCancelEdit, #btnClear')){
+     setTimeout(()=>{if(connected){void heartbeat().then(()=>refreshPresence());}},0);
+   }
  });
  setInterval(()=>{void heartbeat();void refreshPresence()},4000);
  setInterval(()=>{void loadExtras()},15000);
