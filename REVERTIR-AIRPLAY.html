@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MMHD · Regresar a AirPlay original</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Arial;background:#090e1c;color:#eff4ff;margin:0;padding:25px}
+main{max-width:820px;margin:auto}h1{font-size:28px;letter-spacing:-.8px;margin:0 0 6px}.muted{color:#a5b4cd}.panel{background:#141c30;border:1px solid #30405d;border-radius:18px;padding:24px;margin:20px 0}
+label{display:block;margin:12px 0 6px;font-weight:650}input{width:100%;padding:12px;border-radius:10px;border:1px solid #465471;background:#0d1527;color:#fff}
+button{background:#3071d9;color:white;padding:12px 20px;border:0;border-radius:10px;font-weight:700;cursor:pointer}button:disabled{opacity:.4}button.secondary{background:#293d61}
+.grid{display:flex;gap:12px;flex-wrap:wrap}.grid>*{flex:1;min-width:230px} .card{margin:10px 0;padding:14px;background:#101a30;border-radius:12px;border:1px solid #324c75}.good{color:#72e2b0}.bad{color:#ff9090}
+code{background:#1d2c48;padding:2px 5px;border-radius:5px}ul{padding-left:19px}
+</style></head><body><main>
+<p class="muted">MOVIE MANIA HD V3 · REVERSIÓN SOLO DE AIRPLAY</p>
+<h1>Volver a la primera versión de AirPlay</h1>
+<p class="muted">Restablece el botón AirPlay <strong>dentro del reproductor</strong> que se conectaba al Roku y enviaba audio. Recupera Chromecast exactamente como estaba y conserva las películas actuales de tus archivos.</p>
+<div class="panel">
+<h2>1. Selecciona tus archivos HTML actuales</h2>
+<p class="muted">Descárgalos directamente de tu repositorio GitHub. Este programa no usa internet y no sube tus archivos a ningún servidor.</p>
+<div class="grid"><div><label for="index">index.html</label><input type="file" id="index" accept=".html,text/html"></div><div><label for="template">catalogo-template.html</label><input type="file" id="template" accept=".html,text/html"></div></div>
+<p><button id="convert">Preparar archivos restaurados</button></p><p id="status" class="muted">Aún no se han modificado archivos.</p>
+<div id="results"></div>
+</div>
+<div class="panel"><h2>2. Instala los archivos corregidos</h2>
+<ul><li>Descarga los archivos restaurados y guarda las copias originales por seguridad.</li><li>Comprueba que <code>airplay.js</code> está en la raíz de GitHub (se adjunta el original en este ZIP).</li><li>Sube los dos HTML restaurados a GitHub y espera a que Vercel muestre <strong>Ready</strong>.</li><li>En Safari abre una película, pulsa <strong>Reproducir</strong> y luego el botón <strong>AirPlay</strong> que aparece dentro del reproductor.</li></ul>
+<p class="muted"><strong>Importante:</strong> esta reversión devuelve AirPlay a la versión que conectaba con el Roku y enviaba audio; no asegura que transmita imagen. La opción de dos métodos dentro del botón «Transmitir» se elimina. Chromecast vuelve a su acceso normal con los cuatro controles originales.</p></div>
+</main><script>
+'use strict';
+const patches = [{"name": "Lógica del selector Transmitir", "from": "// La entrada «Transmitir» permite AirPlay en Safari aunque Google Cast no exista.\n// No se modifica handleCast ni su panel de cuatro controles.\nfunction mmhdOfferTransmit(movie) {\n  if (!movie) return;\n  if (window.MMHD_TRANSMIT_MENU && typeof window.MMHD_TRANSMIT_MENU.open === 'function') {\n    window.MMHD_TRANSMIT_MENU.open(movie);\n  } else {\n    handleCast(movie); // respaldo si todavía no cargó el menú externo\n  }\n}\nfunction mmhdCanOfferAirPlay() {\n  return !!(window.HTMLVideoElement &&\n    typeof HTMLVideoElement.prototype.webkitShowPlaybackTargetPicker === 'function');\n}\nfunction prepareCastVideo(movie) { updateCastButton(); }\nfunction updateCastButton() {\n  const btn = document.getElementById('btnCast');\n  if (!btn) return;\n  const airplay = mmhdCanOfferAirPlay();\n  btn.disabled = !castReady && !airplay;\n  btn.title = castReady || airplay ? 'Elegir Chromecast o AirPlay' : 'Transmisión no compatible con este navegador';\n}\n", "to": "function prepareCastVideo(movie) { updateCastButton(); }\nfunction updateCastButton() {\n  const btn = document.getElementById('btnCast');\n  if (!btn) return;\n  btn.disabled = !castReady;\n  btn.title = castReady ? 'Transmitir a Chromecast' : 'Esperando Google Cast';\n}\n"}, {"name": "Botón Transmitir de películas", "from": "$(\"btnCast\").addEventListener(\"click\", () => mmhdOfferTransmit(selectedPlayable()));", "to": "$(\"btnCast\").addEventListener(\"click\", () => handleCast(selectedPlayable()));"}, {"name": "Botón Transmitir de episodios", "from": "action:()=>mmhdOfferTransmit(playableForSeries(series,current.number,ep))", "to": "action:()=>handleCast(playableForSeries(series,current.number,ep))"}];
+const scriptRe=/<script\s+src=["']\/transmitir\.js(?:\?[^"']*)?["']\s+defer\s*><\/script>/g;
+function exactlyOnce(source,needle,label) {
+ const count=source.split(needle).length-1;
+ if(count!==1)throw Error('No se encontró exactamente una vez «'+label+'» (encontrado: '+count+'). No se ha modificado este archivo.');
+ return source;
+}
+function restore(source){
+ let s=source;
+ for(const p of patches){exactlyOnce(s,p.from,p.name);s=s.replace(p.from,p.to);}
+ const matches=[...s.matchAll(scriptRe)];
+ if(matches.length!==1)throw Error('Referencia a transmitir.js: se esperaban 1 y se encontraron '+matches.length+'.');
+ s=s.replace(scriptRe,'<script src="/airplay.js?v=20261101a" defer></script>');
+ if(s.includes('mmhdOfferTransmit(')||s.includes('/transmitir.js'))throw Error('Quedaron referencias del selector nuevo. Detenido por seguridad.');
+ return s;
+}
+function output(name,data){let blob=new Blob([data],{type:'text/html;charset=utf-8'});let url=URL.createObjectURL(blob);let b=document.createElement('button');b.type='button';b.textContent='Descargar '+name;b.onclick=()=>{const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();};b.className='secondary';return b;}
+document.getElementById('convert').onclick=async()=>{
+const target=document.getElementById('results');target.replaceChildren();let statuses=[];
+for(const [name,inputId] of [['index.html','index'],['catalogo-template.html','template']]){
+const inp=document.getElementById(inputId),f=inp.files?.[0];if(!f){statuses.push(name+': falta seleccionar el archivo.');continue;}
+const card=document.createElement('div');card.className='card';
+try{const src=await f.text(),dst=restore(src);let title=document.createElement('p');title.className='good';title.textContent='✓ '+name+' listo: conserva el catálogo y restaura AirPlay original.';card.append(title,output(name,dst));}
+catch(e){let err=document.createElement('p');err.className='bad';err.textContent='⚠ '+name+': '+e.message;card.append(err);}
+target.append(card);
+}
+document.getElementById('status').textContent=statuses.length?statuses.join(' '):'Revisa los resultados antes de subirlos a GitHub.';
+};
+</script></body></html>
