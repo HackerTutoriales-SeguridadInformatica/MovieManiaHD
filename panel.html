@@ -1202,6 +1202,16 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-req-actions .mmhd-req-state-added.is-active{outline-color:#5ce4a9}
 .mmhd-req-actions .mmhd-req-state:disabled:not(.is-active){opacity:.55}
 @media(max-width:780px){.mmhd-req-actions{width:100%;justify-content:flex-start}.mmhd-req-actions .mmhd-req-state{flex:1 1 auto}}
+
+/* MMHD - Presencia global e historial independiente */
+.mmhd-connected-header{display:flex;align-items:center;gap:7px;position:relative;padding:8px 10px;border-radius:10px;background:#101b2c;border:1px solid #293c52;color:#a7b8cb;font-size:11px;white-space:nowrap;max-width:260px;cursor:help}
+.mmhd-head-dot{width:7px;height:7px;border-radius:50%;background:#718096;flex-shrink:0}
+.mmhd-connected-active .mmhd-head-dot{background:#18c88b;box-shadow:0 0 7px #18c88b77}
+.mmhd-admin-popover{display:none;position:absolute;top:calc(100% + 7px);right:0;width:max-content;max-width:min(360px,85vw);white-space:normal;background:#142136;color:#dae6f2;border:1px solid #45607b;border-radius:10px;padding:10px 12px;z-index:1001;box-shadow:0 9px 32px #0008;line-height:1.8}
+.mmhd-connected-header:hover .mmhd-admin-popover,.mmhd-connected-header:focus-within .mmhd-admin-popover{display:block}
+#mmhd-history-page-content>div{padding:12px 0 !important;gap:12px !important}
+@media(max-width:900px){.mmhd-connected-header{max-width:150px;padding:7px;font-size:10px}.mmhd-connected-header #mmhd-connected-header-text{overflow:hidden;text-overflow:ellipsis}}
+
 </style>
 </head>
 <body>
@@ -1219,6 +1229,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <button class="rail-link" data-view="diagnostic" type="button"><i class="fa-solid fa-heart-pulse"></i><span>Diagnóstico</span></button>
 <button class="rail-link" data-view="review" type="button"><i class="fa-solid fa-clipboard-check"></i><span>Revisiones TXT</span></button>
 <button class="rail-link" data-view="appearance" type="button"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Personalización</span></button>
+<button class="rail-link" data-view="history" type="button"><i class="fa-solid fa-clock-rotate-left"></i><span>Historial de modificaciones</span></button>
 <button class="rail-link" data-view="tools" type="button"><i class="fa-solid fa-screwdriver-wrench"></i><span>Herramientas</span></button>
 </nav>
 </aside>
@@ -1231,6 +1242,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </div>
 </div>
 <div class="header-right">
+<div id="mmhd-connected-header" class="mmhd-connected-header" aria-live="polite" title="Administradores activos en Supabase"><span class="mmhd-head-dot"></span><span id="mmhd-connected-header-text">Sin conexión compartida</span></div>
 <div class="chip catalog" title="Películas en el catálogo">
 <i class="fa-solid fa-layer-group"></i>
 <span id="collectionCount">0</span>
@@ -1662,6 +1674,10 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div class="tmdb">Estos cambios se guardan en tu navegador y se aplican al generar nuevamente index.html.</div>
 </div></section></div>
 
+</section>
+<section aria-labelledby="mmhd-history-title" class="admin-view" data-page="history" hidden id="view-history">
+<div class="page-heading"><div><div class="eyebrow">BIBLIOTECA COMPARTIDA</div><h2 id="mmhd-history-title">Historial de modificaciones</h2><p>Consulta qué títulos se editaron y quién realizó cada cambio. Las acciones de deshacer están sujetas al control de versiones.</p></div><div class="page-actions"><button type="button" class="secondary" id="mmhd-history-refresh"><i class="fa-solid fa-rotate"></i> Actualizar historial</button></div></div>
+<section class="panel"><div id="mmhd-history-page-content" style="font-size:13px;min-height:100px">Conecta tu biblioteca compartida desde Herramientas para consultar el historial.</div></section>
 </section>
 <section aria-labelledby="tools-title" class="admin-view" data-page="tools" hidden="" id="view-tools">
 <div class="page-heading"><div><div class="eyebrow">CONFIGURACIÓN Y RESPALDOS</div><h2 id="tools-title">Herramientas</h2><p>Credenciales, importaciones, recuperación y mantenimiento de datos.</p></div></div>
@@ -5372,8 +5388,7 @@ renderCollection();
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px"><button type="button" class="secondary" id="mmhd-cloud-seed" disabled>Subir biblioteca local a Supabase (primera vez)</button><button type="button" class="secondary" id="mmhd-cloud-refresh" disabled>Sincronizar ahora</button></div>
  <p role="status" aria-live="polite" id="mmhd-cloud-message" style="font-size:13px;margin:0">Desconectado: tus datos locales siguen intactos.</p>
  <div id="mmhd-cloud-extras" style="display:none;margin-top:16px;padding-top:12px;border-top:1px solid #33465b">
-  <h4 style="margin:0 0 7px">👥 Actividad de administradores</h4><div id="mmhd-cloud-presence" style="font-size:13px;margin:0 0 15px">Sin actividad</div>
-  <h4 style="margin:0 0 7px">🕘 Historial de modificaciones</h4><div id="mmhd-cloud-history" style="max-height:190px;overflow:auto;font-size:13px;margin-bottom:15px">Sin registros</div>
+
   <h4 style="margin:0 0 7px">🛡 Respaldos de Supabase</h4>
   <p style="font-size:12px;opacity:.8;margin:0 0 8px">Se crea un respaldo automático al guardar cambios, como máximo uno cada 24 horas con actividad. Puedes crear otro manualmente. Restaurar afecta a ambos administradores.</p>
   <button type="button" class="secondary" id="mmhd-cloud-backup">Crear respaldo ahora</button>
@@ -5389,7 +5404,11 @@ renderCollection();
  const saveSession=()=>{try{if(remember.checked&&refreshToken){localStorage.setItem(SESSION_KEY,JSON.stringify({refreshToken,email:q('mmhd-cloud-email').value.trim()}));}else{localStorage.removeItem(SESSION_KEY)}}catch(_){msg('Conectado, pero este navegador impide recordar la sesión. Puedes seguir trabajando.',true)}};
  const forgetSession=()=>{try{localStorage.removeItem(SESSION_KEY)}catch(_){}};
  const msg=(s,bad)=>{info.textContent=s;info.style.color=bad?'#ff8e93':'';};
- const extra=q('mmhd-cloud-extras'),presenceEl=q('mmhd-cloud-presence'),historyEl=q('mmhd-cloud-history'),backupsEl=q('mmhd-cloud-backups');
+ const extra=q('mmhd-cloud-extras'),presenceEl=document.getElementById('mmhd-connected-header-text'),historyEl=document.getElementById('mmhd-history-page-content'),backupsEl=q('mmhd-cloud-backups');
+ const topPresence=document.getElementById('mmhd-connected-header');
+ const historyRefresh=document.getElementById('mmhd-history-refresh');
+ historyRefresh.addEventListener('click',()=>{lastExtraFetch=0;void loadExtras(true)});
+ document.addEventListener('click',e=>{if(e.target.closest('[data-view="history"]'))queueMicrotask(()=>{lastExtraFetch=0;void loadExtras(true)})});
  let extraWorking=false,lastExtraFetch=0;
  const safe=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const showDate=(s)=>{try{return new Date(s).toLocaleString('es-MX');}catch(_){return String(s||'')}};
@@ -5400,7 +5419,17 @@ renderCollection();
      const d=await request('GET','/api/library?extra=1');lastExtraFetch=Date.now();
      const names=d.admins||{};const label=id=>names[id]||String(id||'Desconocido').slice(0,8);
      const live=(d.presence||[]).filter(x=>Date.now()-new Date(x.last_seen).getTime()<60000);
-     presenceEl.innerHTML=live.length?live.map(x=>'<div style="padding:4px 0">🟢 '+safe(label(x.user_id))+(x.user_id===d.me?' (tú)':'')+(x.current_title?' · Editando: <strong>'+safe(x.current_title)+'</strong>':' · Conectado')+'</div>').join(''):'No hay administradores activos en el último minuto.';
+     topPresence.classList.toggle('mmhd-connected-active',true);
+     topPresence.querySelector('.mmhd-admin-popover')?.remove();
+     presenceEl.replaceChildren();
+     if(!live.length){presenceEl.textContent='Sin administradores activos';topPresence.title='No se detectó actividad durante el último minuto';}
+     else{
+       presenceEl.textContent=live.length+' conectado'+(live.length===1?'':'s');
+       topPresence.title=live.map(x=>label(x.user_id)+(x.user_id===d.me?' (tú)':'')+(x.current_title?' · Editando: '+x.current_title:' · Conectado')).join('\n');
+       const details=document.createElement('div');details.className='mmhd-admin-popover';
+       live.forEach(x=>{const line=document.createElement('div');line.textContent='🟢 '+label(x.user_id)+(x.user_id===d.me?' (tú)':'')+(x.current_title?' · Editando: '+x.current_title:' · Conectado');details.append(line)});
+       topPresence.querySelector('.mmhd-admin-popover')?.remove();topPresence.append(details);
+     }
      const history=d.history||[];
      historyEl.replaceChildren();
      if(!history.length)historyEl.textContent='No hay ediciones registradas desde la instalación del historial.';
@@ -5412,7 +5441,7 @@ renderCollection();
        const title=document.createElement('strong');title.textContent=String(x.title||x.item_id)+(x.year?' ('+x.year+')':'');
        const who=document.createElement('div');who.style.cssText='font-size:12px;opacity:.84;margin-top:3px';who.textContent=showDate(x.changed_at)+' · '+label(x.actor)+' · '+String(x.operation||'');
        meta.append(title,who);
-       if(Array.isArray(x.fields)&&x.fields.length){const fields=document.createElement('div');fields.style.cssText='font-size:12px;color:#a6c9e9;margin-top:3px';fields.textContent='Cambios: '+x.fields.join(', ');meta.append(fields);}
+       if(Array.isArray(x.fields)){const visibleFields=x.fields.filter(f=>!/^updatedat$/i.test(String(f).trim()));if(visibleFields.length){const fields=document.createElement('div');fields.style.cssText='font-size:12px;color:#a6c9e9;margin-top:3px';fields.textContent='Cambios: '+visibleFields.join(', ');meta.append(fields);}}
        desc.append(meta);
        const button=document.createElement('button');button.className='secondary';button.type='button';button.textContent='Deshacer cambio';
        button.addEventListener('click',async()=>{
@@ -5527,7 +5556,7 @@ renderCollection();
      const h=await request('GET','/api/library?head=1');if(h.revision!==revision){await fullRefresh();msg('✓ Biblioteca actualizada automáticamente · versión '+revision);}
    }catch(e){msg('Conexión interrumpida: '+e.message+'. Los cambios locales permanecen disponibles.',true)}
  }
- function connectedUI(on){extra.style.display=on?'block':'none';connected=on;if(on){void heartbeat();void loadExtras(true);}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
+ function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Herramientas para ver administradores activos';topPresence.querySelector('.mmhd-admin-popover')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Herramientas para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
  async function logout(){connectedUI(false);forgetSession();token=null;refreshToken=null;base.clear();revision=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
  remember.addEventListener('change',()=>{if(connected)saveSession();else if(!remember.checked)forgetSession()});
  async function resumeSavedSession(){
@@ -5593,7 +5622,7 @@ renderCollection();
 (function(){
   const navButtons=[...document.querySelectorAll('.rail-link[data-view]')];
   const views=[...document.querySelectorAll('.admin-view[data-page]')];
-  const navTitles={overview:'Resumen',analytics:'Estadísticas',library:'Mi biblioteca',editor:'Agregar / editar',requests:'Solicitudes',pending:'Pendientes',diagnostic:'Diagnóstico',review:'Revisiones TXT',appearance:'Personalización',tools:'Herramientas'};
+  const navTitles={overview:'Resumen',analytics:'Estadísticas',library:'Mi biblioteca',editor:'Agregar / editar',requests:'Solicitudes',pending:'Pendientes',diagnostic:'Diagnóstico',review:'Revisiones TXT',appearance:'Personalización',history:'Historial de modificaciones',tools:'Herramientas'};
   function setPanelView(name){
     if(!navTitles[name])name='overview';
     views.forEach(el=>{el.hidden=el.dataset.page!==name});
