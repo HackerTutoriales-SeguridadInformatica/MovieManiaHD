@@ -20,6 +20,25 @@ module.exports = async function handler(req,res) {
    const a=await read('mmhd_library_admins?select=user_id&user_id=eq.'+encodeURIComponent(user.id));
    if(!a.length)return res.status(403).json({error:'Sin permisos de administración'});
    const p=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
+   if(p.action==='inspect'){
+     const id=String(p.id||'');if(!id||id.length>120)return res.status(400).json({error:'ID inválido'});
+     const [live,publicRows]=await Promise.all([
+       read('mmhd_library_items?select=item&id=eq.'+encodeURIComponent(id)+'&limit=1'),
+       read('mmhd_public_snapshots?select=item,approved_at,approved_by&id=eq.'+encodeURIComponent(id)+'&limit=1')
+     ]);
+     return res.status(200).json({draft:live[0]?.item||null,published:publicRows[0]?.item||null,approvedAt:publicRows[0]?.approved_at||null});
+   }
+   if(p.action==='history'){
+     const rows=await read('mmhd_public_history?select=id,item_id,operation,actor,changed_at,before_item,after_item&order=id.desc&limit=40');
+     return res.status(200).json({entries:rows});
+   }
+   if(p.action==='rollback'){
+     if(!Number.isSafeInteger(p.historyId)||!String(p.itemId||'')||String(p.itemId).length>120)return res.status(400).json({error:'Datos inválidos'});
+     const current=await read('mmhd_public_snapshots?select=item&id=eq.'+encodeURIComponent(String(p.itemId))+'&limit=1');
+     if(!current.length)return res.status(409).json({error:'La versión pública ya no existe'});
+     const result=await read('rpc/mmhd_public_rollback','POST',{p_history_id:p.historyId,p_expected_snapshot:current[0].item,p_actor:user.id});
+     return res.status(result.ok?200:409).json(result);
+   }
    if(p.action==='publish'){
      const ids=Array.isArray(p.ids)?[...new Set(p.ids.map(String))]:[];
      if(!ids.length||ids.length>100||ids.some(id=>!id||id.length>120))return res.status(400).json({error:'Identificadores inválidos; máximo 100 por lote'});
