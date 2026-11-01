@@ -4007,11 +4007,7 @@ function getPlayerHtml(movie, autoNext=false, retryPreference=null){
     + mmhdMakeFullscreenMenuLayerScript()
     + (autoNext && movie.parentSeriesId!=null ? buildNextEpisodeAutostartScript() : "")
     + (nextEpisode?.status==="ready" ? buildNextEpisodeBannerScript(movie,nextEpisode) : "");
-  return /<\/body\s*>/i.test(html)
-  ? html.replace(/<\/body\s*>/i, function(match) {
-      return scriptTag + match;
-    })
-  : html + scriptTag;
+  return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"</body>") : html+scriptTag;
 }
 
 /* ============================================================
@@ -7841,5 +7837,6 @@ syncBackToTop();
 })();
 </script>
 <script src="/public-sync.js" defer></script>
+<script src="/airplay.js?v=20261101a" defer></script>
 </body>
 </html>
