@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#080d1b">
+<title>MMHD · Laboratorio de AirPlay</title>
+<style>
+  :root{--bg:#080d1b;--surface:#111a2c;--surface2:#17243a;--line:#2b405d;--ink:#ecf4ff;--muted:#9bb0cb;--blue:#3d85ff;--good:#34d399;--warn:#ffc66d;--bad:#fa8181}
+  *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% -15%,#20385c 0%,transparent 47%),var(--bg);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);min-height:100vh}
+  button,input,textarea{font:inherit} button{touch-action:manipulation} button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+  .wrap{max-width:1190px;margin:auto;padding:26px 18px 65px}.head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:19px;flex-wrap:wrap}.brand{font-size:13px;letter-spacing:.17em;font-weight:900;color:#ff4b78}.title{font-size:clamp(25px,3.4vw,39px);font-weight:850;letter-spacing:-.035em;margin:5px 0 4px}.sub{color:var(--muted);font-size:14px;margin:0;max-width:820px;line-height:1.5}.chip{border:1px solid #3b5576;border-radius:50px;padding:8px 12px;font-size:12px;color:#c2d5ed;background:#111e32;white-space:nowrap}
+  .panel{background:rgba(17,26,44,.97);border:1px solid var(--line);border-radius:17px;padding:17px}.layout{display:grid;grid-template-columns:minmax(260px, 340px) minmax(0,1fr);gap:16px}.stack{display:flex;flex-direction:column;gap:13px}.eyebrow{font-size:11px;color:#89a5c7;letter-spacing:.11em;font-weight:800;text-transform:uppercase;margin:0 0 10px}.source{width:100%;text-align:left;padding:12px 13px;margin:0 0 7px;background:#121f33;color:var(--ink);border:1px solid #29405b;border-radius:11px;cursor:pointer;display:flex;justify-content:space-between;gap:9px;align-items:center}.source:hover,.source:focus-visible{border-color:#77a5f6}.source.active{background:#19375c;border:1px solid #5c9df9;box-shadow:inset 3px 0 0 var(--blue)}.s-name{font-weight:730;font-size:13px}.s-desc{display:block;color:#a9bed7;font-size:11px;margin-top:3px;line-height:1.35}.tiny{font-size:10px;color:#8eaaca;border:1px solid #3a5270;border-radius:40px;padding:4px 7px;white-space:nowrap}.source.active .tiny{color:#e3f3ff}.help{font-size:12px;color:var(--muted);line-height:1.52;margin:8px 0 0}.custom-label{font-size:12px;color:#cfdef0;display:block;margin:13px 0 7px}input[type=url]{width:100%;padding:12px;background:#081222;border:1px solid #385171;color:white;border-radius:9px;font-size:13px;min-width:0}input::placeholder{color:#7789a4}
+  .action{border:1px solid #3d5878;background:#1b2d49;color:#eaf3ff;border-radius:10px;padding:11px 13px;cursor:pointer;font-size:13px;font-weight:730;line-height:1.3;min-height:42px}.action:active{transform:scale(.99)}.action:hover{filter:brightness(1.15)}.action.primary{background:#2c6ad1;border-color:#5598fd;color:#fff}.action.green{background:#135a4c;border-color:#238b72}.action:disabled{opacity:.42;cursor:not-allowed}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}.actions>.action{flex:1 1 140px}.videoframe{background:black;border-radius:12px;overflow:hidden;border:1px solid #334663;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}video{width:100%;height:100%;display:block;background:#000;max-height:68vh}
+  .video-title{display:flex;gap:10px;justify-content:space-between;align-items:start;margin-bottom:12px}.video-title h2{font-size:16px;margin:0 0 3px}.video-title p{font-size:12px;line-height:1.4;color:var(--muted);margin:0;overflow-wrap:anywhere}
+  .msg{margin-top:12px;padding:11px 12px;border:1px solid #345277;border-radius:9px;color:#bad8ff;background:#122841;font-size:13px;line-height:1.45}.msg.good{border-color:#226d5b;background:#102e2a;color:#c2fae2}.msg.warn{border-color:#755936;background:#2b2418;color:#ffdfac}.msg.bad{border-color:#7e4447;background:#2e171e;color:#ffd0d0}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:13px}.metric{background:#101e32;border:1px solid #29405c;border-radius:10px;padding:9px;min-width:0}.metric label{color:#9fb8d5;font-size:11px;display:block;margin-bottom:7px}.metric .value{font-size:14px;font-weight:760;overflow-wrap:anywhere}.value.good{color:var(--good)}.value.warn{color:var(--warn)}.value.bad{color:var(--bad)}
+  .minor-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;margin-top:16px}.log{height:235px;overflow:auto;background:#0a1424;border-radius:10px;border:1px solid #29405b;padding:11px;color:#c0d0e5;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.log-line{padding:2px 0;border-bottom:1px solid #1f3046}.log-time{color:#91a9c6}.resultrow{display:flex;gap:8px;flex-wrap:wrap}.resultrow button{flex:1 1 120px}.results{margin-top:10px;max-height:150px;overflow:auto;font-size:12px;color:#b8cde5}.result-item{padding:8px 0;border-bottom:1px solid #29405b}.foot{font-size:12px;color:#95aac4;line-height:1.6;padding:15px 3px}.foot strong{color:#e2eaf7}.hidden{display:none!important}a{color:#86b5ff} .hr{height:1px;background:var(--line);margin:13px 0}
+  @media(max-width:830px){.layout{grid-template-columns:1fr}.sources-inner{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.sources-inner>.source{margin:0}.minor-grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}.video-title{flex-wrap:wrap}}
+  @media(max-width:480px){.wrap{padding:18px 12px 50px}.panel{padding:13px}.sources-inner{grid-template-columns:1fr}.metric .value{font-size:13px}.action{font-size:12px}.videoframe{aspect-ratio:16/10}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head"><div><div class="brand">MOVIE MANIA HD · HERRAMIENTAS DE PRUEBA</div><h1 class="title">Laboratorio de AirPlay</h1><p class="sub">Prueba tus enlaces de Google Fotos directamente en Safari y luego en Roku. No cambia el catálogo, el reproductor oficial ni Chromecast.</p></div><span class="chip">Prueba independiente · v1.0</span></header>
+  <div class="layout">
+    <section class="panel" aria-labelledby="srcTitle">
+      <h2 id="srcTitle" class="eyebrow">1. Seleccionar fuente</h2>
+      <div id="sourceList" class="sources-inner"></div>
+      <label class="custom-label" for="customUrl">O pega otro enlace directo</label>
+      <input type="url" id="customUrl" spellcheck="false" autocomplete="off" placeholder="https://servidor.com/video.mp4">
+      <div class="actions"><button class="action" id="btnCustom" type="button">Probar mi enlace</button></div>
+      <p class="help"><strong>Importante:</strong> los enlaces <code>photos.google.com/share</code> y <code>photos.app.goo.gl</code> apuntan a páginas web, no necesariamente a un archivo reproducible con &lt;video&gt;. Los probaremos para comprobarlo, pero el enlace directo es el que más nos interesa.</p>
+    </section>
+    <section class="panel" aria-labelledby="vidTitle">
+      <div class="video-title"><div><h2 id="vidTitle">2. Reproducir y transmitir</h2><p id="selectedInfo">Selecciona una fuente para comenzar.</p></div><span class="chip" id="airplaySupport">Detectando Safari…</span></div>
+      <div class="videoframe"><video id="player" playsinline webkit-playsinline x-webkit-airplay="allow" preload="metadata" controls controlslist="nodownload" aria-label="Reproductor de prueba AirPlay"></video></div>
+      <div class="actions">
+        <button class="action primary" id="btnPlay" type="button">▶ Reproducir</button>
+        <button class="action" id="btnPause" type="button">Ⅱ Pausar</button>
+        <button class="action green" id="btnAirplay" type="button">▣ Elegir TV AirPlay</button>
+        <button class="action" id="btnOpen" type="button">↗ Abrir enlace</button>
+      </div>
+      <div class="msg" id="mainStatus" role="status" aria-live="polite">Selecciona primero una fuente. La duración por sí sola no confirma que el video se reproduzca.</div>
+      <div class="metrics">
+        <div class="metric"><label>Metadatos / duración</label><div class="value" id="mMeta">Sin datos</div></div>
+        <div class="metric"><label>Primer fotograma</label><div class="value" id="mFrame">Sin confirmar</div></div>
+        <div class="metric"><label>Reproducción / avance</label><div class="value" id="mPlaying">Sin iniciar</div></div>
+        <div class="metric"><label>AirPlay / Roku</label><div class="value" id="mWireless">Sin conectar</div></div>
+      </div>
+      <p class="help">Para comprobar imagen real, reproduce unos segundos en Safari antes de elegir la TV. Si AirPlay conecta y Roku queda cargando, registra ese resultado; el navegador no puede confirmar si el Roku descargó el archivo.</p>
+    </section>
+  </div>
+  <div class="minor-grid">
+    <section class="panel"><h2 class="eyebrow">3. Diagnóstico de la fuente</h2><div id="eventLog" class="log" aria-live="off"></div><div class="actions"><button id="btnCopy" class="action" type="button">Copiar diagnóstico</button><button id="btnDownload" class="action" type="button">Descargar diagnóstico .json</button><button id="btnClearLog" class="action" type="button">Limpiar registro</button></div><p class="help">El diagnóstico identifica cada fuente por su etiqueta; no incluye el enlace completo ni el token de Google Fotos.</p></section>
+    <section class="panel"><h2 class="eyebrow">4. ¿Qué pasó en Roku?</h2><p class="help" style="margin-top:0">Marca el resultado después de probar cada enlace en la TV. El navegador no puede detectar por sí solo si el Roku muestra imagen.</p><div class="resultrow"><button class="action green" type="button" data-result="video_y_audio">✓ Video + audio</button><button class="action" type="button" data-result="solo_audio">♪ Solo audio</button><button class="action" type="button" data-result="cargando">◌ Sigue cargando</button><button class="action" type="button" data-result="no_conecta">× No conecta</button></div><div id="resultList" class="results">Todavía no hay resultados.</div><div class="actions"><button class="action" id="btnClearResults" type="button">Borrar resultados</button></div></section>
+  </div>
+  <p class="foot"><strong>Cómo usar:</strong> 1) Abre esta página en Safari del iPad. 2) Selecciona <b>=dv</b> o una calidad web. 3) Pulsa Reproducir y observa si se mueve el video. 4) Pulsa Elegir TV AirPlay y elige Roku RC. 5) Marca el resultado. 6) Repite con otra fuente y descarga el diagnóstico. <strong>Privacidad:</strong> si subes esta página a un repositorio público, sus enlaces compartidos quedan visibles en el código; elimina la página después de terminar las pruebas. No guarda nada en servidores propios.</p>
+</div>
+<script>
+(function(){
+  'use strict';
+  // Los enlaces de este laboratorio fueron proporcionados por el propietario de la biblioteca.
+  const directBase='https://lh3.googleusercontent.com/pw/AP1GczPv_Pqnol3vkXycdUlJJwCrnr1kQdGDN5xGVs5b1n2R-dOshhoT5M8kgmGEipL6ht1ngjs5dGEAy5hfXCkQR0pf8pZbdiFuIYY96bTHHXY8l19vE-s=';
+  const sources=[
+    {id:'dv',name:'Google Photos · =dv',desc:'Archivo original · el usado por Chromecast',tag:'DIRECTO',url:directBase+'dv',kind:'video'},
+    {id:'m37',name:'Google Photos · =m37',desc:'Versión web 1080p, si está disponible',tag:'DIRECTO',url:directBase+'m37',kind:'video'},
+    {id:'m22',name:'Google Photos · =m22',desc:'Variante derivada · calidad web 720p',tag:'VARIANTE',url:directBase+'m22',kind:'video'},
+    {id:'m18',name:'Google Photos · =m18',desc:'Variante derivada · calidad web 360/420p',tag:'VARIANTE',url:directBase+'m18',kind:'video'},
+    {id:'share-full',name:'Google Photos · Compartido largo',desc:'Página compartida · no es URL de video directa',tag:'PÁGINA',url:'https://photos.google.com/share/AF1QipM9DYWqie1eTWG9HDTw2UQcjtIMyEZc7RrWfe_JVKm7yl8sDpW_7KzdloUC3wog8w/photo/AF1QipOORBtQ3JLe-v-7-uIPjgBn01tSpMlD1BFaXu7M?key=eGxLYXNOXzlLMENaek9wQVhxdS04NXc2MnpOZTR3',kind:'page'},
+    {id:'share-short',name:'Google Photos · Enlace corto',desc:'Redirección a Google Fotos · no es video directo',tag:'PÁGINA',url:'https://photos.app.goo.gl/NSAVi5QZ5uERaBxCA',kind:'page'}
+  ];
+  const byId=(id)=>document.getElementById(id);const video=byId('player');
+  let current=null,session=0,startedAt=Date.now(),events=[],results=[],flags={},lastTime=0,frameHandler=null;
+  const errors={1:'Reproducción cancelada',2:'Error de red',3:'Error de decodificación',4:'Formato o fuente no admitidos'};
+  const nfmt=(n)=>Number.isFinite(n)?n.toFixed(1):'desconocida';
+  function stamp(){return new Date().toLocaleTimeString('es-MX',{hour12:false});}
+  function log(message){const entry={time:stamp(),source:current?.id||'ninguna',text:String(message)};events.push(entry);if(events.length>200)events.shift();renderLog();}
+  function renderLog(){const el=byId('eventLog');el.replaceChildren();for(const item of events){const line=document.createElement('div');line.className='log-line';const tm=document.createElement('span');tm.className='log-time';tm.textContent='['+item.time+'] ';line.append(tm,document.createTextNode('['+item.source+'] '+item.text));el.appendChild(line);}el.scrollTop=el.scrollHeight;}
+  function status(s,type=''){const el=byId('mainStatus');el.className='msg '+type;el.textContent=s;}
+  function metric(id,s,type=''){const x=byId(id);x.textContent=s;x.className='value '+type;}
+  function resetMetrics(){flags={metadata:false,frame:false,playing:false,advancing:false};lastTime=0;metric('mMeta','Esperando…');metric('mFrame','Sin confirmar');metric('mPlaying','Sin iniciar');metric('mWireless',video.webkitCurrentPlaybackTargetIsWireless?'Conectado':'Sin conectar',video.webkitCurrentPlaybackTargetIsWireless?'good':'');}
+  function renderSources(){const el=byId('sourceList');el.replaceChildren();for(const s of sources){const b=document.createElement('button');b.type='button';b.className='source'+(current?.id===s.id?' active':'');b.setAttribute('aria-pressed',String(current?.id===s.id));const left=document.createElement('span'),nm=document.createElement('span'),ds=document.createElement('span'),tg=document.createElement('span');nm.className='s-name';nm.textContent=s.name;ds.className='s-desc';ds.textContent=s.desc;tg.className='tiny';tg.textContent=s.tag;left.append(nm,ds);b.append(left,tg);b.addEventListener('click',()=>choose(s));el.appendChild(b);}}
+  function choose(s){
+    if(video.webkitCurrentPlaybackTargetIsWireless){status('Primero desconecta AirPlay desde el selector del iPad antes de cambiar de fuente.','warn');return;}
+    session++;current=s;resetMetrics();video.pause();video.removeAttribute('src');video.load();renderSources();byId('selectedInfo').textContent=s.name+(s.kind==='page'?' · página compartida (no archivo MP4)':' · enlace directo o variante');
+    if(s.url){video.src=s.url;video.load();}log('Fuente seleccionada ('+s.kind+').');
+    status(s.kind==='page'?'Esta dirección abre una página de Google Fotos, no un archivo MP4. Puedes intentar cargarla en el reproductor o usar «Abrir enlace».':'Fuente cargada. Pulsa Reproducir, espera a ver imagen en movimiento y luego prueba AirPlay.',s.kind==='page'?'warn':'');
+    if(frameHandler&&typeof video.cancelVideoFrameCallback==='function'){try{video.cancelVideoFrameCallback(frameHandler);}catch(e){} frameHandler=null;}
+    if(typeof video.requestVideoFrameCallback==='function'){const token=session;try{frameHandler=video.requestVideoFrameCallback((_now,metadata)=>{if(token!==session)return;flagFrame('Fotograma decodificado (videoFrameCallback)');log('Fotograma renderizado: #'+metadata.presentedFrames);});}catch(e){log('requestVideoFrameCallback no disponible: '+e.message);}}
+  }
+  function flagFrame(source){if(!flags.frame){flags.frame=true;metric('mFrame','Detectado','good');log(source);}}
+  function meta(){flags.metadata=true;metric('mMeta',nfmt(video.duration)+' s', 'good');log('Metadatos: duración '+nfmt(video.duration)+' s; resolución '+video.videoWidth+'×'+video.videoHeight+'. NO confirma fotograma.');}
+  function err(){const code=video.error?.code||0;const msg=errors[code]||'Error desconocido';status('Safari reporta: '+msg+'. La URL puede ser una página, redirigir, haber caducado o no ser compatible.','bad');log('ERROR MEDIA '+code+': '+msg);metric('mPlaying','Error '+code,'bad');}
+  video.addEventListener('loadstart',()=>log('Solicitud de video iniciada.'));
+  video.addEventListener('loadedmetadata',meta);
+  video.addEventListener('loadeddata',()=>flagFrame('Primer fotograma disponible (loadeddata).'));
+  video.addEventListener('canplay',()=>log('canplay: hay datos para empezar (no garantiza Roku).'));
+  video.addEventListener('playing',()=>{flags.playing=true;metric('mPlaying','Reproduciendo','good');status('Safari inició reproducción. Observa la imagen y el tiempo; ahora puedes probar AirPlay.','good');log('playing.');});
+  video.addEventListener('pause',()=>{if(!video.ended){metric('mPlaying',flags.advancing?'Pausado (avanzó)':'Pausado','warn');log('pause.');}});
+  video.addEventListener('waiting',()=>{status('Safari está esperando datos del video. Si persiste, prueba otra URL.','warn');log('waiting: esperando datos.');});
+  video.addEventListener('stalled',()=>{status('Carga estancada; la duración no garantiza reproducción.','warn');log('stalled: transferencia detenida.');});
+  video.addEventListener('error',err);
+  video.addEventListener('timeupdate',()=>{if(video.currentTime>lastTime+0.45){if(!flags.advancing){flags.advancing=true;metric('mPlaying','Avanza '+nfmt(video.currentTime)+'s','good');log('Avance real del tiempo detectado.');}lastTime=video.currentTime;}});
+  video.addEventListener('durationchange',()=>{if(video.duration&&Number.isFinite(video.duration)&&!flags.metadata)meta();});
+  video.addEventListener('ended',()=>{metric('mPlaying','Finalizado','good');log('ended.');});
+  video.addEventListener('webkitplaybacktargetavailabilitychanged',(e)=>{const available=e.availability==='available';byId('airplaySupport').textContent=available?'AirPlay disponible':'AirPlay no detectado';log('AirPlay: dispositivos '+e.availability);});
+  video.addEventListener('webkitcurrentplaybacktargetiswirelesschanged',()=>{const connected=!!video.webkitCurrentPlaybackTargetIsWireless;metric('mWireless',connected?'AirPlay conectado':'Sin conectar',connected?'good':'');log('AirPlay '+(connected?'conectado a destino inalámbrico':'desconectado')+'.');if(connected)status('AirPlay conectado. Comprueba si el Roku muestra IMAGEN + audio o si queda cargando. Registra el resultado manualmente.','warn');});
+  byId('btnPlay').addEventListener('click',async()=>{if(!current){status('Selecciona una fuente de video.','warn');return;}try{await video.play();log('play() aceptado por Safari.');}catch(e){status('Safari no pudo iniciar: '+e.name+' — '+e.message,'bad');log('play() rechazado: '+e.name+' '+e.message);}});
+  byId('btnPause').addEventListener('click',()=>{video.pause();});
+  byId('btnAirplay').addEventListener('click',()=>{if(!current){status('Selecciona una fuente antes de usar AirPlay.','warn');return;}if(typeof video.webkitShowPlaybackTargetPicker!=='function'){status('Este navegador no ofrece el selector AirPlay de Safari. Usa Safari en tu iPad/iPhone/Mac.','warn');log('Sin API de selector AirPlay.');return;}try{video.webkitShowPlaybackTargetPicker();log('Selector nativo AirPlay abierto por el usuario.');}catch(e){status('No se pudo abrir AirPlay: '+e.message,'bad');log('Error AirPlay: '+e.message);}});
+  byId('btnOpen').addEventListener('click',()=>{if(!current){status('Selecciona una fuente.','warn');return;}window.open(current.url,'_blank','noopener,noreferrer');log('El usuario abrió la URL original en otra pestaña.');});
+  byId('btnCustom').addEventListener('click',()=>{const raw=byId('customUrl').value.trim();let url;try{url=new URL(raw);if(!['https:','http:'].includes(url.protocol))throw new Error('El protocolo debe ser HTTPS o HTTP.');}catch(e){status('Introduce una URL válida que empiece por https://','bad');return;}choose({id:'personalizada',name:'Enlace personalizado',desc:'URL pegada por el usuario',kind:'video',url:url.href,tag:'TU URL'});});
+  function record(kind){if(!current){status('Selecciona una fuente y realiza una prueba.','warn');return;}const item={fecha:new Date().toISOString(),fuente:current.id,resultadoRoku:kind,duracionSegundos:Number.isFinite(video.duration)?+video.duration.toFixed(1):null,dimensiones:video.videoWidth&&video.videoHeight?video.videoWidth+'x'+video.videoHeight:null,metadatos:!!flags.metadata,fotograma:!!flags.frame,tiempoAvanzo:!!flags.advancing,safariReprodujo:!!flags.playing,errorMedio:video.error?.code||null,airplayConectado:!!video.webkitCurrentPlaybackTargetIsWireless};results.push(item);renderResults();log('RESULTADO MANUAL ROKU: '+kind);status('Resultado registrado para '+current.name+'. Selecciona otra fuente y repite.','good');}
+  document.querySelectorAll('[data-result]').forEach(b=>b.addEventListener('click',()=>record(b.dataset.result)));
+  function renderResults(){const el=byId('resultList');el.replaceChildren();if(!results.length){el.textContent='Todavía no hay resultados.';return;}results.forEach((r,i)=>{const d=document.createElement('div');d.className='result-item';d.textContent=(i+1)+'. '+r.fuente+' — '+({'video_y_audio':'✓ Video y audio','solo_audio':'♪ Solo audio','cargando':'◌ Cargando','no_conecta':'× No conecta'}[r.resultadoRoku]||r.resultadoRoku)+' · Safari: '+(r.tiempoAvanzo?'avanzó':'sin avance confirmado');el.appendChild(d);});}
+  function diagnostic(){return {herramienta:'MMHD Laboratorio AirPlay',version:'1.0',fecha:new Date().toISOString(),navegador:navigator.userAgent,fuenteActual:current?.id||null,estadoActual:{duracion:Number.isFinite(video.duration)?video.duration:null,readyState:video.readyState,networkState:video.networkState,videoWidth:video.videoWidth,videoHeight:video.videoHeight,currentTime:video.currentTime,flags,mediaError:video.error?.code||null,airplayWireless:!!video.webkitCurrentPlaybackTargetIsWireless},resultados:results,eventos:events};}
+  byId('btnCopy').addEventListener('click',async()=>{const data=JSON.stringify(diagnostic(),null,2);try{await navigator.clipboard.writeText(data);status('Diagnóstico copiado. Puedes pegarlo en la conversación.','good');}catch(e){const ta=document.createElement('textarea');ta.value=data;ta.style.position='fixed';ta.style.opacity='0';document.body.append(ta);ta.focus();ta.select();let ok=false;try{ok=document.execCommand('copy');}catch(_){}ta.remove();status(ok?'Diagnóstico copiado.':'La copia fue bloqueada. Usa «Descargar diagnóstico .json».',ok?'good':'warn');}});
+  byId('btnDownload').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(diagnostic(),null,2)],{type:'application/json;charset=utf-8'});const href=URL.createObjectURL(blob);const a=document.createElement('a');a.href=href;a.download='MMHD-AirPlay-Diagnostico-'+new Date().toISOString().slice(0,10)+'.json';a.style.display='none';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),30000);status('Diagnóstico preparado para descargar.','good');});
+  byId('btnClearResults').addEventListener('click',()=>{results=[];renderResults();log('Resultados manuales borrados.');});
+  byId('btnClearLog').addEventListener('click',()=>{events=[];renderLog();log('Registro reiniciado.');});
+  byId('airplaySupport').textContent=typeof video.webkitShowPlaybackTargetPicker==='function'?'Safari · selector AirPlay':'Selector AirPlay no disponible';
+  renderSources();choose(sources[0]);log('Laboratorio iniciado. Selecciona fuente y reproduce antes de transmitir.');
+})();
+</script>
+</body>
+</html>
