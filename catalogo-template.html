@@ -12,7 +12,7 @@
   function mmhdTrackAnalytics(eventName, details){
     if (typeof gtag !== 'function' || !navigator.onLine) return;
     gtag('event', eventName, details || {});
-  }a
+  }
 </script>
 <meta name="referrer" content="no-referrer" />
 <meta charset="UTF-8">
@@ -4007,7 +4007,7 @@ function getPlayerHtml(movie, autoNext=false, retryPreference=null){
     + mmhdMakeFullscreenMenuLayerScript()
     + (autoNext && movie.parentSeriesId!=null ? buildNextEpisodeAutostartScript() : "")
     + (nextEpisode?.status==="ready" ? buildNextEpisodeBannerScript(movie,nextEpisode) : "");
-  return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"</body>") : html+scriptTag;
+  return /<\/body\s*>/i.test(html) ? html : html+scriptTag;
 }
 
 /* ============================================================
