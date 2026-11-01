@@ -5606,25 +5606,87 @@ renderCollection();
  );
  publicSelect.addEventListener('change',paintPublicList);
  q('mmhd-public-reload').addEventListener('click',()=>void loadPublicList());
- // Comparador: solo muestra nombres de campos y vistas previas de textos; nunca imprime URLs privadas.
- const protectedFields=/^(m37|m22|m18|subtitlesUrl|subtitleTracks|seasons|sources|video|audio|episodes|m37En|m22En|m18En)/i;
+ // Comparador visual sin URLs privadas ni dependencias nuevas.
+ const pubStyles=document.createElement('style');pubStyles.textContent=`
+ #mmhd-pub-diff .mmhd-visual-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+ #mmhd-pub-diff .mmhd-posterpair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:10px 0 15px}
+ #mmhd-pub-diff .mmhd-poster-card{background:#101c2c;border:1px solid #36506b;border-radius:12px;padding:10px;min-width:0}
+ #mmhd-pub-diff .mmhd-poster-card img{width:92px;max-width:100%;height:138px;object-fit:cover;border-radius:8px;border:1px solid #47617d;display:block;margin:8px auto}
+ #mmhd-pub-diff .mmhd-poster-placeholder{height:138px;display:grid;place-items:center;color:#9cb0c9;font-size:12px}
+ #mmhd-pub-diff .mmhd-diff-section{border:1px solid #31465f;border-radius:11px;padding:11px;margin:9px 0;background:#0c1928}
+ #mmhd-pub-diff .mmhd-diff-section h5{font-size:13px;margin:0 0 9px;color:#dbeaff}
+ #mmhd-pub-diff .mmhd-diff-row{border-top:1px solid #28384c;padding:7px 0;font-size:12px;overflow-wrap:anywhere}
+ #mmhd-pub-diff .mmhd-diff-label{display:block;color:#a2b7d5;font-weight:700;margin-bottom:3px}
+ #mmhd-pub-diff .mmhd-diff-pill{display:inline-block;padding:3px 8px;border-radius:7px;margin:2px 3px 2px 0;background:#1b3654;color:#d8e9ff;font-size:11px}
+ #mmhd-pub-diff .mmhd-diff-old{color:#f6b3b3}#mmhd-pub-diff .mmhd-diff-new{color:#8af0b6}
+ #mmhd-pub-diff .mmhd-diff-note{font-size:12px;color:#b3c5db;line-height:1.6}
+ @media(max-width:480px){#mmhd-pub-diff .mmhd-posterpair{gap:6px}#mmhd-pub-diff .mmhd-poster-card{padding:6px}}
+ `;document.head.append(pubStyles);
+ const node=(tag,cls,txt)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(txt!==undefined)el.textContent=String(txt);return el;};
+ const present=x=>x!==undefined&&x!==null&&String(x).trim()!=='';
+ const val=x=>{if(!present(x))return 'Sin configurar';if(Array.isArray(x))return x.length+' elemento(s)';if(typeof x==='object')return 'Configurado';return String(x).slice(0,210);};
+ const eq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+ const posterURL=x=>{const s=String(x||'').trim();if(/^https:\/\/image\.tmdb\.org\/t\/p\//i.test(s)||/^https:\/\/[\w.-]+\.tmdb\.org\//i.test(s))return s;return '';};
+ const pair=(section,label,oldValue,newValue,isNew)=>{
+   const line=node('div','mmhd-diff-row');line.append(node('span','mmhd-diff-label',label));
+   if(!isNew){line.append(node('span','mmhd-diff-old','Antes: '+val(oldValue)));line.append(node('span','','  →  '));}
+   line.append(node('span','mmhd-diff-new',(isNew?'Configurado: ':'Ahora: ')+val(newValue)));section.append(line);
+ };
+ const fields=[['title','Título'],['originalTitle','Título original'],['year','Año'],['overview','Sinopsis'],['genres','Géneros'],['rating','Calificación'],['runtime','Duración'],['cert','Clasificación'],['platforms','Plataformas'],['primaryLanguage','Idioma principal'],['logo','Logo'],['backdrop','Fondo'],['poster','Portada']];
+ const sourceKeys=[['m37','Latino · 1080p'],['m22','Latino · 720p'],['m18','Latino · 420p'],['m37En','Inglés · 1080p'],['m22En','Inglés · 720p'],['m18En','Inglés · 420p']];
+ function trackList(x){const arr=Array.isArray(x?.subtitleTracks)?x.subtitleTracks:[];return arr.map(t=>String(t?.language||t?.lang||t?.label||t?.name||'Pista')+' · '+(t?.url||t?.src||t?.subtitlesUrl?'archivo configurado':'sin URL'));}
+ function episodesCount(x){const seasons=Array.isArray(x?.seasons)?x.seasons:[];return {seasons:seasons.length,episodes:seasons.reduce((n,s)=>n+(Array.isArray(s?.episodes)?s.episodes.length:0),0)};}
+ function visualCompare(d,output){
+   const old=d.published&&typeof d.published==='object'?d.published:null,latest=d.draft&&typeof d.draft==='object'?d.draft:null;
+   if(!latest){output.append(node('p','mmhd-diff-note','No se recibió la versión administrativa para comparar.'));return;}
+   const isNew=!old;
+   const h=node('div','mmhd-visual-head');h.append(node('span','',isNew?'🆕':'📝'));
+   const title=node('div');title.append(node('strong','',isNew?'Vista previa de título nuevo':'Cambios antes de actualizar la web'));
+   title.append(node('div','mmhd-diff-note',String(latest.title||latest.id||'Título')+' · '+(isNew?'Aún no publicado':'Última versión pública frente al borrador')));h.append(title);output.append(h);
+   const posters=node('div','mmhd-posterpair');
+   for(const [label,obj] of [['Versión pública',old],['Versión administrativa',latest]]){
+     const card=node('div','mmhd-poster-card');card.append(node('strong','',label));const url=posterURL(obj?.poster);
+     if(url){const img=node('img');img.src=url;img.alt='Póster de '+String(obj.title||'la película');img.loading='lazy';img.referrerPolicy='no-referrer';card.append(img);}else card.append(node('div','mmhd-poster-placeholder',obj?'Sin póster de TMDB':'Todavía no publicado'));
+     card.append(node('div','mmhd-diff-note',obj?String(obj.title||'Título sin nombre'):'Sin versión pública'));posters.append(card);
+   }output.append(posters);
+   const changed=fields.filter(([k])=>isNew?present(latest[k]):!eq(old[k],latest[k]));
+   if(changed.length){const sec=node('section','mmhd-diff-section');sec.append(node('h5','','🎞️ Información y diseño ('+changed.length+')'));
+     for(const [k,label] of changed){if(['poster','logo','backdrop'].includes(k)){
+       const line=node('div','mmhd-diff-row');line.append(node('span','mmhd-diff-label',label));line.append(node('span','mmhd-diff-new',isNew?'Imagen configurada':'Imagen actualizada'));sec.append(line);
+     }else pair(sec,label,old?.[k],latest[k],isNew);}output.append(sec);
+   }
+   const changedSources=sourceKeys.filter(([k])=>isNew?present(latest[k]):!eq(old?.[k],latest[k]));
+   const audioOther=Object.keys(latest).filter(k=>/^m(?:18|22|37)[A-Za-z]+$/.test(k)&&!sourceKeys.some(([x])=>x===k)&& (isNew?present(latest[k]):!eq(old?.[k],latest[k])));
+   if(changedSources.length||audioOther.length){const sec=node('section','mmhd-diff-section');sec.append(node('h5','','🔊 Audio y calidades'));
+     for(const [k,label] of [...changedSources,...audioOther.map(k=>[k,'Fuente '+k])]){
+       const was=!!old?.[k],now=!!latest[k];const detail=isNew?(now?'Configurado':'Sin configurar'):was===now?(now?'Enlace actualizado':'Sin enlace'):(now?'Enlace agregado':'Enlace retirado');
+       const row=node('div','mmhd-diff-row');row.append(node('span','mmhd-diff-label',label),node('span','mmhd-diff-pill',detail));sec.append(row);
+     }output.append(sec);
+   }
+   if(isNew?((latest.subtitleTracks||[]).length||present(latest.subtitlesUrl)):(!eq(old?.subtitleTracks,latest.subtitleTracks)||!eq(old?.subtitlesUrl,latest.subtitlesUrl))){
+     const sec=node('section','mmhd-diff-section');sec.append(node('h5','','💬 Subtítulos'));
+     if(!isNew)sec.append(node('div','mmhd-diff-note','Antes: '+(trackList(old).join(' · ')|| (present(old?.subtitlesUrl)?'Pista principal':'Sin subtítulos'))));
+     sec.append(node('div','mmhd-diff-note','Ahora: '+(trackList(latest).join(' · ')||(present(latest.subtitlesUrl)?'Pista principal':'Sin subtítulos'))));output.append(sec);
+   }
+   if(latest.kind==='SERIES'&&(isNew||!eq(old?.seasons,latest.seasons))){const sec=node('section','mmhd-diff-section');sec.append(node('h5','','📺 Temporadas y episodios'));
+     const a=episodesCount(old),b=episodesCount(latest);sec.append(node('div','mmhd-diff-note',(isNew?'Configurado':'Antes')+': '+(isNew?b.seasons:a.seasons)+' temporadas · '+(isNew?b.episodes:a.episodes)+' episodios'));
+     if(!isNew)sec.append(node('div','mmhd-diff-new','Ahora: '+b.seasons+' temporadas · '+b.episodes+' episodios'));
+     sec.append(node('div','mmhd-diff-note','La revisión incluye los enlaces y configuraciones individuales de cada episodio (sin mostrar URLs).'));output.append(sec);
+   }
+   const recognized=new Set([...fields.map(x=>x[0]),...sourceKeys.map(x=>x[0]),'id','kind','seasons','subtitleTracks','subtitlesUrl','updatedAt','addedAt']);
+   const others=[...new Set([...Object.keys(old||{}),...Object.keys(latest)])].filter(k=>!recognized.has(k)&&!/^m(?:18|22|37)[A-Za-z]+$/.test(k)&& (isNew?present(latest[k]):!eq(old?.[k],latest[k])));
+   if(others.length){const sec=node('section','mmhd-diff-section');sec.append(node('h5','','⚙️ Otros cambios'));
+     sec.append(node('div','mmhd-diff-note',others.length+' campo(s) adicionales modificados. Su contenido sensible no se muestra.'));
+     others.forEach(k=>sec.append(node('span','mmhd-diff-pill',k)));output.append(sec);
+   }
+   if(!isNew&&!changed.length&&!changedSources.length&&!audioOther.length&&eq(old?.subtitleTracks,latest.subtitleTracks)&&eq(old?.subtitlesUrl,latest.subtitlesUrl)&&eq(old?.seasons,latest.seasons)&&!others.length)output.append(node('p','mmhd-diff-note','Las versiones pública y administrativa coinciden.'));
+   output.append(node('p','mmhd-diff-note','Esta vista es solo de lectura. Publicar y actualizar siguen requiriendo una acción explícita.'));
+ }
  q('mmhd-pub-compare').addEventListener('click',async()=>{
-   const chosen=publicSelect.value,output=q('mmhd-pub-diff');output.style.display='block';output.textContent='Cargando comparación…';
-   if(!chosen){output.textContent='Selecciona un título nuevo o editado para comparar.';return;}
-   try{const d=await publicCall('inspect',{id:chosen});output.replaceChildren();
-     const title=document.createElement('strong');title.textContent='Comparación de borrador administrativo y versión pública';output.append(title);
-     const old=d.published||{},latest=d.draft||{};
-     for(const key of new Set([...Object.keys(old),...Object.keys(latest)])){
-       if(JSON.stringify(old[key])===JSON.stringify(latest[key]))continue;
-       const line=document.createElement('div');line.style.cssText='padding:6px 0;border-bottom:1px solid #29394b;overflow-wrap:anywhere';
-       const k=document.createElement('b');k.textContent=key+': ';line.append(k);
-       const v=document.createElement('span');
-       v.textContent=protectedFields.test(key)?'Configuración multimedia modificada (contenido reservado)':
-         (['string','number','boolean'].includes(typeof latest[key])?String(latest[key]??'').slice(0,220):'Estructura o metadatos modificados');
-       line.append(v);output.append(line);
-     }
-     if(!output.querySelector('div')){const empty=document.createElement('p');empty.textContent='No hay diferencias.';output.append(empty);}
-   }catch(e){output.textContent='No se pudo comparar: '+e.message;}
+   const chosen=publicSelect.value,output=q('mmhd-pub-diff');output.style.display='block';output.textContent='Preparando vista previa…';
+   if(!chosen){output.textContent='Selecciona primero un título nuevo o editado para revisarlo.';return;}
+   try{const d=await publicCall('inspect',{id:chosen});output.replaceChildren();visualCompare(d,output);}
+   catch(e){output.textContent='No se pudo comparar: '+e.message;}
  });
  q('mmhd-pub-history-refresh').addEventListener('click',async()=>{
    const box=q('mmhd-pub-history');box.textContent='Consultando historial público…';
