@@ -41,14 +41,21 @@ module.exports = async function handler(req,res) {
   const rev=await read('mmhd_library_meta?select=revision&id=eq.1');
   const published=await read('mmhd_public_titles?select=id,enabled&limit=5000');
   const ids=published.filter(x=>x.enabled).map(x=>String(x.id));
-  const trackedIds=published.map(x=>String(x.id));
+  // El cliente debe validar SOLO los IDs habilitados; incluir retirados bloquea todo el catálogo.
+  const approvedIds=ids;
   // Cambia también cuando se aprueba o retira un título, aunque no haya cambios de biblioteca.
   const config=await read('mmhd_public_meta?select=revision&id=eq.1');
   const version=String(rev[0]?.revision||0)+':'+String(config[0]?.revision||0);
   if(req.query?.head==='1')return res.status(200).json({version});
   const chunks=[];for(let i=0;i<ids.length;i+=80)chunks.push(ids.slice(i,i+80));
   const pages=await Promise.all(chunks.map(chunk=>read('mmhd_library_items?select=id,item&id=in.('+chunk.map(x=>'"'+x.replace(/"/g,'')+'"').join(',')+')')));
-  const items=pages.flat().map(row=>row.item);
-  return res.status(200).json({version,approvedIds:trackedIds,items});
+  const rows=pages.flat();
+  const received=new Set(rows.map(row=>String(row.id)));
+  if(received.size!==approvedIds.length || approvedIds.some(id=>!received.has(id))) {
+   console.error('MMHD public library: respuesta incompleta',received.size,approvedIds.length);
+   return res.status(503).json({error:'Catálogo público incompleto; no se aplicará ningún cambio'});
+  }
+  const items=rows.map(row=>row.item);
+  return res.status(200).json({version,approvedIds,items});
  }catch(e){console.error('MMHD public library',e.message);return res.status(502).json({error:'No se pudo consultar el catálogo público'});}
 };
