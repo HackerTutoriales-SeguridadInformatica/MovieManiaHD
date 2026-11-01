@@ -4007,7 +4007,8 @@ function getPlayerHtml(movie, autoNext=false, retryPreference=null){
     + mmhdMakeFullscreenMenuLayerScript()
     + (autoNext && movie.parentSeriesId!=null ? buildNextEpisodeAutostartScript() : "")
     + (nextEpisode?.status==="ready" ? buildNextEpisodeBannerScript(movie,nextEpisode) : "");
-  return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"</body>") : html+scriptTag;
+  return /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i,scriptTag+"<script src="/public-sync.js" defer></script>
+</body>") : html+scriptTag;
 }
 
 /* ============================================================
@@ -7836,5 +7837,6 @@ syncBackToTop();
  finally{busy=false;if(sent){modal.hidden=true;clearForm();}else{resetCaptcha()}}});
 })();
 </script>
+<script src="/public-sync.js" defer></script>
 </body>
 </html>
