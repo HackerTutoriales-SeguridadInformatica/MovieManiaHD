@@ -5368,18 +5368,93 @@ renderCollection();
  host.innerHTML=`<h3 style="margin:0 0 8px">☁ Biblioteca compartida · Supabase</h3>
  <p style="margin:0 0 10px;font-size:13px;opacity:.85">Opcional. No se sustituye ningún título hasta que conectes y confirmes la migración.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px"><input id="mmhd-cloud-email" type="email" autocomplete="username" placeholder="Correo administrativo" style="min-width:190px;flex:1"><input id="mmhd-cloud-pass" type="password" autocomplete="current-password" placeholder="Contraseña" style="min-width:190px;flex:1"><button type="button" id="mmhd-cloud-login">Conectar</button><button type="button" class="secondary" id="mmhd-cloud-logout" disabled>Desconectar</button></div>
+ <label style="display:flex;align-items:center;gap:7px;margin:0 0 9px;font-size:12px"><input id="mmhd-cloud-remember" type="checkbox" checked style="width:auto;min-width:auto"> Mantener mi sesión iniciada en este navegador (solo equipo de confianza)</label>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px"><button type="button" class="secondary" id="mmhd-cloud-seed" disabled>Subir biblioteca local a Supabase (primera vez)</button><button type="button" class="secondary" id="mmhd-cloud-refresh" disabled>Sincronizar ahora</button></div>
- <p role="status" aria-live="polite" id="mmhd-cloud-message" style="font-size:13px;margin:0">Desconectado: tus datos locales siguen intactos.</p>`;
+ <p role="status" aria-live="polite" id="mmhd-cloud-message" style="font-size:13px;margin:0">Desconectado: tus datos locales siguen intactos.</p>
+ <div id="mmhd-cloud-extras" style="display:none;margin-top:16px;padding-top:12px;border-top:1px solid #33465b">
+  <h4 style="margin:0 0 7px">👥 Actividad de administradores</h4><div id="mmhd-cloud-presence" style="font-size:13px;margin:0 0 15px">Sin actividad</div>
+  <h4 style="margin:0 0 7px">🕘 Historial de modificaciones</h4><div id="mmhd-cloud-history" style="max-height:190px;overflow:auto;font-size:13px;margin-bottom:15px">Sin registros</div>
+  <h4 style="margin:0 0 7px">🛡 Respaldos de Supabase</h4>
+  <p style="font-size:12px;opacity:.8;margin:0 0 8px">Se crea un respaldo automático al guardar cambios, como máximo uno cada 24 horas con actividad. Puedes crear otro manualmente. Restaurar afecta a ambos administradores.</p>
+  <button type="button" class="secondary" id="mmhd-cloud-backup">Crear respaldo ahora</button>
+  <div id="mmhd-cloud-backups" style="margin-top:9px;max-height:200px;overflow:auto;font-size:13px">Sin respaldos</div>
+ </div>`;
  const target=document.getElementById('toolsActionsHolder')||document.getElementById('collectionCard')?.parentElement||document.body;
  target.parentElement.insertBefore(host,target);
  const q=id=>host.querySelector('#'+id);
  const info=q('mmhd-cloud-message');let config=null,token=null,refreshToken=null,base=new Map(),revision=0,connected=false,busy=false,pending=false,applying=false,conflicted=false,timer=null,lock=false;
+ const SESSION_KEY='mmhd_shared_library_session_v1';
+ const remember=q('mmhd-cloud-remember');
+ const loadSaved=()=>{try{const x=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');return x&&typeof x.refreshToken==='string'&&x.refreshToken.length>10?x:null;}catch(_){return null}};
+ const saveSession=()=>{try{if(remember.checked&&refreshToken){localStorage.setItem(SESSION_KEY,JSON.stringify({refreshToken,email:q('mmhd-cloud-email').value.trim()}));}else{localStorage.removeItem(SESSION_KEY)}}catch(_){msg('Conectado, pero este navegador impide recordar la sesión. Puedes seguir trabajando.',true)}};
+ const forgetSession=()=>{try{localStorage.removeItem(SESSION_KEY)}catch(_){}};
  const msg=(s,bad)=>{info.textContent=s;info.style.color=bad?'#ff8e93':'';};
+ const extra=q('mmhd-cloud-extras'),presenceEl=q('mmhd-cloud-presence'),historyEl=q('mmhd-cloud-history'),backupsEl=q('mmhd-cloud-backups');
+ let extraWorking=false,lastExtraFetch=0;
+ const safe=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const showDate=(s)=>{try{return new Date(s).toLocaleString('es-MX');}catch(_){return String(s||'')}};
+ async function loadExtras(force=false){
+   if(!connected||extraWorking||document.visibilityState==='hidden'||(!force&&Date.now()-lastExtraFetch<10000))return;
+   extraWorking=true;
+   try{
+     const d=await request('GET','/api/library?extra=1');lastExtraFetch=Date.now();
+     const names=d.admins||{};const label=id=>names[id]||String(id||'Desconocido').slice(0,8);
+     const live=(d.presence||[]).filter(x=>Date.now()-new Date(x.last_seen).getTime()<60000);
+     presenceEl.innerHTML=live.length?live.map(x=>'<div style="padding:4px 0">🟢 '+safe(label(x.user_id))+(x.user_id===d.me?' (tú)':'')+(x.current_title?' · Editando: <strong>'+safe(x.current_title)+'</strong>':' · Conectado')+'</div>').join(''):'No hay administradores activos en el último minuto.';
+     const history=d.history||[];
+     historyEl.replaceChildren();
+     if(!history.length)historyEl.textContent='No hay ediciones registradas desde la instalación del historial.';
+     history.forEach(x=>{
+       const line=document.createElement('div');line.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #26384d;flex-wrap:wrap';
+       const desc=document.createElement('span');desc.textContent=showDate(x.changed_at)+' · '+label(x.actor)+' · '+x.operation+' · '+x.item_id;
+       const button=document.createElement('button');button.className='secondary';button.type='button';button.textContent='Deshacer cambio';
+       button.addEventListener('click',async()=>{
+         if(!connected||busy||extraWorking)return;
+         if(mapChanged(snapshot(),base).length){alert('Primero guarda o revisa tus ediciones locales pendientes.');return;}
+         if(!confirm('¿Deshacer el cambio seleccionado del título '+x.item_id+'? Se registrará una nueva modificación y no afectará otros títulos.'))return;
+         busy=true;
+         try{const r=await request('POST','/api/library',{action:'undo',historyId:Number(x.id),expectedRevision:revision});if(!r.ok)throw Error('No se pudo recuperar');
+           const d=await request('GET','/api/library');applying=true;
+           try{state.collection=d.items.map(y=>y.item);if(!saveCollection())throw Error('No se pudo guardar localmente');renderCollection();}finally{applying=false}
+           base=rowMap(d.items);revision=d.revision;msg('✓ Cambio individual deshecho y sincronizado.');lastExtraFetch=0;
+         }catch(e){msg('No se pudo deshacer: '+e.message,true)}finally{busy=false;void loadExtras(true)}
+       });line.append(desc,button);historyEl.append(line);
+     });
+     const backs=d.backups||[];
+     backupsEl.replaceChildren();
+     if(!backs.length)backupsEl.textContent='Todavía no se ha creado ningún respaldo.';
+     backs.forEach(b=>{
+       const line=document.createElement('div');line.style.cssText='display:flex;gap:8px;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #26384d;flex-wrap:wrap';
+       const desc=document.createElement('span');desc.textContent=showDate(b.created_at)+' · '+b.item_count+' títulos · '+b.reason+' · versión '+b.revision;
+       const btn=document.createElement('button');btn.type='button';btn.className='secondary';btn.textContent='Restaurar';
+       btn.addEventListener('click',async()=>{
+         if(!connected||busy||extraWorking)return;
+         if(!confirm('ATENCIÓN: restaurar este respaldo sustituirá TODA la biblioteca compartida de ambos administradores.\n\nAntes de continuar, asegúrate de que nadie esté editando. Se creará una copia de seguridad del estado actual. ¿Continuar?'))return;
+         if(!confirm('Confirmación final: ¿restaurar los '+b.item_count+' títulos del '+showDate(b.created_at)+'?'))return;
+         busy=true;
+         try{const r=await request('POST','/api/library',{action:'restore',backupId:Number(b.id),expectedRevision:revision});if(!r.ok)throw Error(r.reason||'No se restauró');
+           const data=await request('GET','/api/library');applying=true;try{state.collection=data.items.map(x=>x.item);if(!saveCollection())throw Error('No se pudo guardar la copia local');renderCollection();}finally{applying=false}
+           base=rowMap(data.items);revision=data.revision;msg('✓ Respaldo restaurado y compartido: '+r.count+' títulos.');lastExtraFetch=0;
+         }catch(e){msg('Restauración detenida: '+e.message+'. Si alguien guardó cambios, sincroniza antes de intentarlo.',true)}finally{busy=false;void loadExtras(true)}
+       });line.append(desc,btn);backupsEl.append(line);
+     });
+   }catch(e){historyEl.textContent='No se pudo consultar actividad: '+e.message;}finally{extraWorking=false}
+ }
+ async function heartbeat(){if(!connected||document.visibilityState==='hidden')return;
+   const current=state.editingId==null?null:state.collection.find(x=>String(x.id)===String(state.editingId));
+   try{await request('POST','/api/library',{action:'presence',itemId:current?String(current.id):null,title:current?String(current.title||''):null});}catch(_){/* conexión ocasionalmente interrumpida */}
+ }
+ q('mmhd-cloud-backup').addEventListener('click',async()=>{if(!connected||busy)return;busy=true;
+   try{const r=await request('POST','/api/library',{action:'backup'});msg('✓ Respaldo creado: '+r.count+' títulos.');lastExtraFetch=0;}
+   catch(e){msg('No se pudo crear el respaldo: '+e.message,true)}finally{busy=false;void loadExtras(true)}
+ });
+ setInterval(()=>{void heartbeat();void loadExtras()},15000);
+
  const snapshot=()=>new Map(state.collection.map(x=>[String(x.id),JSON.stringify(x)]));
  const rowMap=rows=>new Map(rows.map(r=>[String(r.id),{version:Number(r.version),json:JSON.stringify(r.item)}]));
  const mapChanged=(local,old)=>{const all=new Set([...local.keys(),...old.keys()]);return [...all].filter(k=>local.get(k)!==(old.get(k)?.json??undefined));};
  const headers=()=>({Authorization:'Bearer '+token,'Content-Type':'application/json'});
- async function request(method,path,body){let r=await fetch(path,{method,headers:headers(),body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});if(r.status===401&&refreshToken&&config){const rr=await fetch(config.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:config.anonKey,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:refreshToken})});if(rr.ok){const refreshed=await rr.json();token=refreshed.access_token;refreshToken=refreshed.refresh_token;r=await fetch(path,{method,headers:headers(),body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});}}const data=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(data.error||data.reason||'HTTP '+r.status);e.conflicts=data.conflicts||[];throw e}return data;}
+ async function request(method,path,body){let r=await fetch(path,{method,headers:headers(),body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});if(r.status===401&&refreshToken&&config){const rr=await fetch(config.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:config.anonKey,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:refreshToken})});if(rr.ok){const refreshed=await rr.json();token=refreshed.access_token;refreshToken=refreshed.refresh_token||refreshToken;saveSession();r=await fetch(path,{method,headers:headers(),body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});}}const data=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(data.error||data.reason||'HTTP '+r.status);e.conflicts=data.conflicts||[];throw e}return data;}
  function paint(rows,newRev,localDirty){
    const remote=rowMap(rows);const own=snapshot();const old=base;const keys=new Set([...remote.keys(),...old.keys()]);const issues=[];
    for(const id of keys){const previous=old.get(id)?.json, next=remote.get(id)?.json,local=own.get(id);
@@ -5445,8 +5520,35 @@ renderCollection();
      const h=await request('GET','/api/library?head=1');if(h.revision!==revision){await fullRefresh();msg('✓ Biblioteca actualizada automáticamente · versión '+revision);}
    }catch(e){msg('Conexión interrumpida: '+e.message+'. Los cambios locales permanecen disponibles.',true)}
  }
- function connectedUI(on){connected=on;q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
- async function logout(){connectedUI(false);token=null;refreshToken=null;base.clear();revision=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
+ function connectedUI(on){extra.style.display=on?'block':'none';connected=on;if(on){void heartbeat();void loadExtras(true);}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
+ async function logout(){connectedUI(false);forgetSession();token=null;refreshToken=null;base.clear();revision=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
+ remember.addEventListener('change',()=>{if(connected)saveSession();else if(!remember.checked)forgetSession()});
+ async function resumeSavedSession(){
+   const saved=loadSaved();if(!saved)return;
+   remember.checked=true;q('mmhd-cloud-email').value=saved.email||'';
+   msg('Restaurando la conexión con Supabase…');
+   try{
+     const cfg=await fetch('/api/library-config',{cache:'no-store'});config=await cfg.json();if(!cfg.ok)throw Error(config.error||'Error de configuración');
+     const resp=await fetch(config.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:config.anonKey,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:saved.refreshToken})});
+     const auth=await resp.json();if(!resp.ok||!auth.access_token)throw Error(auth.error_description||auth.msg||'La sesión expiró');
+     token=auth.access_token;refreshToken=auth.refresh_token||saved.refreshToken;
+     const d=await request('GET','/api/library');const rows=d.items||[];
+     // En el primer inicio tras una recarga no se deben publicar cambios locales al servidor.
+     // Si hay datos locales divergentes, se conservan y se solicita revisión explícita.
+     if(rows.length){
+       const remote=rowMap(rows),local=snapshot();
+       const difference=mapChanged(local,remote);
+       if(difference.length){
+         if(!confirm('La biblioteca compartida tiene '+rows.length+' títulos, pero esta copia local presenta '+difference.length+' diferencias. ¿Cargar la versión compartida?\n\nPulsa Cancelar para conservar tus datos locales y revisar un respaldo antes de sincronizar.'))throw Error('Se conservó la biblioteca local por decisión del administrador');
+         applying=true;
+         try{snapshotCollection();state.collection=rows.map(r=>r.item);if(!saveCollection())throw Error('No se pudo guardar localmente');renderCollection()}finally{applying=false}
+       }
+     }
+     base=rowMap(rows);revision=d.revision;conflicted=false;connectedUI(true);saveSession();
+     msg('✓ Sesión restaurada automáticamente. '+rows.length+' títulos compartidos · versión '+revision);
+   }catch(e){connectedUI(false);token=null;refreshToken=null;base.clear();revision=0;config=null;forgetSession();msg('No se pudo restaurar la sesión: '+e.message+'. Tus datos locales se conservan.',true)}
+ }
+ void resumeSavedSession();
  q('mmhd-cloud-logout').addEventListener('click',logout);
  q('mmhd-cloud-login').addEventListener('click',async()=>{
    if(busy)return;busy=true;
@@ -5462,7 +5564,7 @@ renderCollection();
      if(rows.length){if(state.collection.length&&!confirm('Hay una biblioteca compartida con '+rows.length+' títulos. ¿Quieres cargarla en este navegador?\n\nAntes descarga un respaldo si tienes cambios locales sin compartir.'))throw Error('Conexión cancelada por el administrador');
        applying=true;try{snapshotCollection();state.collection=rows.map(r=>r.item);if(!saveCollection())throw Error('No se pudo guardar localmente');renderCollection();}finally{applying=false}
      }
-     base=rowMap(rows);revision=data.revision;conflicted=false;connectedUI(true);
+     base=rowMap(rows);revision=data.revision;conflicted=false;connectedUI(true);saveSession();
      msg(rows.length?'✓ Sincronización activa. '+rows.length+' títulos compartidos.':'✓ Conectado. Supabase está vacío: utiliza «Subir biblioteca local» para comenzar.');
    }catch(e){await logout();msg('Conexión no iniciada: '+e.message,true)}finally{busy=false}
  });
