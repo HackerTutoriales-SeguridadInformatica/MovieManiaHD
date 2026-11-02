@@ -1754,7 +1754,9 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <button class="secondary" id="btnSyncSearchTitles" type="button"><i class="fa-solid fa-language"></i> Completar títulos ES/EN (TMDB)</button>
 <button class="secondary" id="btnSyncProvidersMx" type="button"><i class="fa-solid fa-tv"></i> Actualizar plataformas MX y fechas de estreno (TMDB)</button>
 <button class="secondary" id="btnCancelProvidersMx" type="button" hidden><i class="fa-solid fa-ban"></i> Detener actualización de plataformas</button>
+<label class="support-text" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;max-width:100%;cursor:pointer"><input id="mmhdProviderRefreshExistingDates" type="checkbox" style="width:auto;min-width:auto;flex:0 0 auto" /> Corregir también fechas de estreno existentes si son distintas en TMDB (opcional)</label>
 <span class="mmhd-platform-bulk-status" id="mmhdPlatformBulkStatus" role="status" aria-live="polite"></span>
+<div id="mmhdProviderBulkSummary" role="status" aria-live="polite" hidden style="width:100%;border:1px solid #34516c;background:#102136;padding:13px;border-radius:10px;color:#c6e1f5;line-height:1.65;font-size:13px"></div>
 <button class="secondary" id="btnRestoreCollection" type="button"><i class="fa-solid fa-file-import"></i> Importar respaldo</button>
 <div class="mmhd-backup-tools">
   <div class="mmhd-backup-info" id="backupInfo" role="status">Todavía no hay registro de respaldo descargado en este navegador.</div>
@@ -2296,7 +2298,7 @@ function mmhdRenderProviderEditor(){
       <small>TMDB: ${automatic.has(key)?"✓ detectado":"No detectado"} · Catálogo: ${selected?"Visible":"Oculto"}</small></div>`;
   }).join("");
   const last=media.providersCheckedAtMx?new Date(media.providersCheckedAtMx).toLocaleString("es-MX"):"Sin consultar";
-  status.textContent="Región MX · Última consulta TMDB: "+last+". Las opciones manuales se guardan al guardar el título.";
+  status.textContent="Región MX · Última consulta guardada con cambios: "+last+". Las consultas masivas sin cambios no modifican el título. Las opciones manuales se guardan al guardar el título.";
 }
 async function mmhdRefreshSelectedProviders(){
   const media=state.movie,key=credentialValue(),button=$("mmhdPlatformRefresh");
@@ -2318,55 +2320,132 @@ async function mmhdRefreshSelectedProviders(){
     if(state.movie===media)$("mmhdPlatformStatus").textContent="No se pudo consultar TMDB: "+String(err?.message||err)+". Se mantienen los datos anteriores.";
   }finally{button.disabled=false;}
 }
+// Fase TMDB de cambios reales: consultar no es editar. Una marca de tiempo,
+// un orden distinto de plataformas o la normalización de «auto» no deben
+// reescribir cientos de registros ni crear publicaciones pendientes falsas.
 let mmhdProviderBulkCancel=false,mmhdProviderBulkBusy=false;
-async function mmhdSyncLibraryProvidersMx(){
-  const key=credentialValue(),btn=$("btnSyncProvidersMx"),cancel=$("btnCancelProvidersMx"),status=$("mmhdPlatformBulkStatus");
-  if(mmhdProviderBulkBusy)return;
-  if(!key){status.textContent="Agrega primero una credencial de TMDB.";return;}
-  mmhdProviderBulkBusy=true;mmhdProviderBulkCancel=false;btn.disabled=true;cancel.hidden=false;
-  const copy=structuredClone(state.collection);
-  let done=0,failed=0,dates=0,updated=0;
-  snapshotCollection();
-  for(const entry of copy){
-    if(mmhdProviderBulkCancel)break;
-    const id=mmhdMediaId(entry);
-    if(!id){failed++;continue;}
-    status.textContent=`TMDB México: ${done+failed+1}/${copy.length} · ${entry.title}`;
-    try{
-      const kind=entry.kind==="SERIES"?"tv":"movie";
-      const data=await tmdbGet(`https://api.themoviedb.org/3/${kind}/${encodeURIComponent(id)}/watch/providers`,key);
-      entry.watchProvidersMx=mmhdProviderKeys(data);
-      entry.providersCheckedAtMx=new Date().toISOString();
-      // Mantener exclusiones/inclusiones manuales incluso si TMDB cambia su lista.
-      entry.providerOverridesMx=mmhdProviderOverrides(entry.providerOverridesMx);
-      updated++;
-      if(kind==="movie"&&!/^\d{4}-\d{2}-\d{2}$/.test(String(entry.releaseDate||""))){
-        try{
-          const info=await tmdbGet(`https://api.themoviedb.org/3/movie/${encodeURIComponent(id)}?language=es-MX`,key);
-          if(/^\d{4}-\d{2}-\d{2}$/.test(String(info.release_date||""))){entry.releaseDate=info.release_date;dates++;}
-        }catch(_){/* La fecha faltante no bloquea los proveedores. */}
-      }
-      done++;
-    }catch(e){failed++;console.warn("MMHD providers MX",entry.title,e);}
-    // Guardado por lotes sin sustituir la colección completa hasta finalizar.
-    if((done+failed)%10===0){
-      // Guardar solamente las propiedades consultadas; no tocar enlaces editados mientras tanto.
-      if(!mmhdApplyBulkProviders(copy)) {status.textContent="No se pudieron guardar los datos. Haz respaldo y revisa espacio.";break;}
-    }
-  }
-  if(updated||done)mmhdApplyBulkProviders(copy);
-  status.textContent=`${done} título(s) consultado(s) · ${dates} fechas completas · ${failed} errores${mmhdProviderBulkCancel?" · detenido por el usuario":""}. Guarda un respaldo para conservar estos cambios.`;
-  mmhdProviderBulkBusy=false;btn.disabled=false;cancel.hidden=true;
+function mmhdBulkProviderSet(value){
+  return [...new Set(Array.isArray(value)?value.filter(k=>Object.hasOwn(MMHD_PROVIDERS_MX,k)):[])].sort();
 }
-function mmhdApplyBulkProviders(copy){
+function mmhdBulkProvidersEqual(a,b){
+  return JSON.stringify(mmhdBulkProviderSet(a))===JSON.stringify(mmhdBulkProviderSet(b));
+}
+function mmhdBulkValidDate(value){return /^\d{4}-\d{2}-\d{2}$/.test(String(value||''));}
+// El lote cambia SOLO los campos detectados y conserva cualquier edición
+// simultánea de links, episodios, subtítulos o preferencias manuales.
+function mmhdApplyActualProviderChanges(pending,stats){
+  if(!pending.length)return true;
+  const byId=new Map(pending.map(change=>[String(change.id),change]));
+  let saved=0,platforms=0,dates=0,conflicts=0;
   const next=state.collection.map(local=>{
-    const synced=copy.find(x=>String(x.id)===String(local.id));
-    if(!synced?.providersCheckedAtMx||String(local.providersCheckedAtMx||"")===String(synced.providersCheckedAtMx||""))return local;
-    return {...local,watchProvidersMx:synced.watchProvidersMx,providersCheckedAtMx:synced.providersCheckedAtMx,
-      providerOverridesMx:mmhdProviderOverrides(local.providerOverridesMx),
-      releaseDate:local.releaseDate||synced.releaseDate||""};
+    const change=byId.get(String(local.id));
+    if(!change)return local;
+    let patch=null;
+    if(change.newProviders && !mmhdBulkProvidersEqual(change.oldProviders,change.newProviders)){
+      if(mmhdBulkProvidersEqual(local.watchProvidersMx,change.oldProviders)){
+        if(!mmhdBulkProvidersEqual(local.watchProvidersMx,change.newProviders)){
+          patch={...(patch||{}),watchProvidersMx:change.newProviders,providersCheckedAtMx:change.checkedAt};
+          platforms++;
+        }
+      }else if(!mmhdBulkProvidersEqual(local.watchProvidersMx,change.newProviders))conflicts++;
+    }
+    if(change.newDate && change.newDate!==change.oldDate){
+      if(String(local.releaseDate||'')===change.oldDate){
+        patch={...(patch||{}),releaseDate:change.newDate};dates++;
+      }else if(String(local.releaseDate||'')!==change.newDate)conflicts++;
+    }
+    if(!patch)return local;
+    saved++;
+    return {...local,...patch};
   });
-  return commitCollection(next,{snapshot:false});
+  if(saved){
+    if(!stats.tookSnapshot){snapshotCollection();stats.tookSnapshot=true;}
+    if(!commitCollection(next,{snapshot:false}))return false;
+  }
+  stats.saved+=saved;stats.platforms+=platforms;stats.dates+=dates;stats.conflicts+=conflicts;
+  pending.length=0;
+  return true;
+}
+async function mmhdSyncLibraryProvidersMx(){
+  const key=credentialValue(),btn=$('btnSyncProvidersMx'),cancel=$('btnCancelProvidersMx');
+  const status=$('mmhdPlatformBulkStatus'),summary=$('mmhdProviderBulkSummary');
+  if(mmhdProviderBulkBusy)return;
+  if(!key){status.textContent='Agrega primero una credencial de TMDB.';return;}
+  const includeExistingDates=$('mmhdProviderRefreshExistingDates').checked;
+  const total=state.collection.length;
+  if(!total){status.textContent='No hay títulos para consultar.';return;}
+  if(!confirm('Consultar plataformas de '+total+' títulos en TMDB. Solo se guardarán cambios reales.'+
+    (includeExistingDates?'\nTambién se corregirán fechas existentes cuando TMDB tenga una fecha diferente.':'\nSolo se completarán fechas de estreno faltantes.')+
+    '\n\nLas modificaciones quedarán sujetas a aprobación antes de aparecer en la web. ¿Continuar?'))return;
+  mmhdProviderBulkBusy=true;mmhdProviderBulkCancel=false;
+  btn.disabled=true;cancel.hidden=false;summary.hidden=true;
+  $('mmhdProviderRefreshExistingDates').disabled=true;
+  // Foto de las fuentes que se consultarán; los cambios se aplican sobre el
+  // estado VIVO y se comprueban contra su valor inicial antes de cada lote.
+  const sources=state.collection.map(item=>({
+    id:String(item.id),title:String(item.title||'Sin título'),kind:item.kind,
+    tmdbId:mmhdMediaId(item),oldProviders:mmhdBulkProviderSet(item.watchProvidersMx),
+    oldDate:String(item.releaseDate||'')
+  }));
+  const stats={consulted:0,failed:0,unchanged:0,saved:0,platforms:0,dates:0,conflicts:0,tookSnapshot:false};
+  const pending=[];let storageError=false;
+  function progress(){
+    const attempted=stats.consulted+stats.failed;
+    status.textContent=`TMDB MX: ${attempted}/${total} consultados · ${stats.saved} títulos con cambios guardados · ${stats.unchanged} sin cambios · ${stats.failed} errores`;
+  }
+  progress();
+  try{
+    for(const original of sources){
+      if(mmhdProviderBulkCancel)break;
+      status.textContent=`Consultando TMDB (${stats.consulted+stats.failed+1}/${total}): ${original.title}…`;
+      if(!original.tmdbId){stats.failed++;progress();continue;}
+      try{
+        const kind=original.kind==='SERIES'?'tv':'movie';
+        const response=await tmdbGet(`https://api.themoviedb.org/3/${kind}/${encodeURIComponent(original.tmdbId)}/watch/providers`,key);
+        const newProviders=mmhdBulkProviderSet(mmhdProviderKeys(response));
+        let newDate=null;
+        // Por defecto, solo completar fechas faltantes. La corrección de
+        // fechas existentes requiere activar expresamente su casilla.
+        if(includeExistingDates||!mmhdBulkValidDate(original.oldDate)){
+          try{
+            const info=await tmdbGet(`https://api.themoviedb.org/3/${kind}/${encodeURIComponent(original.tmdbId)}?language=es-MX`,key);
+            const candidate=kind==='tv'?info.first_air_date:info.release_date;
+            if(mmhdBulkValidDate(candidate)&&String(candidate)!==original.oldDate)newDate=String(candidate);
+          }catch(err){console.warn('[MMHD] No se pudo consultar la fecha:',original.title,err);}
+        }
+        stats.consulted++;
+        const platformsChanged=!mmhdBulkProvidersEqual(original.oldProviders,newProviders);
+        if(platformsChanged||newDate){
+          pending.push({id:original.id,oldProviders:original.oldProviders,
+            newProviders:platformsChanged?newProviders:null,
+            oldDate:original.oldDate,newDate,
+            checkedAt:new Date().toISOString()});
+        }else stats.unchanged++;
+      }catch(err){stats.failed++;console.warn('[MMHD] Consulta de plataformas TMDB:',original.title,err);}
+      // No escribir 580 objetos por una marca de tiempo; solamente los títulos
+      // con cambios. Aplicar lotes sin sobrescribir cambios de otro administrador.
+      if((stats.consulted+stats.failed)%20===0){
+        if(!mmhdApplyActualProviderChanges(pending,stats)){storageError=true;break;}
+      }
+      progress();
+    }
+    if(!storageError&&pending.length&&!mmhdApplyActualProviderChanges(pending,stats))storageError=true;
+  }finally{
+    mmhdProviderBulkBusy=false;btn.disabled=false;cancel.hidden=true;
+    $('mmhdProviderRefreshExistingDates').disabled=false;
+    const inspected=stats.consulted+stats.failed;
+    const reason=storageError?'⚠ No se pudo guardar el último lote localmente; no se aplicó ese lote. Revisa el espacio y la conexión.':
+      mmhdProviderBulkCancel?'Actualización detenida; los lotes guardados se conservan.':'Consulta finalizada.';
+    status.textContent=reason;
+    summary.hidden=false;
+    summary.textContent=`${reason} ${inspected} de ${total} títulos revisados. ${stats.saved} títulos con cambios reales guardados: `+
+      `${stats.platforms} cambios de plataformas y ${stats.dates} fechas completadas/corregidas. `+
+      `${stats.unchanged} títulos sin cambios · ${stats.failed} consultas fallidas · `+
+      `${stats.conflicts} cambios simultáneos que NO se sobrescribieron. `+
+      'Los cambios locales se sincronizan con Supabase y requieren aprobación para verse en la web. ' +
+      'Esta mejora no elimina los pendientes antiguos: revísalos por separado antes de publicarlos.';
+    if(stats.conflicts)console.warn('[MMHD] TMDB encontró cambios simultáneos; estos campos no se sobrescribieron.');
+  }
 }
 $("mmhdPlatformChoices").addEventListener("change",event=>{
   const select=event.target.closest("[data-mmhd-provider]");
