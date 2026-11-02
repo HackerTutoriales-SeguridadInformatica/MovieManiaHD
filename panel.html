@@ -1596,6 +1596,15 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   <label for="m18En">Inglés · 420p (m18)</label>
   <input id="m18En" placeholder="Se rellena automáticamente" type="url" />
 </div>
+<div class="mmhd-language-links" style="border:1px solid #4978aa;border-radius:12px;padding:14px;margin:17px 0;background:#0b2030">
+  <strong style="color:#c8e8ff;display:block;margin-bottom:8px"><i class="fa-solid fa-tv"></i> Fuente exclusiva para AirPlay (opcional)</strong>
+  <small style="display:block;color:#a5c0d6;line-height:1.5;margin-bottom:10px">Pega una URL HTTPS DIRECTA a un video MP4 H.264/AAC o a una lista HLS .m3u8 alojada fuera de Google Photos. Se configura por película o episodio. No sustituye los enlaces m37/m22/m18 ni modifica Chromecast. Solo se usa tras aprobar la edición en Publicaciones.</small>
+  <label for="airplayUrl">AirPlay · video principal</label>
+  <input id="airplayUrl" type="url" placeholder="https://videos.tudominio.com/pelicula.mp4" autocomplete="off" />
+  <label for="airplayUrlEn">AirPlay · versión Inglés (opcional)</label>
+  <input id="airplayUrlEn" type="url" placeholder="https://videos.tudominio.com/pelicula-en.mp4" autocomplete="off" />
+  <small style="display:block;color:#91a4c1;margin-top:8px">Primero prueba esa URL en el iPad y Roku con el archivo probar-fuente-airplay.html del paquete. No pegues enlaces de Google Photos ni URL de páginas con reproductor incrustado.</small>
+</div>
 <div class="mmhd-audio-alt-links" style="border:1px solid #426258;border-radius:12px;padding:14px;margin:17px 0 16px;background:#10221e">
   <strong style="color:#dcfff2;display:block;margin-bottom:7px"><i class="fa-solid fa-language"></i> Otro video alternativo · idioma seleccionable (opcional)</strong>
   <small style="display:block;color:#accbc0;line-height:1.55;margin-bottom:10px">Añade otra versión de la película o episodio; por ejemplo, audio Coreano. Conserva los videos Latino e Inglés existentes. El idioma del audio es independiente de los subtítulos.</small>
@@ -1975,19 +1984,60 @@ function loadSavedCollection() {
     return Array.isArray(parsed) ? parsed : [];
   } catch { return []; }
 }
+// La biblioteca compartida se persiste localmente por compatibilidad con las herramientas
+// existentes. La copia de «Deshacer» va a sessionStorage (cuota independiente), para
+// evitar duplicar cientos de películas en localStorage al editar con varios administradores.
+function mmhdRecoveryRaw(){
+  try{const x=sessionStorage.getItem(COLLECTION_RECOVERY_KEY);if(x)return x;}catch{}
+  try{return localStorage.getItem(COLLECTION_RECOVERY_KEY);}catch{return null;}
+}
+function mmhdMoveLegacyRecovery(){
+  try{
+    const legacy=localStorage.getItem(COLLECTION_RECOVERY_KEY);
+    if(!legacy)return true;
+    if(sessionStorage.getItem(COLLECTION_RECOVERY_KEY)!==legacy){
+      // No eliminar nunca la copia antigua si no se puede conservar en sesión.
+      sessionStorage.setItem(COLLECTION_RECOVERY_KEY,legacy);
+      if(sessionStorage.getItem(COLLECTION_RECOVERY_KEY)!==legacy)return false;
+    }
+    localStorage.removeItem(COLLECTION_RECOVERY_KEY);
+    return true;
+  }catch(err){console.warn('[MMHD] No fue posible mover la copia de recuperación',err);return false;}
+}
 function saveCollection() {
-  try { localStorage.setItem(COLLECTION_STORAGE_KEY, JSON.stringify(state.collection)); window.MMHDLibraryShared?.onLocalSaved?.(); document.dispatchEvent(new Event('mmhd:library-updated')); return true; }
-  catch (err) {
-    console.error("No se pudo guardar la colección:", err);
-    $("collectionStatus").className="status show err";
-    $("collectionStatus").textContent="No se pudo guardar: espacio insuficiente o almacenamiento bloqueado. Exporta un respaldo.";
+  const payload=JSON.stringify(state.collection);
+  let saved=false,lastError=null;
+  for(let attempt=0;attempt<2;attempt++){
+    try{localStorage.setItem(COLLECTION_STORAGE_KEY,payload);saved=true;break;}
+    catch(err){lastError=err;
+      // Solo recuperar espacio de la copia antigua si ha sido preservada en sesión.
+      if(attempt!==0||!mmhdMoveLegacyRecovery())break;
+    }
+  }
+  if(!saved){
+    console.error('No se pudo guardar la colección:',lastError);
+    $('collectionStatus').className='status show err';
+    $('collectionStatus').textContent='No se pudo guardar localmente. No cierres el editor: conserva los cambios del formulario. En Herramientas → Espacio del navegador puedes revisar o liberar la caché de diagnóstico y volver a guardar. La biblioteca compartida no se ha actualizado con este intento.';
     return false;
   }
+  window.MMHDLibraryShared?.onLocalSaved?.();
+  document.dispatchEvent(new Event('mmhd:library-updated'));
+  return true;
 }
-// Conserva una única versión previa para deshacer cambios importantes.
+// «Deshacer» se conserva durante la pestaña actual; los respaldos compartidos
+// de Supabase siguen siendo independientes y no se modifican.
 function snapshotCollection(){
-  try { localStorage.setItem(COLLECTION_RECOVERY_KEY, JSON.stringify(state.collection)); return true; }
-  catch { return false; }
+  const backup=JSON.stringify(state.collection);
+  try{
+    sessionStorage.setItem(COLLECTION_RECOVERY_KEY,backup);
+    // Quitar únicamente la copia redundante si ya existe una copia comprobada.
+    if(sessionStorage.getItem(COLLECTION_RECOVERY_KEY)===backup){
+      try{localStorage.removeItem(COLLECTION_RECOVERY_KEY);}catch{}
+      return true;
+    }
+  }catch(err){console.warn('[MMHD] La recuperación de esta pestaña no se pudo guardar',err);}
+  // Mantener la recuperación antigua sin escribir una segunda biblioteca grande.
+  return false;
 }
 function commitCollection(nextCollection, options={}){
   if (options.snapshot !== false) snapshotCollection();
@@ -2088,7 +2138,7 @@ function clearVideoFields(){
   altExtractRequestId++;
   mmhdLoadAudioAlt(null);
   $('primaryLanguage').value='Latino';
-  for (const id of ["googleUrl", "m37", "m22", "m18", "googleUrlEn", "m37En", "m22En", "m18En", "subtitlesUrl", "subtitlesUrlEn"]) $(id).value = "";
+  for (const id of ["googleUrl", "m37", "m22", "m18", "googleUrlEn", "m37En", "m22En", "m18En", "subtitlesUrl", "subtitlesUrlEn", "airplayUrl", "airplayUrlEn"]) $(id).value = "";
   mmhdClearSubtitleFields();
   resetQualityChecks();
   $("extractStatus").className = "status";
@@ -2598,7 +2648,7 @@ function activeAdminEpisode(){
 function storeAdminEpisodeFields(){
   const ep=activeAdminEpisode();if(!ep)return;
   const previousLinks=["m37","m22","m18","m37En","m22En","m18En"].map(id=>String(ep[id]||""));
-  for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl"])ep[id]=$(id).value.trim();
+  for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl","airplayUrl","airplayUrlEn"])ep[id]=$(id).value.trim();
   ep.audioAlt=mmhdAudioAltFromFields();
   const seriesDefault=mmhdNormalizeMainAudioLanguage(state.movie?.seriesDefaultLanguage);
   ep.primaryLanguage=mmhdSelectedMainLanguage()===seriesDefault?'':mmhdSelectedMainLanguage();
@@ -2666,7 +2716,7 @@ function chooseAdminEpisode(number){
   if(!ep)return;
   state.selectedEpisode={season,episode:number};
   clearVideoFields();
-  for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl"])$(id).value=ep[id]||"";
+  for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl","airplayUrl","airplayUrlEn"])$(id).value=ep[id]||"";
   $('primaryLanguage').value=ep.primaryLanguage||state.movie.seriesDefaultLanguage||'Latino';
   mmhdLoadSubtitleFields(ep);
   mmhdLoadAudioAlt(ep);
@@ -2818,10 +2868,25 @@ function editSavedSeries(item){
   showStatus("Editando serie. Los enlaces de cada capítulo permanecen independientes.","ok");
   $("movieCard").scrollIntoView({behavior:"smooth",block:"start"});
 }
+function mmhdValidateAirplayUrl(value,where){
+  if(!value)return;
+  let url;
+  try{url=new URL(value);}catch(_){throw Error(where+": URL de AirPlay no válida.");}
+  if(url.protocol!=="https:" || !/\.(mp4|m3u8)$/i.test(url.pathname) ||
+     /(^|\.)((?:googleusercontent|googlevideo|googlephotos)\.com|photos\.google\.com|photos\.app\.goo\.gl)$/i.test(url.hostname))
+    throw Error(where+": usa una URL HTTPS directa terminada en .mp4 o .m3u8 (no Google Photos).");
+}
 function saveSeriesToCollection(){
   if(state.movie?.kind==='SERIES')state.movie.seriesDefaultLanguage=mmhdNormalizeMainAudioLanguage($('seriesDefaultLanguage').value);
   storeAdminEpisodeFields();
   const m=state.movie;if(!m || m.kind!=="SERIES")return;
+  try{
+    for(const season of m.seasons||[])for(const ep of season.episodes||[]){
+      const where=`T${season.number}E${ep.number}`;
+      mmhdValidateAirplayUrl(ep.airplayUrl,where+" (principal)");
+      mmhdValidateAirplayUrl(ep.airplayUrlEn,where+" (Inglés)");
+    }
+  }catch(e){showStatus(e.message,"err");return;}
   const active=activeAdminEpisode();
   if(active && mmhdHasVideoConfigured(active)){
     try{validateVideoLinks();}catch(err){showStatus("Episodio actual: "+err.message,"err");return;}
@@ -2845,7 +2910,7 @@ function saveSeriesToCollection(){
     googleUrl:"",m37:"",m22:"",m18:"",addedAt:old?.addedAt||now,updatedAt:now};
   const next=state.collection.slice(),idx=next.findIndex(x=>String(x.id)===String(item.id));
   if(idx>=0)next[idx]=item;else next.push(item);
-  if(!commitCollection(next)){showStatus("No se pudo guardar. Revisa el almacenamiento del navegador.","err");return;}
+  if(!commitCollection(next)){showStatus("No se guardó la serie por falta de espacio local. No cierres el editor; ve a Herramientas → Espacio del navegador y vuelve a intentar Guardar cambios.","err");return;}
   state.movie.manualSearchTitles=item.manualSearchTitles;
   state.movie.searchTitles=item.searchTitles;
   state.movie.searchTitlesSynced=item.searchTitlesSynced;
@@ -3023,7 +3088,7 @@ function editSavedMovie(id){
   state.posterOptions=buildArtworkOptions("poster",state.poster,[]);
   state.backdropOptions=buildArtworkOptions("backdrop",state.backdrop,[]);
   $("googleUrl").value=item.googleUrl||"";
-  for (const id of ["m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl"]) $(id).value=item[id]||"";
+  for (const id of ["m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl","airplayUrl","airplayUrlEn"]) $(id).value=item[id]||"";
   mmhdLoadSubtitleFields(item);
   mmhdLoadAudioAlt(item);
   $('primaryLanguage').value=mmhdNormalizeMainAudioLanguage(item.primaryLanguage);
@@ -3578,7 +3643,11 @@ function addMovieToCollection(){
   const m37 = $("m37").value.trim();
   const m22 = $("m22").value.trim();
   const m18 = $("m18").value.trim();
-  try { validateVideoLinks(); } catch(e) { showStatus(e.message,"err"); return; }
+  try {
+    validateVideoLinks();
+    mmhdValidateAirplayUrl($("airplayUrl").value.trim(),"Video principal AirPlay");
+    mmhdValidateAirplayUrl($("airplayUrlEn").value.trim(),"Video Inglés AirPlay");
+  } catch(e) { showStatus(e.message,"err"); return; }
 
   const oldItem=state.collection.find(x=>String(x.id)===String(state.movie.id));
   const item = {
@@ -3614,7 +3683,9 @@ function addMovieToCollection(){
     googleUrlEn:$("googleUrlEn").value.trim(),
     m37En:$("m37En").value.trim(),m22En:$("m22En").value.trim(),m18En:$("m18En").value.trim(),
     subtitlesUrl:$("subtitlesUrl").value.trim(),
-    subtitleTracks:mmhdPanelSubtitleTracks()
+    subtitleTracks:mmhdPanelSubtitleTracks(),
+    airplayUrl:$("airplayUrl").value.trim(),
+    airplayUrlEn:$("airplayUrlEn").value.trim()
   };
   const idx = state.collection.findIndex(x=>String(x.id)===String(item.id));
   const next=state.collection.slice();
@@ -3642,7 +3713,7 @@ function renderCollection(options={}){
   $("collectionBadge").textContent=count;
   if(!options.onlyList){renderFeatured();renderAdminDashboard();}
   let canUndo=false;
-  try {canUndo=Array.isArray(JSON.parse(localStorage.getItem(COLLECTION_RECOVERY_KEY)||"null"));}catch{}
+  try {canUndo=Array.isArray(JSON.parse(mmhdRecoveryRaw()||"null"));}catch{}
   card.style.display="block";
   if (!count){
     list.innerHTML='<div class="empty">La colección está vacía. Puedes restaurar un respaldo o agregar un título.</div>';
@@ -3914,7 +3985,10 @@ async function buildCollectionHtml(){
       m18En: String(item.m18En || ""),
       audioAlt:mmhdNormalizedAudioAlt(item.audioAlt),
       subtitlesUrl: String(item.subtitlesUrl || ""),
-      subtitleTracks:mmhdNormalizeSubtitleTracks(item.subtitleTracks,item.subtitlesUrl)
+      subtitleTracks:mmhdNormalizeSubtitleTracks(item.subtitleTracks,item.subtitlesUrl),
+      // Fuente aprobada para AirPlay: no reemplaza Google Photos ni Chromecast.
+      airplayUrl:String(item.airplayUrl||""),
+      airplayUrlEn:String(item.airplayUrlEn||"")
     }));
 
     // Una sola plantilla compartida; cada película conserva sus enlaces en MOVIES.
@@ -4104,7 +4178,7 @@ $("btnEnrichMedia").addEventListener("click",enrichSavedMovies);
 $("btnSyncSearchTitles").addEventListener("click",syncSearchTitles);
 $("btnRecoverCollection").addEventListener("click",()=>{
   let saved;
-  try{saved=JSON.parse(localStorage.getItem(COLLECTION_RECOVERY_KEY)||"null");}catch{}
+  try{saved=JSON.parse(mmhdRecoveryRaw()||"null");}catch{}
   if(!Array.isArray(saved)){alert("No hay un cambio anterior guardado para deshacer.");return;}
   if(!confirm(`¿Volver a la versión anterior (${saved.length} películas)?`))return;
   if(commitCollection(saved)){resetSelection();alert("Se restauró la colección anterior.");}
@@ -4381,7 +4455,7 @@ async function mmhdPrepareRestore(file){
    Mantiene la biblioteca local, añade títulos nuevos y actualiza títulos
    existentes con prioridad del respaldo para URLs, metadatos clave y
    diagnósticos. No borra episodios ausentes del archivo. */
-const MMHD_BACKUP_LINK_FIELDS=['primaryLanguage','seriesDefaultLanguage','googleUrl','m37','m22','m18','googleUrlEn','m37En','m22En','m18En','audioAlt','subtitlesUrl','subtitleTracks'];
+const MMHD_BACKUP_LINK_FIELDS=['primaryLanguage','seriesDefaultLanguage','googleUrl','m37','m22','m18','googleUrlEn','m37En','m22En','m18En','audioAlt','subtitlesUrl','subtitleTracks','airplayUrl','airplayUrlEn'];
 const MMHD_BACKUP_META_FIELDS=[
   'title','searchTitles','manualSearchTitles','subtitle','year','runtime',
   'poster','backdrop','logo','cast','rating','genres','cert','overview',
@@ -4769,6 +4843,34 @@ renderCollection();
  <div id="mmhd-cloud-backups" style="margin-top:9px;max-height:200px;overflow:auto;font-size:13px">Sin respaldos</div>
  </div>`;
  document.getElementById('mmhd-cloud-maintenance-holder').appendChild(maintenanceHost);
+ // Herramienta local y explícita: no elimina películas ni las copias de Supabase.
+ const storagePanel=document.createElement('section');storagePanel.className='panel';storagePanel.id='mmhd-storage-help';
+ storagePanel.style.cssText='margin-top:12px;padding:12px;border:1px solid #344c60;border-radius:10px';
+ storagePanel.innerHTML=`<div class="panel-title">💾 Espacio del navegador</div>
+ <p class="support-text">Cada administrador tiene su propio almacenamiento local. Si una edición no se guarda, revisa el espacio aquí antes de cerrar la página.</p>
+ <div class="mmhd-credential-actions"><button type="button" class="secondary" id="mmhd-local-space-check">Comprobar espacio local</button><button type="button" class="secondary" id="mmhd-local-space-clean">Liberar caché de diagnósticos</button></div>
+ <p class="support-text" id="mmhd-local-space-message" role="status" aria-live="polite"></p>`;
+ maintenanceHost.appendChild(storagePanel);
+ const localSpaceStatus=storagePanel.querySelector('#mmhd-local-space-message');
+ const localSpaceSize=key=>{try{return (localStorage.getItem(key)||'').length*2;}catch{return 0;}};
+ const fmtLocalBytes=n=>n>=1048576?(n/1048576).toFixed(2)+' MB':(n/1024).toFixed(0)+' KB';
+ const paintLocalSpace=()=>{
+   let total=0;
+   try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);total+=(k.length+(localStorage.getItem(k)||'').length)*2;}}catch{}
+   localSpaceStatus.textContent='Uso aproximado: '+fmtLocalBytes(total)+' · Biblioteca: '+fmtLocalBytes(localSpaceSize(COLLECTION_STORAGE_KEY))+' · Diagnósticos: '+fmtLocalBytes(localSpaceSize('mmhdLinkHealthV1'))+' · Recuperación antigua: '+fmtLocalBytes(localSpaceSize(COLLECTION_RECOVERY_KEY))+'. Cada navegador tiene su propio límite.';
+ };
+ storagePanel.querySelector('#mmhd-local-space-check').addEventListener('click',paintLocalSpace);
+ storagePanel.querySelector('#mmhd-local-space-clean').addEventListener('click',()=>{
+   if(!confirm('Se borrarán SOLO los resultados guardados de verificación de enlaces de ESTE navegador. Deberás volver a verificarlos cuando los necesites. No se borrarán películas, episodios, enlaces ni respaldos de Supabase. ¿Continuar?'))return;
+   try{
+     localStorage.removeItem('mmhdLinkHealthV1');
+     mmhdDiagRecords={};
+     if(document.getElementById('healthMetrics'))mmhdRenderHealth();
+     paintLocalSpace();
+     localSpaceStatus.textContent+=' Caché eliminada. Vuelve al editor y pulsa Guardar cambios otra vez.';
+   }catch(e){localSpaceStatus.textContent='No se pudo liberar la caché: '+e.message;}
+ });
+
  // Los controles de publicación son exclusivos de Mi biblioteca, no de Herramientas.
  const publicationHost=document.createElement('section');
  publicationHost.className='panel';
