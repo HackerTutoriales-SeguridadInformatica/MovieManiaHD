@@ -38,6 +38,14 @@ module.exports=async function handler(req,res){
      }));
     }
    }
+   if(req.query?.includeContacts==='1'){
+   const ids=(Array.isArray(items)?items:[]).map(row=>Number(row.id)).filter(id=>Number.isSafeInteger(id)&&id>0);
+   const contacts=ids.length?await supabase('content_request_contacts?select=id,request_id,requester_name,requester_email,reason,created_at,updated_at&request_id=in.('+ids.join(',')+')&order=created_at.desc&limit=5000'):[];
+   const grouped=new Map();for(const c of (Array.isArray(contacts)?contacts:[])){
+     const id=String(c.request_id);if(!grouped.has(id))grouped.set(id,[]);grouped.get(id).push(c);
+   }
+   for(const item of (Array.isArray(items)?items:[]))item.contacts=grouped.get(String(item.id))||[];
+   }
    return res.status(200).json({items});
   }
   if(req.method==='PATCH'){
@@ -89,7 +97,14 @@ module.exports=async function handler(req,res){
   const fingerprint=crypto.createHmac('sha256',process.env.MMHD_REQUESTS_HASH_SECRET).update(day+'|'+ip).digest('hex');
   const year=String(d.release_date||d.first_air_date||'').slice(0,4);
   const poster=typeof d.poster_path==='string'&&/^\/[a-zA-Z0-9_/-]+\.(jpg|jpeg|png|webp)$/i.test(d.poster_path)?d.poster_path:null;
-  const result=await supabase('rpc/mmhd_submit_request',{method:'POST',body:{p_type:type,p_tmdb_id:id,p_title:title,p_year:/^\d{4}$/.test(year)?year:null,p_poster:poster,p_fingerprint:fingerprint}});
+  const name=typeof req.body?.name==='string'?req.body.name.trim().replace(/\s+/g,' '):'';
+  const email=typeof req.body?.email==='string'?req.body.email.trim().toLowerCase():'';
+  const reason=typeof req.body?.reason==='string'?req.body.reason.trim():'';
+  if(name.length<2||name.length>80||email.length<5||email.length>254||
+    !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)||reason.length>500){
+    return fail(res,400,'Escribe tu nombre (2 a 80 caracteres) y un correo válido. El motivo es opcional.');
+  }
+  const result=await supabase('rpc/mmhd_submit_request_contact',{method:'POST',body:{p_type:type,p_tmdb_id:id,p_title:title,p_year:/^\d{4}$/.test(year)?year:null,p_poster:poster,p_fingerprint:fingerprint,p_name:name,p_email:email,p_reason:reason}});
   if(result?.limited)return fail(res,429,'Límite diario alcanzado. Inténtalo mañana.');
   return res.status(200).json({ok:true,duplicate:!!result?.duplicate});
  }catch(e){console.error('MMHD requests:',e.message);return fail(res,503,'Servicio de solicitudes no disponible. Revisa la configuración.');}
