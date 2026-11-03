@@ -1270,6 +1270,15 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 #view-editor #results .mmhd-existing-search-result{border:1px solid rgba(0,230,160,.68);background:rgba(0,230,160,.06)}
 #view-editor #results .mmhd-exists-label{display:block;margin-top:6px;padding:4px 6px;color:#85f2c3;font-size:11px;font-weight:700;line-height:1.4;border-radius:6px;background:rgba(0,230,160,.11);white-space:normal}
 </style>
+<style id="mmhd-contact-admin-css">
+.mmhd-req-contacts{margin:12px 0 2px;padding:10px 12px;background:#0a1728;border:1px solid #355473;border-radius:10px;color:#dceafa;font-size:12px}
+.mmhd-req-contacts summary{cursor:pointer;font-weight:750;outline-offset:3px;line-height:1.5}
+.mmhd-req-contact-entry{padding:10px 0;border-bottom:1px solid #304256;overflow-wrap:anywhere}
+.mmhd-req-contact-entry:last-child{border-bottom:0}
+.mmhd-req-contact-entry p{margin:5px 0;color:#c4d6e8}
+.mmhd-req-contact-entry a{color:#a4d9ff;overflow-wrap:anywhere}
+.mmhd-req-contact-entry .mmhd-notify-manual{display:inline-block;margin-top:6px;background:#163d74;border:1px solid #4478be;padding:7px 10px;border-radius:7px;color:white;text-decoration:none;font-weight:700}
+</style>
 </head>
 <body>
 <div class="admin-shell">
@@ -1377,7 +1386,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </section>
 
 <section aria-labelledby="mmhd-requests-heading" class="admin-view" data-page="requests" hidden id="view-requests">
- <div class="page-heading"><div><div class="eyebrow">COMUNIDAD</div><h2 id="mmhd-requests-heading">Solicitudes de visitantes</h2><p>Peticiones anónimas recibidas desde el catálogo, agrupadas por película o serie.</p></div></div>
+ <div class="page-heading"><div><div class="eyebrow">COMUNIDAD</div><h2 id="mmhd-requests-heading">Solicitudes de visitantes</h2><p>Solicitudes de visitantes recibidas desde el catálogo, agrupadas por película o serie.</p></div></div>
  <div class="panel mmhd-requests-connect-notice">
   <div><strong><i class="fa-solid fa-shield-halved"></i> Acceso administrativo</strong><p class="support-text">La clave para consultar y administrar solicitudes ahora se gestiona junto con las demás credenciales del panel.</p></div>
   <button type="button" class="secondary" data-view="appearance" data-mmhd-settings-open="credentials"><i class="fa-solid fa-key"></i> Administrar credenciales</button>
@@ -6072,6 +6081,28 @@ renderCollection();
  const say=t=>{status.textContent=t;const mirror=document.getElementById('mmhd-requests-credential-status');if(mirror)mirror.textContent=t;};
  say(key?(savedPersistent?'Clave guardada. Conectando automáticamente…':'Clave disponible para conectar.'): 'Sin conexión. Introduce la clave en Configuración → Credenciales.');
  async function api(method,path,data){const res=await fetch(path,{method,headers:{'content-type':'application/json','x-mmhd-admin-key':key},body:data?JSON.stringify(data):undefined,cache:'no-store'});const payload=await res.json();if(!res.ok)throw Error(payload.error||'Error de conexión');return payload}
+ function rowsSignature(rows){return JSON.stringify(rows.map(r=>[r.id,r.status,r.votes,r.updated_at,r.poster_path,r.title,Array.isArray(r.contacts)?r.contacts.map(c=>[c.id,c.updated_at]):null]));}
+ function appendPrivateContacts(info,r){
+  if(!Array.isArray(r.contacts)||!r.contacts.length)return;
+  const details=document.createElement('details');details.className='mmhd-req-contacts';
+  const summary=document.createElement('summary');summary.textContent='Datos de contacto ('+r.contacts.length+')';details.append(summary);
+  for(const contact of r.contacts){
+   const entry=document.createElement('div');entry.className='mmhd-req-contact-entry';
+   const person=document.createElement('strong');person.textContent=String(contact.requester_name||'Visitante');entry.append(person);
+   const email=String(contact.requester_email||'').trim();
+   if(email&&/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)){
+    const p=document.createElement('p'),a=document.createElement('a');
+    a.textContent=email;a.href='mailto:'+email;p.append(a);entry.append(p);
+    const notify=document.createElement('a');notify.className='mmhd-notify-manual';notify.textContent='Redactar aviso por correo';
+    notify.href='mailto:'+email+'?subject='+encodeURIComponent('Tu solicitud en Movie Mania HD')+'&body='+encodeURIComponent('Hola, '+String(contact.requester_name||'')+':\n\nEl contenido «'+String(r.title||'')+'» que solicitaste ya está disponible en Movie Mania HD.\n\nhttps://moviemaniahd.vercel.app/\n\n¡Gracias por tu solicitud!');
+    notify.title='Abre la aplicación de correo. El mensaje no se envía automáticamente.';
+    entry.append(notify);
+   }
+   if(contact.reason){const reason=document.createElement('p');reason.textContent='Motivo: '+String(contact.reason);entry.append(reason);}
+   details.append(entry);
+  }
+  info.append(details);
+ }
  function renderStats(){pendingEl.textContent=items.filter(x=>x.status==='pending').length;progressEl.textContent=items.filter(x=>x.status==='progress').length;addedEl.textContent=items.filter(x=>x.status==='added').length;stats.hidden=false}
  function render(){list.replaceChildren();renderStats();if(!items.length){list.textContent='Todavía no hay solicitudes.';countEl.textContent='';return;}
  let shown=items.filter(r=>filterEl.value==='all'||(filterEl.value==='existing'?!!catalogMatch(r):r.status===filterEl.value));
@@ -6081,7 +6112,7 @@ renderCollection();
  if(typeof r.poster_path==='string'&&/^\/[a-zA-Z0-9_/-]+\.(jpg|jpeg|png|webp)$/i.test(r.poster_path)){
  const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w154'+r.poster_path;im.alt='Póster de '+r.title;im.loading='lazy';im.referrerPolicy='no-referrer';im.onerror=()=>{const ph=document.createElement('div');ph.className='mmhd-req-placeholder';ph.textContent='Sin póster';im.replaceWith(ph)};row.append(im)
  }else{const ph=document.createElement('div');ph.className='mmhd-req-placeholder';ph.textContent='Sin póster';row.append(ph)}
- const info=document.createElement('div');info.className='details';const title=document.createElement('strong'),small=document.createElement('small');title.textContent=r.title;small.textContent=(r.media_type==='tv'?'Serie':'Película')+' · '+(r.release_year||'Sin año')+' · '+r.votes+' solicitud(es) · '+new Date(r.updated_at).toLocaleDateString('es-MX');info.append(title,small);const existing=catalogMatch(r);if(existing){const flag=document.createElement('span');flag.textContent='✓ Ya está en tu catálogo';flag.style.cssText='display:inline-block;margin-top:6px;color:#6de6a6;font-size:12px;font-weight:700';info.append(flag);}if(newIds.has(String(r.id))){const fresh=document.createElement('span');fresh.textContent=' · NUEVA';fresh.style.cssText='color:#ff7395;font-size:11px;font-weight:bold';info.append(fresh)}row.append(info);
+ const info=document.createElement('div');info.className='details';const title=document.createElement('strong'),small=document.createElement('small');title.textContent=r.title;small.textContent=(r.media_type==='tv'?'Serie':'Película')+' · '+(r.release_year||'Sin año')+' · '+r.votes+' solicitud(es) · '+new Date(r.updated_at).toLocaleDateString('es-MX');info.append(title,small);const existing=catalogMatch(r);if(existing){const flag=document.createElement('span');flag.textContent='✓ Ya está en tu catálogo';flag.style.cssText='display:inline-block;margin-top:6px;color:#6de6a6;font-size:12px;font-weight:700';info.append(flag);}if(newIds.has(String(r.id))){const fresh=document.createElement('span');fresh.textContent=' · NUEVA';fresh.style.cssText='color:#ff7395;font-size:11px;font-weight:bold';info.append(fresh)}appendPrivateContacts(info,r);row.append(info);
  const actions=document.createElement('div');actions.className='mmhd-req-actions';
  const stateButtons=[['pending','Pendiente'],['progress','En proceso'],['added','✓ Marcar agregada']].map(([value,label])=>{
   const button=document.createElement('button');button.type='button';button.className='mmhd-req-state mmhd-req-state-'+value;
@@ -6090,14 +6121,14 @@ renderCollection();
   button.disabled=active;button.addEventListener('click',()=>setStatus(value));return button;
  });
  async function setStatus(next){if(next===r.status)return;stateButtons.forEach(b=>b.disabled=true);
-  try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;lastSignature=JSON.stringify(items.map(x=>[x.id,x.status,x.votes,x.updated_at,x.poster_path,x.title]));say('Estado actualizado: '+r.title+'.');render()}
+  try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;lastSignature=rowsSignature(items);say('Estado actualizado: '+r.title+'.');render()}
   catch(e){say(e.message);stateButtons.forEach((b,i)=>b.disabled=[ 'pending','progress','added'][i]===r.status)}
  }
  const remove=document.createElement('button');remove.type='button';remove.className='mmhd-req-delete';remove.setAttribute('aria-label','Eliminar solicitud de '+r.title);remove.title='Eliminar solicitud';remove.textContent='×';
  remove.addEventListener('click',async()=>{
   if(!window.confirm('¿Eliminar definitivamente la solicitud «'+r.title+'»?\n\nSe borrarán el título y sus registros de solicitudes. Esta acción no se puede deshacer.'))return;
   remove.disabled=true;stateButtons.forEach(b=>b.disabled=true);
-  try{await api('DELETE','/api/requests',{id:r.id});items=items.filter(x=>x.id!==r.id);lastSignature=JSON.stringify(items.map(x=>[x.id,x.status,x.votes,x.updated_at,x.poster_path,x.title]));say('Solicitud eliminada: '+r.title+'.');render()}
+  try{await api('DELETE','/api/requests',{id:r.id});items=items.filter(x=>x.id!==r.id);lastSignature=rowsSignature(items);say('Solicitud eliminada: '+r.title+'.');render()}
   catch(e){say('No se pudo eliminar «'+r.title+'»: '+e.message);remove.disabled=false;stateButtons.forEach((b,i)=>b.disabled=['pending','progress','added'][i]===r.status)}
  });
  const add=document.createElement('button');add.type='button';add.className='mmhd-req-add-to-catalog';add.textContent=existing?'✎ Editar en catálogo':'＋ Agregar al catálogo';add.style.cssText='background:#245cc2;color:#fff;border:1px solid #4c82e6;border-radius:7px;padding:9px 11px;cursor:pointer;font-weight:700';add.addEventListener('click',()=>openEditor(r,existing));
@@ -6114,9 +6145,9 @@ renderCollection();
   loading=true;
   if(!silent)say('Consultando solicitudes…');
   try{
-   const data=await api('GET','/api/requests');
+   const data=await api('GET',isViewing()?'/api/requests?includeContacts=1':'/api/requests');
    const fresh=Array.isArray(data.items)?data.items:[];
-   const signature=JSON.stringify(fresh.map(r=>[r.id,r.status,r.votes,r.updated_at,r.poster_path,r.title]));
+   const signature=rowsSignature(fresh);
    items=fresh;
    connected=true;
    if(knownIds===null){knownIds=new Set(fresh.map(r=>String(r.id)));try{localStorage.setItem(knownKey,JSON.stringify([...knownIds]))}catch{}}

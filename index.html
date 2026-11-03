@@ -2466,6 +2466,12 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 .mmhd-req-captcha-box p{font-size:11px;margin:5px 0;color:#abb7ca}
 #mmhd-req-turnstile{max-width:100%;overflow:hidden}
 </style>
+<style id="mmhd-req-contact-css">
+.mmhd-request-card textarea{display:block;width:100%;min-height:82px;resize:vertical;border:1px solid #434357;background:#090d18;color:#fff;padding:12px;border-radius:9px;margin:7px 0 12px;outline:none;font:inherit}
+.mmhd-request-card :is(input,textarea):focus-visible{border-color:#80a9f8;outline:2px solid #537bca}
+.mmhd-req-privacy-note{font-size:12px!important;color:#c6d1e5!important;background:#192436;border:1px solid #3a526f;border-radius:9px;padding:12px;margin:4px 0 12px}
+.mmhd-req-required-note{font-size:11px;color:#abb8d3;margin-top:0}
+</style>
 </head>
 <body>
 <!-- Halloween: aparece en cada carga del index generado, sin dependencias externas. -->
@@ -7773,11 +7779,16 @@ syncBackToTop();
 </script>
 <div id="mmhd-request-modal" hidden role="dialog" aria-modal="true" aria-labelledby="mmhd-request-title">
  <div class="mmhd-request-card"><div class="mmhd-req-top"><h2 id="mmhd-request-title">🎬 Solicitar contenido</h2><button type="button" class="mmhd-req-close" id="mmhd-req-close" aria-label="Cerrar">×</button></div>
- <p>Solicita una película o serie de manera anónima. No pedimos nombre ni correo.</p>
+ <p>¿Hay una película o serie que te gustaría ver? Envíanos tu solicitud.</p>
  <label for="mmhd-req-type">Tipo de contenido</label><select id="mmhd-req-type"><option value="movie">Película</option><option value="tv">Serie</option></select>
  <label for="mmhd-req-query">Busca el título en TMDB</label><div class="mmhd-req-search-wrap"><input id="mmhd-req-query" type="search" maxlength="100" placeholder="Nombre de la película o serie" autocomplete="off" /><button type="button" id="mmhd-req-clear" class="mmhd-req-clear" aria-label="Borrar búsqueda" title="Borrar búsqueda" hidden>×</button></div>
- <div id="mmhd-req-results" class="mmhd-req-results" aria-live="polite"></div><div class="mmhd-req-captcha-box"><div id="mmhd-req-turnstile"></div><p id="mmhd-req-captcha-help">Cargando verificación anti-bots…</p></div><div class="mmhd-req-message" id="mmhd-req-message" role="status"></div>
- <button id="mmhd-req-submit" class="mmhd-req-submit" disabled type="button">Enviar solicitud anónima</button></div>
+ <div id="mmhd-req-results" class="mmhd-req-results" aria-live="polite"></div>
+ <label for="mmhd-req-name">Nombre *</label><input id="mmhd-req-name" type="text" autocomplete="name" placeholder="Tu nombre" minlength="2" maxlength="80" required>
+ <label for="mmhd-req-email">Correo *</label><input id="mmhd-req-email" type="email" autocomplete="email" inputmode="email" placeholder="correo@ejemplo.com" maxlength="254" required>
+ <label for="mmhd-req-reason">¿Por qué lo solicita? (Opcional)</label><textarea id="mmhd-req-reason" rows="3" maxlength="500" placeholder="Cuéntanos por qué te gustaría que agregáramos este contenido"></textarea>
+ <p class="mmhd-req-privacy-note">Tu correo se utilizará únicamente para informarte cuando el contenido que solicitaste esté disponible en Movie Mania HD. No se mostrará públicamente.</p>
+ <p class="mmhd-req-required-note">* Campos obligatorios.</p><div class="mmhd-req-captcha-box"><div id="mmhd-req-turnstile"></div><p id="mmhd-req-captcha-help">Cargando verificación anti-bots…</p></div><div class="mmhd-req-message" id="mmhd-req-message" role="status"></div>
+ <button id="mmhd-req-submit" class="mmhd-req-submit" disabled type="button">Enviar solicitud</button></div>
 </div>
 
 <script>
@@ -7786,9 +7797,10 @@ syncBackToTop();
  const modal=document.getElementById('mmhd-request-modal');if(!modal)return;
  const clearBtn=document.getElementById('mmhd-req-clear'),captchaHelp=document.getElementById('mmhd-req-captcha-help'),captchaBox=document.getElementById('mmhd-req-turnstile');
  const q=document.getElementById('mmhd-req-query'),type=document.getElementById('mmhd-req-type'),results=document.getElementById('mmhd-req-results'),msg=document.getElementById('mmhd-req-message'),submit=document.getElementById('mmhd-req-submit');
+ const reqName=document.getElementById('mmhd-req-name'),reqEmail=document.getElementById('mmhd-req-email'),reqReason=document.getElementById('mmhd-req-reason');
  let chosen=null, debounce=null,serial=0,busy=false;
  let captchaToken='',widgetId=null,siteKey='',captchaInit=null;
- function canSubmit(){submit.disabled=!chosen||!captchaToken||busy}
+ function canSubmit(){submit.disabled=!chosen||!captchaToken||busy||reqName.value.trim().length<2||!reqEmail.value.trim()||!reqEmail.checkValidity()}
  function resetCaptcha(){captchaToken='';if(widgetId!==null&&window.turnstile){window.turnstile.reset(widgetId)}canSubmit()}
  function loadCaptchaScript(){return new Promise((resolve,reject)=>{if(window.turnstile)return resolve();const existing=document.getElementById('mmhd-turnstile-script');if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return;}const el=document.createElement('script');el.id='mmhd-turnstile-script';el.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';el.async=true;el.onload=resolve;el.onerror=reject;document.head.appendChild(el)})}
  async function initCaptcha(){if(widgetId!==null)return;if(captchaInit)return captchaInit;
@@ -7799,7 +7811,7 @@ syncBackToTop();
  }
  const say=t=>{msg.textContent=t};
  function clearForm(){
-   clearTimeout(debounce);++serial;chosen=null;q.value='';type.value='movie';results.replaceChildren();syncClear();say('');
+   clearTimeout(debounce);++serial;chosen=null;q.value='';type.value='movie';reqName.value='';reqEmail.value='';reqReason.value='';results.replaceChildren();syncClear();say('');
    captchaToken='';canSubmit();
  }
  function open(){
@@ -7829,9 +7841,10 @@ syncBackToTop();
  clearBtn.addEventListener('click',()=>{q.value='';syncClear();clearTimeout(debounce);++serial;reset();say('');q.focus()});
  q.addEventListener('input',()=>{syncClear();clearTimeout(debounce);++serial;reset();debounce=setTimeout(search,350)});syncClear();
  type.addEventListener('change',()=>{clearTimeout(debounce);search()});
- submit.addEventListener('click',async()=>{if(!chosen||busy||!captchaToken)return;busy=true;canSubmit();say('Enviando…');let sent=false;try{
- const res=await fetch('/api/requests',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:type.value,id:chosen.id,turnstileToken:captchaToken})});const data=await res.json();if(!res.ok)throw Error(data.error||'No se pudo enviar');sent=true;
- say(data.duplicate?'Esta solicitud ya estaba registrada recientemente. Cerrando…':'¡Solicitud enviada correctamente! Cerrando…');
+ [reqName,reqEmail].forEach(input=>input.addEventListener('input',canSubmit));
+ submit.addEventListener('click',async()=>{if(!chosen||busy||!captchaToken)return;if(reqName.value.trim().length<2||!reqEmail.checkValidity()){say('Escribe tu nombre y un correo válido.');return;}busy=true;canSubmit();say('Enviando…');let sent=false;try{
+ const res=await fetch('/api/requests',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:type.value,id:chosen.id,turnstileToken:captchaToken,name:reqName.value.trim(),email:reqEmail.value.trim(),reason:reqReason.value.trim()})});const data=await res.json();if(!res.ok)throw Error(data.error||'No se pudo enviar');sent=true;
+ say(data.duplicate?'Esta solicitud ya estaba registrada hoy desde tu conexión. No se guardó otro contacto. Cerrando…':'¡Solicitud enviada correctamente! Cerrando…');
  // Conservamos brevemente la confirmación; no reiniciamos Turnstile detrás del mensaje.
  await new Promise(resolve=>setTimeout(resolve,1100));
  }catch(e){say(e.message||'No se pudo enviar')}
