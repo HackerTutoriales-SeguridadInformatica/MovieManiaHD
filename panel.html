@@ -1266,6 +1266,9 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 #mmhd-shared-library{border-color:#2d5575!important}
 @media(max-width:810px){.mmhd-credentials-grid{grid-template-columns:1fr}.mmhd-credentials-grid #mmhd-credentials-requests{grid-column:auto}}
 @media(max-width:490px){.mmhd-settings-tabs{display:grid;grid-template-columns:1fr}.mmhd-settings-tab{justify-content:center}.mmhd-credential-actions>button{flex:1 1 150px}}
+/* Fase 11.7 · Aviso al buscar títulos ya existentes en TMDB */
+#view-editor #results .mmhd-existing-search-result{border:1px solid rgba(0,230,160,.68);background:rgba(0,230,160,.06)}
+#view-editor #results .mmhd-exists-label{display:block;margin-top:6px;padding:4px 6px;color:#85f2c3;font-size:11px;font-weight:700;line-height:1.4;border-radius:6px;background:rgba(0,230,160,.11);white-space:normal}
 </style>
 </head>
 <body>
@@ -1423,7 +1426,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <option value="incomplete">Sin enlaces de video</option>
 </select>
 <select aria-label="Ordenar películas" id="collectionSort">
-<option value="recent">Añadidas recientemente</option>
+<option value="recent">Añadidas o editadas recientemente</option>
 <option value="title">Título (A-Z)</option>
 <option value="year">Año (más nuevo)</option>
 <option value="rating">Calificación TMDB</option>
@@ -2491,6 +2494,35 @@ async function validateCredential(){
   }
 }
 
+/* FASE 11.7 — Identificar títulos TMDB ya presentes antes de crear una ficha.
+   Priorizar TMDB ID + tipo. Los nombres son un respaldo conservador cuando
+   el catálogo anterior no guardó el ID; nunca mezclar película con serie. */
+function mmhdExistingTmdbTitle(kind, tmdbId, title='', year=''){
+  const isSeries=kind==='tv'||kind==='SERIES';
+  const candidates=state.collection.filter(row=>isSeries?row.kind==='SERIES':row.kind!=='SERIES');
+  const wanted=Number(tmdbId);
+  if(Number.isSafeInteger(wanted)&&wanted>0){
+    const ids=candidates.filter(row=>Number(row.tmdbId||Math.abs(Number(row.id)))===wanted);
+    if(ids.length===1)return ids[0];
+    if(ids.length>1)return null; // Datos duplicados: no elegir arbitrariamente.
+  }
+  const normal=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es').replace(/[^a-z0-9]+/g,' ').trim();
+  const wantedTitle=normal(title);
+  if(!wantedTitle)return null;
+  const yearText=String(year||'').slice(0,4);
+  const matches=candidates.filter(row=>{
+    const aliases=[row.title,...(Array.isArray(row.searchTitles)?row.searchTitles:[]),...(Array.isArray(row.manualSearchTitles)?row.manualSearchTitles:[])];
+    if(!aliases.some(alias=>normal(alias)===wantedTitle))return false;
+    return !yearText||!row.year||String(row.year).slice(0,4)===yearText;
+  });
+  return matches.length===1?matches[0]:null;
+}
+function mmhdEditExistingTmdb(item){
+  editSavedMovie(item.id); // Carga idiomas, URLs, subtítulos y todos los episodios guardados.
+  showStatus('✓ «'+String(item.title||'Título')+'» ya está en tu catálogo. Abrí sus datos guardados para que puedas editarlos sin duplicarlo.','ok');
+  updateSteps(3);
+}
+
 /* ============================================================
    FASE 11: NOMBRES DE BUSQUEDA TMDB (SIN CLAVE EN INDEX.HTML)
    Nombres originales, traducciones ES/EN y titulos alternativos.
@@ -2874,12 +2906,8 @@ async function goNextPendingAdmin(){
 }
 async function loadSeries(tmdbId){
   arrangeEpisodeWorkspace(false);
-  const existing=state.collection.find(item=>item.kind==="SERIES" && Number(item.tmdbId||Math.abs(Number(item.id)))===Number(tmdbId));
-  if(existing){
-    editSavedSeries(existing);
-    showStatus("Esta serie ya está guardada: abrí su edición para conservar los enlaces existentes.","ok");
-    return;
-  }
+  const existing=mmhdExistingTmdbTitle('tv',tmdbId);
+  if(existing){mmhdEditExistingTmdb(existing);return;}
   const requestId=++movieRequestId;
   ++state.seasonRequestId;state.selectedEpisode=null;state.editingId=null;state.bulkLoading=false;
   clearVideoFields();state.movie=null;
@@ -2986,10 +3014,12 @@ function saveSeriesToCollection(){
     providerOverridesMx:mmhdProviderOverrides(m.providerOverridesMx||old?.providerOverridesMx),
     providersCheckedAtMx:m.providersCheckedAtMx||old?.providersCheckedAtMx||"",
     releaseDate:m.release_date||old?.releaseDate||"",
-    googleUrl:"",m37:"",m22:"",m18:"",addedAt:old?.addedAt||now,updatedAt:now};
+    googleUrl:"",m37:"",m22:"",m18:"",addedAt:old?.addedAt||now,updatedAt:now,
+    ...(old?{manualEditedAt:now}:{})};
   const next=state.collection.slice(),idx=next.findIndex(x=>String(x.id)===String(item.id));
   if(idx>=0)next[idx]=item;else next.push(item);
   if(!commitCollection(next)){showStatus("No se guardó la serie por falta de espacio local. No cierres el editor; ve a Herramientas → Espacio del navegador y vuelve a intentar Guardar cambios.","err");return;}
+  if(old)$('collectionSort').value='recent';
   state.movie.manualSearchTitles=item.manualSearchTitles;
   state.movie.searchTitles=item.searchTitles;
   state.movie.searchTitlesSynced=item.searchTitlesSynced;
@@ -3026,22 +3056,31 @@ async function searchMovies(){
       showStatus("No se encontraron resultados para: "+q,"");
       return;
     }
-    $("resultsHint").textContent = results.length+" resultado(s) encontrado(s).";
+    const existingInResults=results.filter(m=>mmhdExistingTmdbTitle(kind,m.id,m.title||m.name,m.release_date||m.first_air_date)).length;
+    $("resultsHint").textContent=results.length+" resultado(s) · "+existingInResults+" ya en tu biblioteca.";
     $("results").innerHTML = results.map(m=>{
       const poster = m.poster_path ? "https://image.tmdb.org/t/p/w185"+m.poster_path : "";
       const date=m.release_date||m.first_air_date||"";
-       const title=m.title||m.name||"Sin título";
-       const year = date ? date.slice(0,4) : "Sin año";
+      const title=m.title||m.name||"Sin título";
+      const year = date ? date.slice(0,4) : "Sin año";
+      const existing=mmhdExistingTmdbTitle(kind,m.id,title,date);
       return `
-        <div class="result" data-id="${Number(m.id)}">
+        <div class="result ${existing?'mmhd-existing-search-result':''}" data-id="${Number(m.id)}">
           <img src="${escHtml(poster)}" alt="${escHtml(title)}" onerror="this.style.visibility='hidden'">
-          <div class="rbody"><b>${escHtml(title)}</b><span>${escHtml(year)}</span></div>
+          <div class="rbody"><b>${escHtml(title)}</b><span>${escHtml(year)}</span>${existing?'<span class="mmhd-exists-label">✓ Ya está en tu catálogo · Abrir para editar</span>':''}</div>
         </div>`;
     }).join("");
-    document.querySelectorAll(".result").forEach(el=>{
-      el.addEventListener("click", ()=> kind==="tv" ? loadSeries(Number(el.dataset.id)) : loadMovie(Number(el.dataset.id)));
+    document.querySelectorAll("#results .result").forEach(el=>{
+      el.addEventListener("click", ()=>{
+        const selected=results.find(m=>Number(m.id)===Number(el.dataset.id));
+        const existing=selected&&mmhdExistingTmdbTitle(kind,selected.id,selected.title||selected.name,selected.release_date||selected.first_air_date);
+        if(existing){mmhdEditExistingTmdb(existing);return;}
+        kind==="tv" ? loadSeries(Number(el.dataset.id)) : loadMovie(Number(el.dataset.id));
+      });
     });
-    showStatus("Resultados cargados correctamente.","ok");
+    showStatus(existingInResults
+      ? '✓ Encontré '+existingInResults+' título(s) que ya tienes. Están marcados en verde; pulsa uno para cargar sus enlaces, subtítulos y episodios.'
+      : 'Resultados cargados correctamente.', 'ok');
     updateSteps(2);
   }catch(e){ showStatus("✕ "+(e.message||"Error al buscar en TMDB."),"err"); }
 }
@@ -3200,6 +3239,8 @@ async function loadAdditionalArtwork(){
 }
 
 async function loadMovie(id){
+  const saved=mmhdExistingTmdbTitle('movie',id);
+  if(saved){mmhdEditExistingTmdb(saved);return;}
   arrangeEpisodeWorkspace(false);
   const requestId = ++movieRequestId;
   clearVideoFields();
@@ -3756,6 +3797,7 @@ function addMovieToCollection(){
     providersCheckedAtMx:state.movie.providersCheckedAtMx||oldItem?.providersCheckedAtMx||"",
     addedAt: oldItem?.addedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    ...(oldItem?{manualEditedAt:new Date().toISOString()}:{}),
     m37, m22, m18,
     audioAlt:mmhdAudioAltFromFields(),
     primaryLanguage:mmhdSelectedMainLanguage(),
@@ -3773,6 +3815,7 @@ function addMovieToCollection(){
   if (!commitCollection(next)){
     showStatus("No se pudieron guardar los cambios en este navegador. Descarga un respaldo.","err"); return;
   }
+  if(idx>=0)$('collectionSort').value='recent';
   const wasEdit=state.editingId !== null;
   resetSelection();
   showStatus(wasEdit || idx>=0 ? "✓ Cambios guardados correctamente. El buscador está limpio." : "✓ Película añadida al catálogo. Puedes buscar otro título.","ok");
@@ -3813,7 +3856,10 @@ function renderCollection(options={}){
   else if(sort==="rating") items.sort((a,b)=>Number(b.rating||0)-Number(a.rating||0));
   else {
     const catalogPositions=new Map(state.collection.map((item,index)=>[item,index]));
-    items.sort((a,b)=>(Date.parse(b.addedAt)||0)-(Date.parse(a.addedAt)||0)||catalogPositions.get(b)-catalogPositions.get(a));
+    // No priorizar updatedAt: TMDB puede tocarlo en cientos de registros.
+    // manualEditedAt solo se actualiza desde Guardar cambios en el editor.
+    const recentTime=item=>Date.parse(item.manualEditedAt||item.addedAt)||0;
+    items.sort((a,b)=>recentTime(b)-recentTime(a)||catalogPositions.get(b)-catalogPositions.get(a));
   }
   $("collectionInfo").textContent=`Mostrando ${items.length} de ${count} títulos · Edita para recuperar los enlaces guardados.`;
   if (!items.length){list.innerHTML='<div class="empty">No hay películas que coincidan con estos filtros.</div>';return;}
@@ -5656,7 +5702,7 @@ renderCollection();
   function updateRedesignDashboard(){
     const target=document.getElementById('adminRecentList');if(!target)return;
     const recent=[...state.collection].sort((a,b)=>
-      (Date.parse(b.addedAt)||0)-(Date.parse(a.addedAt)||0)||state.collection.indexOf(b)-state.collection.indexOf(a)).slice(0,4);
+      (Date.parse(b.manualEditedAt||b.addedAt)||0)-(Date.parse(a.manualEditedAt||a.addedAt)||0)||state.collection.indexOf(b)-state.collection.indexOf(a)).slice(0,4);
     if(!recent.length){target.innerHTML='<p class="support-text">Aún no hay títulos. Empieza agregando tu primera película o serie.</p>';return;}
     target.replaceChildren();
     recent.forEach(m=>{
