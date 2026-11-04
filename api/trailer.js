@@ -4,62 +4,65 @@
 // Preferir audio español latino SOLO cuando TMDB identifica un video real en ese idioma.
 // Conservar una alternativa (español de España, inglés u original) si no existe.
 // No expone credenciales ni escribe datos de la biblioteca.
+// La región de TMDB es una pista, no una garantía del doblaje real de YouTube.
+// Si el título del video dice «castellano» o «España», esa evidencia prevalece
+// incluso sobre un código regional latinoamericano cargado incorrectamente.
 const LATAM = new Set([
   'MX','AR','BO','CL','CO','CR','CU','DO','EC','GT','HN','NI','PA',
-  'PE','PR','PY','SV','UY','VE','US'
+  'PE','PR','PY','SV','UY','VE'
 ]);
-const LANGUAGES = ['es-MX', 'es-AR', 'es-CO', 'es-ES', 'en-US'];
+const LANGUAGES = ['es-MX', 'es-AR', 'es-CO', 'es-CL', 'es-PE', 'es-ES', 'en-US'];
 const KEY_RE = /^[a-zA-Z0-9_-]{11}$/;
+const TYPE_SCORE = { trailer: 50, teaser: 30, clip: 10 };
 
-function spanishLatino(video) {
-  const lang = String(video.iso_639_1 || '').toLowerCase();
-  const region = String(video.iso_3166_1 || '').toUpperCase();
-  const name = String(video.name || '').toLowerCase();
-  return lang === 'es' && (
-    LATAM.has(region) ||
-    /latino|latina|latam|latinoam[eé]rica|hispanoam[eé]rica|espa[nñ]ol\s*(?:de\s*)?(?:m[eé]xico|latino)/i.test(name)
-  );
+function videoMeta(video) {
+  return {
+    lang: String(video?.iso_639_1 || '').toLowerCase(),
+    region: String(video?.iso_3166_1 || '').toUpperCase(),
+    name: String(video?.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  };
 }
 
 function languagePriority(video) {
-  const lang = String(video.iso_639_1 || '').toLowerCase();
-  const region = String(video.iso_3166_1 || '').toUpperCase();
-  if (spanishLatino(video)) return 5;
-  if (lang === 'es' && region === 'ES') return 4;
-  if (lang === 'es') return 3; // Español, pero TMDB no identifica una región latina.
-  if (lang === 'en') return 2;
-  return 1;
+  const { lang, region, name } = videoMeta(video);
+  // Los nombres expresamente regionales tienen prioridad sobre iso_3166_1,
+  // porque algunos videos aparecen etiquetados con un país equivocado.
+  const isSpain = /(?:castellano|espana|spanish\s*(?:spain|es)|es[-_]es|espanol\s*(?:de\s*)?espana|doblaje\s*espanol\s*espana)/i.test(name);
+  const isLatam = /(?:espanol\s*(?:latino(?:americano)?|de\s*(?:mexico|latinoamerica))|latin(?:o|a|america|oamericano)|latam|doblaje\s*latino|es[-_](?:419|mx|ar|co|cl|pe)|mexican[oa])/i.test(name);
+  if (isSpain) return 25;  // Español de España, aunque región TMDB indique MX.
+  if (isLatam && (lang === 'es' || lang === '' || lang === 'und')) return 60;
+  if (lang === 'es' && LATAM.has(region)) return 55;
+  if (lang === 'es' && region !== 'ES') return 40; // Español sin región fiable.
+  if (lang === 'es') return 20;                     // Español de España.
+  if (lang === 'en') return 15;
+  return 5;
 }
 
 function videoTypePriority(video) {
-  const type = String(video.type || '').toLowerCase();
-  // No mostrar clips o entrevistas por encima de tráileres completos.
-  if (type === 'trailer') return 4;
-  if (type === 'teaser') return 3;
-  if (type === 'clip') return 2;
-  return 1;
+  const type = String(video?.type || '').toLowerCase();
+  return TYPE_SCORE[type] || 0;
 }
 
 function rank(video) {
-  // El idioma manda cuando se comparan dos tráileres del mismo tipo.
-  // Una pieza teaser no desplaza un tráiler completo disponible.
-  return videoTypePriority(video) * 10000
-    + languagePriority(video) * 1000
+  // Prioridad REAL: español latino > español sin región fiable > España > inglés.
+  // Solo dentro de un idioma preferimos tráiler, teaser y luego otros videos.
+  return languagePriority(video) * 100000
+    + videoTypePriority(video) * 1000
     + (video.official ? 100 : 0);
 }
 
 function languageLabel(video) {
-  const lang = String(video.iso_639_1 || '').toLowerCase();
-  if (spanishLatino(video)) return 'Español latino';
-  if (lang === 'es') return String(video.iso_3166_1 || '').toUpperCase() === 'ES'
-    ? 'Español (España)' : 'Español';
-  if (lang === 'en') return 'Inglés';
+  const level = languagePriority(video);
+  if (level >= 55) return 'Español latino (según TMDB)';
+  if (level === 40) return 'Español (región no confirmada)';
+  if (level === 20 || level === 25) return 'Español (España)';
+  if (level === 15) return 'Inglés';
   return 'Idioma original u otro';
 }
 
 module.exports = async function handler(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Cache-Control', 'public, max-age=180, s-maxage=3600, stale-while-revalidate=3600');
+  res.setHeader('Cache-Control', 'public, max-age=90, s-maxage=300, stale-while-revalidate=300');
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Método no permitido.' });
@@ -100,7 +103,12 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    const sorted = [...unique.values()].sort((a, b) => {
+    // Evitar elegir clips breves si TMDB dispone de tráileres o teasers.
+    const candidates = [...unique.values()];
+    const playable = candidates.some(v => videoTypePriority(v) >= 30)
+      ? candidates.filter(v => videoTypePriority(v) >= 30)
+      : candidates;
+    const sorted = playable.sort((a, b) => {
       const score = rank(b) - rank(a);
       if (score) return score;
       // Para igual idioma/tipo/oficialidad, priorizar video reciente.
