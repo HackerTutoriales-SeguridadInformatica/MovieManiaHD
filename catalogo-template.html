@@ -6767,12 +6767,14 @@ async function mmhdCastSubtitleTracks(movie){
   const sources=mmhdNormalizeSubtitleTracks(movie&&movie.subtitleTracks,movie&&movie.subtitlesUrl);
   if(!sources.length)return [];
   const validated=await Promise.allSettled(sources.map(async function(source,index){
-    if(/\.(?:ass|ssa)(?:$|[?#])/i.test(source.url))throw Error('ASS/SSA no disponible en Chromecast: usa SRT/VTT');
+    const isASS=/\.(?:ass|ssa)(?:$|[?#])/i.test(source.url);
     const subtitleUrl=new URL(source.url);
     if(subtitleUrl.protocol!=='https:')throw Error('Los subtítulos requieren HTTPS');
-    const endpoint=new URL('/api/cast-subtitles',location.origin);
+    // ASS/SSA se convierten a WebVTT en la API pública: la TV no puede procesar ASS.
+    // No modifica los subtítulos originales que JASSUB usa en el navegador.
+    const endpoint=new URL(isASS?'/api/cast-ass':'/api/cast-subtitles',location.origin);
     endpoint.searchParams.set('url',subtitleUrl.href);
-    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),13000);
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),18000);
     try{
       const response=await fetch(endpoint.href,{signal:controller.signal,credentials:'omit'});
       if(!response.ok){let msg='HTTP '+response.status;try{msg=(await response.json()).error||msg;}catch(_){}throw Error(msg);}
@@ -6787,8 +6789,9 @@ async function mmhdCastSubtitleTracks(movie){
   const tracks=[];
   validated.forEach((r,i)=>{if(r.status==='fulfilled')tracks.push(r.value);
     else console.warn('[MMHD Cast] Subtítulos no disponibles:',sources[i].name,r.reason);});
-  if(!tracks.length)throw Error('No hay pistas SRT/VTT compatibles con Chromecast (ASS/SSA solo en el navegador)');
+  if(!tracks.length)throw Error('No se pudo preparar ninguna pista para Chromecast. Comprueba /api/cast-ass.js y los enlaces HTTPS.');
   if(tracks.length<sources.length)castSubtitleNotice='⚠️ Algunas pistas no están disponibles';
+  else if(sources.some(s=>/\.(?:ass|ssa)(?:$|[?#])/i.test(s.url)))castSubtitleNotice='ℹ️ ASS convertido a WebVTT para TV (sin fuentes ni animaciones)';
   return tracks;
 }
 function mmhdCastSetSubtitles(ids){
