@@ -2602,6 +2602,57 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   }
 }
 
+
+/* ===== V5: insignia SERIES sin duración global ===== */
+.detail-meta [hidden]{display:none!important}
+.detail-series-label{display:inline-flex;align-items:center;justify-content:center;padding:4px 9px;border:1px solid rgba(183,123,243,.74);border-radius:6px;color:#dbabff;background:rgba(105,43,157,.18);font-size:11px;font-weight:850;line-height:1;letter-spacing:.4px}
+.detail.series-detail .detail-quick-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;justify-content:center!important;justify-items:stretch;width:min(100%,460px)!important;max-width:460px!important;margin:0 auto 18px!important;gap:6px}
+.detail.series-detail .detail-quick-actions #btnDownload{display:none!important}
+.detail.series-detail .detail-quick-btn{width:100%;min-width:0}
+/* El botón de imagen es interactivo; los tres botones de episodio en escritorio se conservan. */
+.detail-episode-cover{position:relative;display:block;padding:0;border:0;border-radius:8px;background:#0d1220;overflow:hidden;cursor:pointer;line-height:0;min-width:0}
+.detail-episode-cover img{display:block;width:145px;aspect-ratio:16/9;object-fit:cover;border-radius:8px}
+.detail-episode-cover:disabled{cursor:not-allowed;opacity:.58}
+.detail-episode-cover:focus-visible{outline:3px solid #a8c4ff;outline-offset:2px}
+.detail-episode-cover:hover:not(:disabled) img{filter:brightness(1.12)}
+.detail-episode-duration{position:absolute;right:6px;bottom:6px;display:inline-block;line-height:1.2;background:rgba(5,8,15,.87);border-radius:5px;padding:4px 6px;color:#fff;font-size:11px;font-weight:800}
+.episode-season-total{display:none}
+@media(min-width:601px) and (max-width:850px){.detail-episode-cover img{width:120px}}
+/* ÚNICAMENTE MÓVIL: los capítulos se convierten en carrusel horizontal. */
+@media(max-width:600px){
+ .detail.series-detail .detail-quick-actions{width:min(100%,330px)!important;max-width:330px!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;justify-content:center!important;margin:0 auto 16px!important}
+ .detail.series-detail .detail-quick-actions .detail-quick-btn{width:100%;max-width:none;min-height:64px}
+ .detail.series-detail .detail-quick-actions .detail-quick-btn span:last-child{white-space:normal;line-height:1.3;text-align:center}
+ .detail.series-detail .detail-episodes{margin-top:22px;overflow:visible!important}
+ .detail.series-detail .detail-episodes-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;align-items:center;margin-bottom:12px}
+ .detail.series-detail .detail-episodes-head h3{grid-row:1;grid-column:1;margin:0;line-height:1.25;font-size:17px}
+ .detail.series-detail .episode-season-count{display:none}
+ .detail.series-detail .episode-season-total{display:block;grid-row:1;grid-column:2;color:#abb6cd;font-size:11px;font-weight:650;text-align:right;white-space:nowrap}
+ .detail.series-detail .detail-episodes-head select{grid-row:2;grid-column:1;justify-self:start;max-width:180px;min-width:138px;margin:5px 0 2px;font-size:12px;background:#202332;padding:9px 12px}
+ .detail.series-detail .detail-episode-list{display:flex!important;flex-wrap:nowrap;align-items:stretch;gap:10px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;padding:2px 2px 13px;margin:0 -4px;scrollbar-width:none}
+ .detail.series-detail .detail-episode-list::-webkit-scrollbar{display:none}
+ .detail.series-detail .detail-episode{position:relative;flex:0 0 clamp(134px,39vw,172px);width:clamp(134px,39vw,172px);min-width:0;min-height:260px;display:flex!important;flex-direction:column;align-items:stretch;gap:0;overflow:hidden;padding:0!important;margin:0;scroll-snap-align:start;border:1px solid #2c3043!important;border-radius:14px!important;background:#181a26!important;box-shadow:none!important}
+ .detail.series-detail .detail-episode.active{border-color:#8a91ad!important}
+ .detail.series-detail .detail-episode-cover{flex-shrink:0;display:block;width:100%;height:auto;aspect-ratio:16/10;border-radius:0;line-height:0}
+ .detail.series-detail .detail-episode-cover img{width:100%;height:100%;aspect-ratio:16/10;object-fit:cover;border-radius:0}
+ .detail.series-detail .detail-episode-cover:disabled{opacity:.62}
+ .detail.series-detail .detail-episode-duration{bottom:5px;right:6px;font-size:10px}
+ .detail.series-detail .detail-episode-info{padding:10px 9px 7px;min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
+ .detail.series-detail .detail-episode-info b{font-size:11px;line-height:1.3;margin:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+ .detail.series-detail .detail-episode-info small{font-size:10.5px;line-height:1.45;color:#b9c0d1;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+ .detail.series-detail .detail-episode .episode-watch-line{position:absolute;z-index:2;right:6px;top:6px;margin:0;pointer-events:none}
+ .detail.series-detail .detail-episode .episode-watch-state{display:none}
+ .detail.series-detail .detail-episode .episode-mark-watched{pointer-events:auto;display:grid;place-items:center;width:27px;height:27px;min-height:27px;padding:0;font-size:0;line-height:0;border-radius:50%;border:1px solid rgba(255,255,255,.62);color:#fff;background:rgba(14,19,30,.72);backdrop-filter:blur(4px)}
+ .detail.series-detail .detail-episode .episode-mark-watched::before{content:'✓';font-size:15px;font-weight:900;line-height:1;color:#dbe2ee}
+ .detail.series-detail .detail-episode.is-watched .episode-mark-watched{background:#21a578;border-color:#63e8b4}
+ .detail.series-detail .detail-episode.is-watched .episode-mark-watched::before{color:white}
+ .detail.series-detail .detail-episode .episode-progress-track{margin-top:auto;height:3px;flex-shrink:0}
+ .detail.series-detail .detail-episode-actions{display:grid!important;grid-template-columns:1fr;gap:5px;padding:0 8px 9px;margin-top:auto;width:100%;flex:0 0 auto}
+ .detail.series-detail .detail-episode-action{min-height:29px;width:100%;padding:5px 3px;border-radius:7px;font-size:10px;font-weight:750;white-space:nowrap;line-height:1.25;gap:5px}
+ .detail.series-detail .detail-episode-action.primary{display:none!important}
+ .detail.series-detail .detail-episodes-note{margin:10px 0 0;color:#a5aec4;font-size:10px;line-height:1.5}
+}
+
 </style>
 <style id="mmhd-req-contact-css">
 .mmhd-request-card textarea{display:block;width:100%;min-height:82px;resize:vertical;border:1px solid #434357;background:#090d18;color:#fff;padding:12px;border-radius:9px;margin:7px 0 12px;outline:none;font:inherit}
@@ -2841,8 +2892,9 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
       <div class="detail-meta">
         <span class="star"><i class="fa-solid fa-star"></i><span id="detailRating">—</span></span>
         <span id="detailYear">—</span>
-        <span class="dot">•</span>
+        <span class="dot" id="detailRuntimeDivider">•</span>
         <span id="detailRuntime">—</span>
+        <span class="detail-series-label" id="detailSeriesLabel" hidden>SERIE</span>
         <span class="cert" id="detailCert">—</span>
       </div>
 
@@ -2884,6 +2936,7 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
       <div class="detail-episodes-head">
         <h3>Temporadas y episodios</h3>
         <span id="seasonSeenCount" class="episode-season-count" aria-live="polite"></span>
+        <span id="seasonTotalCount" class="episode-season-total" aria-hidden="true"></span>
         <select id="detailSeason" aria-label="Elegir temporada"></select>
       </div>
       <div class="detail-episode-list" id="detailEpisodeList"></div>
@@ -6672,14 +6725,27 @@ function renderSeriesSeasons(series,chosenSeason){
   if(current)select.value=String(current.number);
   list.replaceChildren();
   const episodes=(current?.episodes||[]).slice().sort((a,b)=>a.number-b.number);
+  $("seasonTotalCount").textContent=`${episodes.length} ${episodes.length===1?"episodio":"episodios"}`;
   episodes.forEach(ep=>{
     const ready=isPlayableEpisode(ep);
     const row=document.createElement("article");
     row.className="detail-episode";
     row.dataset.season=String(current.number);
     row.dataset.episode=String(ep.number);
+    // La imagen reutiliza la reproducción específica del episodio; en móvil sustituye al botón "Reproducir".
+    const cover=document.createElement("button");cover.type="button";cover.className="detail-episode-cover";
+    cover.disabled=!ready;
+    cover.setAttribute("aria-label",`Reproducir temporada ${current.number}, capítulo ${ep.number}: ${ep.name||"Episodio"}`);
+    if(!ready)cover.title="Episodio pendiente de configurar";
+    cover.addEventListener("click",()=>openPlayer(playableForSeries(series,current.number,ep)));
     const image=document.createElement("img");image.loading="lazy";image.alt="";
     image.src=String(ep.still||series.backdrop||series.poster||"");
+    cover.appendChild(image);
+    if(Number(ep.runtime)>0){
+      const duration=document.createElement("span");duration.className="detail-episode-duration";
+      duration.textContent=`${Math.round(Number(ep.runtime))}m`;
+      cover.appendChild(duration);
+    }
     const info=document.createElement("div");info.className="detail-episode-info";
     const heading=document.createElement("b");heading.textContent=`${ep.number}. ${ep.name||"Episodio"}`;
     const desc=document.createElement("small");desc.textContent=(ep.runtime?`${ep.runtime} min · `:"")+(ep.overview||"Sin descripción");
@@ -6713,7 +6779,7 @@ function renderSeriesSeasons(series,chosenSeason){
       btn.addEventListener("click",item.action);
       actions.appendChild(btn);
     });
-    row.append(image,info,actions);
+    row.append(cover,info,actions);
     list.appendChild(row);
   });
   $("detailEpisodesNote").textContent=seasons.length
@@ -6854,7 +6920,11 @@ function openDetail(id){
   $("detailRating").textContent = m.rating > 0 ? m.rating.toFixed(1) : "—";
   $("detailRating").parentElement.style.display = m.rating > 0 ? "" : "none";
   $("detailYear").textContent = m.year || "—";
+  const isSeriesDetail=m.kind==="SERIES";
   $("detailRuntime").textContent = m.runtime || "—";
+  $("detailRuntime").hidden = isSeriesDetail;
+  $("detailRuntimeDivider").hidden = isSeriesDetail;
+  $("detailSeriesLabel").hidden = !isSeriesDetail;
 
   renderDetailGenres(m);
   renderSimilarMovies(m);
