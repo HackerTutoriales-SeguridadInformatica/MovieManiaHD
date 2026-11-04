@@ -2681,6 +2681,16 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 .season-download-manual-list{display:grid;gap:7px;margin:10px 0 0}
 .season-download-manual-list a{font-size:12px;color:#dbe8ff;border:1px solid #36435b;border-radius:8px;padding:9px;text-decoration:none;overflow-wrap:anywhere}
 .season-download-manual-list a:hover,.season-download-manual-list a:focus-visible{background:#29344e}
+/* V7: peticiones escalonadas, control de cancelación y enlaces con gesto propio. */
+.season-download-status:not([hidden]){padding:11px 13px;border:1px solid #405775;border-radius:12px;background:#142137;color:#dce9fb}
+.season-download-manual[open]{border-color:#5476a0;background:#111c2f}
+.season-download-manual summary{font-size:13px;line-height:1.45}
+.season-download-manual-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+.season-download-manual-list a{display:flex;align-items:center;gap:10px;min-height:45px;background:#202a40;border-color:#526581;color:#f2f6ff;font-size:12px;font-weight:750}
+.season-download-manual-list a i{color:#b4ceff;font-size:14px}
+.season-download-stop{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:9px;border:1px solid #56647b;border-radius:10px;background:#22283a;color:#fff;font-size:12px;font-weight:750;padding:9px 14px;cursor:pointer}
+.season-download-stop[hidden]{display:none!important}
+.season-download-help{margin:10px 0 0;font-size:11px;line-height:1.5;color:#aebcd5}
 @media(max-width:600px){
  .detail.series-detail .detail-actions{width:100%!important;max-width:100%!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
  .detail.series-detail .detail-actions #btnPlay,.detail.series-detail .detail-actions #btnTrailer{min-height:46px;font-size:11px}
@@ -2976,8 +2986,10 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
         <button id="btnSeasonDownload" class="season-download-btn" type="button" aria-label="Descargar todos los episodios disponibles de la temporada seleccionada"><i class="fa-solid fa-download" aria-hidden="true"></i> Descargar temporada</button>
       </div>
       <div id="seasonDownloadStatus" class="season-download-status" role="status" aria-live="polite" hidden></div>
+      <button type="button" id="seasonDownloadStop" class="season-download-stop" hidden><i class="fa-solid fa-xmark" aria-hidden="true"></i> Detener intentos restantes</button>
       <details id="seasonDownloadManual" class="season-download-manual" hidden>
-        <summary>Si faltó alguna descarga: abrir enlaces individuales</summary>
+        <summary>Descargar cada capítulo directamente si Chrome omitió alguno</summary>
+        <p class="season-download-help">Cada enlace necesita su propio toque para que Chrome lo procese como una descarga solicitada por ti. Puedes iniciar varios sin esperar a que termine el anterior.</p>
         <div id="seasonDownloadManualList" class="season-download-manual-list"></div>
       </details>
       <div class="detail-episode-list" id="detailEpisodeList"></div>
@@ -7005,6 +7017,7 @@ function openDetail(id){
 }
 
 function closeDetail(){
+  mmhdStopSeasonDownloadQueue(true);
   if ($("playerModal").classList.contains("show")) closePlayer();
   closeTrailerModal();
   $("detailScreen").classList.remove("show");
@@ -7119,7 +7132,51 @@ function mmhdSeasonDownloadJobs(series,season){
   });
   return {jobs,missing};
 }
+// Chrome para Android puede descartar enlaces cuando se hace clic programático
+// en todos dentro de la misma tarea. V7 los solicita con separación, cada uno
+// con su propio contexto de navegación: si el atributo download se ignora por
+// ser un enlace externo, un episodio no cancela el intento del anterior.
+// También deja enlaces individuales con su propio gesto de usuario.
+// La web NO puede verificar si Chrome aceptó o terminó una descarga externa.
+let mmhdSeasonDownloadFrameId=0;
+function mmhdStartIsolatedSeasonDownload(url,filename){
+  // No usar la pestaña de Movie Mania para navegar a cuatro URLs externas.
+  const frame=document.createElement("iframe");
+  frame.name=`mmhd-season-download-${Date.now()}-${++mmhdSeasonDownloadFrameId}`;
+  frame.setAttribute("aria-hidden","true");
+  frame.tabIndex=-1;
+  frame.style.cssText="position:fixed;left:-200vw;top:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
+  document.body.appendChild(frame);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=filename; // Solo una sugerencia si Google Photos admite nombre externo.
+  a.target=frame.name;
+  document.body.appendChild(a);
+  try{a.click();}finally{a.remove();}
+  // Esperar antes de liberar el frame: algunas respuestas grandes tardan en
+  // enviar cabeceras; retirarlo antes podría cancelar el intento de descarga.
+  setTimeout(()=>frame.remove(),300000);
+}
+let mmhdSeasonQueueTimer=null;
+let mmhdSeasonQueueVersion=0;
+let mmhdSeasonQueueRunning=false;
+function mmhdStopSeasonDownloadQueue(silent=false){
+  ++mmhdSeasonQueueVersion;
+  if(mmhdSeasonQueueTimer!==null)clearTimeout(mmhdSeasonQueueTimer);
+  mmhdSeasonQueueTimer=null;
+  const wasRunning=mmhdSeasonQueueRunning;
+  mmhdSeasonQueueRunning=false;
+  const stop=$("seasonDownloadStop");if(stop)stop.hidden=true;
+  const btn=$("btnSeasonDownload");if(btn)btn.disabled=false;
+  if(!silent&&wasRunning){
+    const status=$("seasonDownloadStatus");
+    status.hidden=false;
+    status.textContent="Se detuvieron los intentos restantes. Si Chrome omitió algún episodio, pulsa su enlace individual más abajo.";
+    const manual=$("seasonDownloadManual");manual.hidden=false;manual.open=true;
+  }
+}
 function mmhdClearSeasonDownloadFeedback(){
+  mmhdStopSeasonDownloadQueue(true);
   const status=$("seasonDownloadStatus"),details=$("seasonDownloadManual"),list=$("seasonDownloadManualList");
   status.hidden=true;status.textContent="";
   details.hidden=true;details.open=false;list.replaceChildren();
@@ -7127,44 +7184,67 @@ function mmhdClearSeasonDownloadFeedback(){
 function mmhdUpdateSeasonDownloadButton(series,season){
   const btn=$("btnSeasonDownload");
   if(!series||series.kind!=="SERIES"||!season){btn.disabled=true;return;}
-  btn.disabled=mmhdSeasonDownloadJobs(series,season).jobs.length===0;
+  btn.disabled=mmhdSeasonQueueRunning||mmhdSeasonDownloadJobs(series,season).jobs.length===0;
 }
 function mmhdDownloadSelectedSeason(){
   const series=state.currentMovie;
-  if(!series||series.kind!=="SERIES")return;
+  if(!series||series.kind!=="SERIES"||mmhdSeasonQueueRunning)return;
   const season=orderedSeriesSeasons(series).find(s=>Number(s.number)===Number($("detailSeason").value));
   if(!season)return;
   const {jobs,missing}=mmhdSeasonDownloadJobs(series,season);
-  if(!jobs.length){
-    const status=$("seasonDownloadStatus");status.hidden=false;
-    status.textContent="Esta temporada todavía no tiene episodios con enlace de descarga.";
-    return;
-  }
-  const warning=missing.length ? `\n${missing.length} episodio(s) sin enlace válido o con enlace repetido se omitirán.` : "";
-  // Confirmación antes de solicitar todos los archivos; no inicia descargas en segundo plano.
-  if(!window.confirm(`¿Solicitar la descarga de ${jobs.length} episodio(s) de la temporada ${season.number}?${warning}\n\nChrome podría pedir permiso para varias descargas.`))return;
-  // Todas las solicitudes se disparan desde el clic del usuario, sin fetch masivo de videos.
-  jobs.forEach(job=>{
-    startBrowserDownload(job.url,job.filename);
-  });
   const status=$("seasonDownloadStatus");status.hidden=false;
-  status.textContent=`Se solicitaron ${jobs.length} descarga(s) de la temporada ${season.number}. `+
-    `Revisa las descargas del navegador y permite descargas múltiples si te lo solicita.`+
-    (missing.length?` ${missing.length} capítulo(s) omitido(s) por falta de enlace válido o enlace repetido.`:"");
-  // Alternativa segura que requiere un clic propio por archivo, si el navegador bloquea el lote.
+  if(!jobs.length){status.textContent="Esta temporada todavía no tiene episodios con enlace de descarga.";return;}
+
+  // Primero ofrecer siempre la salida fiable: un enlace por capítulo, activado
+  // directamente por un toque de la persona (útil si Chrome bloquea automatismos).
   const list=$("seasonDownloadManualList"),details=$("seasonDownloadManual");
   list.replaceChildren();
   jobs.forEach(job=>{
     const link=document.createElement("a");
-    link.href=job.url;link.download=job.filename;
-    link.rel="noopener noreferrer";link.target="_blank";
-    link.textContent=`Descargar episodio ${job.number}`;
+    link.href=job.url;
+    link.download=job.filename; // Google Photos puede imponer el nombre original.
+    link.rel="noopener noreferrer";
+    link.target="_blank";
+    link.setAttribute("aria-label",`Descargar capítulo ${job.number} de la temporada ${season.number}`);
+    const icon=document.createElement("i");icon.className="fa-solid fa-download";icon.setAttribute("aria-hidden","true");
+    const caption=document.createElement("span");caption.textContent=`Capítulo ${job.number}`;
+    link.append(icon,caption);
     list.appendChild(link);
   });
-  details.hidden=false;details.open=false;
+  details.hidden=false;
+  details.open=true; // El visitante no debe buscar los enlaces si algún archivo falta.
+
+  // El primer intento se hace dentro del clic real, sin confirm() que pudiera
+  // consumir la activación del usuario. El resto se espacian para evitar que
+  // Chrome termine atendiendo solamente la última navegación.
+  mmhdSeasonQueueRunning=true;
+  const version=++mmhdSeasonQueueVersion;
+  $("btnSeasonDownload").disabled=true;
+  $("seasonDownloadStop").hidden=jobs.length<=1;
+  const omitted=missing.length?` ${missing.length} episodio(s) sin enlace o con enlace repetido se omitirán.`:"";
+  const step=(index)=>{
+    if(version!==mmhdSeasonQueueVersion)return;
+    const job=jobs[index];
+    status.textContent=`Intentando iniciar capítulo ${index+1} de ${jobs.length} (episodio ${job.number})… `+
+      "Si Chrome pide permiso para descargas múltiples, acéptalo para este sitio."+omitted;
+    try{mmhdStartIsolatedSeasonDownload(job.url,job.filename);}catch(err){
+      console.warn("MMHD: Chrome no permitió abrir el enlace de descarga",err);
+    }
+    if(index+1<jobs.length){
+      mmhdSeasonQueueTimer=setTimeout(()=>step(index+1),1600);
+    }else{
+      mmhdSeasonQueueTimer=null;
+      mmhdSeasonQueueRunning=false;
+      $("btnSeasonDownload").disabled=false;
+      $("seasonDownloadStop").hidden=true;
+      status.textContent=`Se intentó iniciar la descarga de ${jobs.length} capítulo(s) de la temporada ${season.number}. `+
+        "No podemos comprobar cuáles aceptó Chrome. Revisa Descargas y pulsa individualmente los capítulos que falten."+omitted;
+    }
+  };
   mmhdTrackAnalytics('mmhd_season_download_request',{
     content_id:String(series.id),content_type:'series',season:Number(season.number),episodes:jobs.length
   });
+  step(0);
 }
 async function showDownloadBox(movieOverride){
   // Los botones HTML entregan un MouseEvent al listener. Solo aceptar como
@@ -7661,6 +7741,7 @@ $("mmhdCastSubtitleSelect").addEventListener("change", castSelectSubtitleLanguag
 
 $("btnDownload").addEventListener("click", () => showDownloadBox());
 $("btnSeasonDownload").addEventListener("click",mmhdDownloadSelectedSeason);
+$("seasonDownloadStop").addEventListener("click",()=>mmhdStopSeasonDownloadQueue(false));
 $("detailSeason").addEventListener("change",()=>{
   if(state.currentMovie?.kind==="SERIES")renderSeriesSeasons(state.currentMovie,Number($("detailSeason").value));
 });
