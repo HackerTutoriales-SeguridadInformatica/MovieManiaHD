@@ -3802,7 +3802,7 @@ function mmhdSubtitleLoader(){
   var entries=[],menu,button,host,observer;
   var createdUrls=[];
   var parentHasSubtitleControls=false,lastSubtitleState='';
-  var assInstance=null,assVideo=null,assLanguage='',assLoading=null,assFailed=false,assRevision=0,assLive=false;
+  var assInstance=null,assVideo=null,assLanguage='',assLoading=null,assFailed=false,assRevision=0,assLive=false,assFallback=null;
   var assModule=null,assWorkerURL=null,attachTimer=0;
   // Pinned: no se actualiza automáticamente al cambiar una versión del paquete.
   var ASS_CDN='https://cdn.jsdelivr.net/npm/jassub@2.5.1';
@@ -3826,7 +3826,7 @@ function mmhdSubtitleLoader(){
   function updateTracks(){
     var active=entries.find(function(item){return item.language===selected;});
     document.querySelectorAll('video track[data-mmhd-subtitles]').forEach(function(track){
-      var yes=!!active&&track.dataset.mmhdLanguage===selected&&(active.kind==='vtt'||(active.kind==='ass'&&!assLive));
+      var yes=!!active&&track.dataset.mmhdLanguage===selected&&(active.kind==='vtt');
       try{track.track.mode=yes?'showing':'disabled';}catch(_){}
     });
   }
@@ -3837,6 +3837,171 @@ function mmhdSubtitleLoader(){
   }
   // Solo plan B para lectura: esta conversión elimina karaoke/colores/dibujos.
   // Así no queda la pantalla sin texto si el Worker o WebAssembly no inicia.
+  /* Modo compatible ASS: conserva colores, tamaños, posiciones y pistas simultáneas.
+     JASSUB/libass sigue siendo el renderizador de referencia para los efectos complejos. */
+  function createASSFallback(video, content){
+    var scriptW=1280,scriptH=720,styles=Object.create(null),styleFmt=[],eventFmt=[],section='';
+    var events=[],lines=String(content||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n');
+    function fields(str,fmt){
+      var values=str.split(',');
+      if(fmt.length && values.length>fmt.length)values=values.slice(0,fmt.length-1).concat(values.slice(fmt.length-1).join(','));
+      var o=Object.create(null);fmt.forEach(function(k,i){o[k]=String(values[i]||'').trim();});return o;
+    }
+    function time(str){var m=String(str).match(/^(\d+):(\d\d):(\d\d)[.](\d{1,3})$/);return m?+m[1]*3600+(+m[2])*60+(+m[3])+(+m[4])/Math.pow(10,m[4].length):NaN;}
+    function assColor(c,fallback){
+      var m=String(c||'').match(/&H([0-9A-Fa-f]{1,8})&?/i);if(!m)return fallback;
+      var hex=m[1].padStart(8,'0');var aa=parseInt(hex.slice(0,2),16),bb=parseInt(hex.slice(2,4),16),gg=parseInt(hex.slice(4,6),16),rr=parseInt(hex.slice(6,8),16);
+      return 'rgba('+rr+','+gg+','+bb+','+(1-aa/255).toFixed(3)+')';
+    }
+    function getTags(value){
+      var tagContent=(String(value).match(/\{[^}]*\\[^}]*\}/g)||[]).join('');
+      var find=function(re){var m=tagContent.match(re);return m?m.slice(1):null;};
+      var an=find(/\\an([1-9])(?:\\|\}|$)/i);
+      var pos=find(/\\pos\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/i);
+      var move=find(/\\move\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)(?:\s*,\s*([-\d.]+)\s*,\s*([-\d.]+))?\)/i);
+      var fade=find(/\\fad\(\s*(\d+)\s*,\s*(\d+)\s*\)/i);
+      // \fade(a1,a2,a3,t1,t2,t3,t4) también se encuentra en karaokes.
+      if(!fade){var f=find(/\\fade\([^)]*?,[^)]*?,[^)]*?,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i);if(f)fade=[f[1]-f[0],f[3]-f[2]];}
+      var color=find(/\\(?:1c|c)(&H[0-9A-Fa-f]+&?)/i),outline=find(/\\3c(&H[0-9A-Fa-f]+&?)/i);
+      var fontsize=find(/\\fs([\d.]+)/i),bold=find(/\\b([01])/i),italic=find(/\\i([01])/i);
+      var border=find(/\\bord([\d.]+)/i),shadow=find(/\\shad([\d.]+)/i);
+      var angle=find(/\\frz?([-\d.]+)/i);
+      var font=find(/\\fn([^\\}]+)/i);
+      var draw=/\\p[1-9]/i.test(tagContent);
+      return {an:an?+an[0]:0,pos:pos,move:move,fade:fade,color:color&&color[0],outline:outline&&outline[0],fontsize:fontsize&&+fontsize[0],bold:bold&&+bold[0],italic:italic&&+italic[0],border:border&&+border[0],shadow:shadow&&+shadow[0],angle:angle&&+angle[0],font:font&&font[0],draw:draw};
+    }
+    function plain(s){
+      return String(s||'').replace(/\{[^}]*\}/g,'').replace(/\\N/g,'\n').replace(/\\n/g,' ').replace(/\\h/g,'\u00a0').trim();
+    }
+    lines.forEach(function(line){
+      var t=line.trim();if(/^\[[^\]]+\]$/.test(t)){section=t.toLowerCase();return;}
+      if(section==='[script info]'){
+        var x=t.match(/^PlayRes([XY]):\s*(\d+)/i);if(x){if(x[1].toUpperCase()==='X')scriptW=+x[2];else scriptH=+x[2];}
+      }else if(section==='[v4+ styles]'||section==='[v4 styles]'){
+        if(/^Format\s*:/i.test(t))styleFmt=t.slice(t.indexOf(':')+1).split(',').map(function(s){return s.trim().toLowerCase();});
+        else if(/^Style\s*:/i.test(t)&&styleFmt.length){var o=fields(t.slice(t.indexOf(':')+1),styleFmt);styles[o.name]=o;}
+      }else if(section==='[events]'){
+        if(/^Format\s*:/i.test(t))eventFmt=t.slice(t.indexOf(':')+1).split(',').map(function(s){return s.trim().toLowerCase();});
+        else if(/^Dialogue\s*:/i.test(t)&&eventFmt.length){
+          var o=fields(t.slice(t.indexOf(':')+1),eventFmt),st=time(o.start),en=time(o.end),txt=plain(o.text);
+          if(!(en>st)||!txt) return;
+          var tg=getTags(o.text);if(tg.draw)return;
+          events.push({id:events.length,start:st,end:en,layer:+o.layer||0,style:o.style,text:txt,tags:tg,marginl:+o.marginl||0,marginr:+o.marginr||0,marginv:+o.marginv||0});
+        }
+      }
+    });
+    events.sort(function(a,b){return a.start-b.start||a.id-b.id;});
+    // Repeticiones de la misma letra entre capas son contorno/sombra ASS, no letras adicionales.
+    var duplicates=Object.create(null);
+    events=events.filter(function(e){
+      var k=[e.start,e.end,e.style,e.text,e.tags.an||'',e.tags.pos&&e.tags.pos.join(':')||''].join('|');
+      if(duplicates[k])return false;duplicates[k]=true;return true;
+    });
+    var parent=video.parentElement;
+    if(!parent)return {destroy:function(){},setVisible:function(){},refresh:function(){}};
+    var previousPosition=parent.style.position,changedPosition=false;
+    if(getComputedStyle(parent).position==='static'){parent.style.position='relative';changedPosition=true;}
+    var overlay=document.createElement('div');overlay.className='mmhd-ass-positioned';
+    overlay.style.cssText='position:absolute;inset:auto;pointer-events:none;overflow:hidden;z-index:19;contain:layout style;isolation:isolate';
+    parent.appendChild(overlay);
+    var lastSignature='',lastSize='',visible=true,timer=0;
+    var nodeMap=new Map();
+    var groups=Object.create(null);
+    function setSize(){
+      var v=video.getBoundingClientRect(),p=parent.getBoundingClientRect();
+      if(!v.width||!v.height)return false;
+      var w=v.width,h=v.height,x=v.left-p.left,y=v.top-p.top;
+      var vw=video.videoWidth||scriptW,vh=video.videoHeight||scriptH;
+      var fit=getComputedStyle(video).objectFit||'fill';
+      if(fit==='contain'&&vw&&vh){var ratio=Math.min(w/vw,h/vh);var tw=vw*ratio,th=vh*ratio;x+=(w-tw)/2;y+=(h-th)/2;w=tw;h=th;}
+      var sz=[Math.round(w),Math.round(h),Math.round(x),Math.round(y)].join(':');
+      if(lastSize!==sz){overlay.style.left=x+'px';overlay.style.top=y+'px';overlay.style.width=w+'px';overlay.style.height=h+'px';lastSize=sz;lastSignature='';}
+      return true;
+    }
+    function buildGroup(al,margin,scale){
+      var k=al+':'+margin; if(groups[k])return groups[k];
+      var g=document.createElement('div');g.className='mmhd-ass-group';g.dataset.al=String(al);
+      g.style.position='absolute';g.style.display='flex';g.style.flexDirection=al<=3?'column-reverse':'column';
+      g.style.alignItems=al%3===1?'flex-start':al%3===2?'center':'flex-end';
+      g.style.gap=Math.max(0,1*scale)+'px';
+      g.style.maxWidth='96%';g.style.pointerEvents='none';
+      if(al%3===1)g.style.left='2%'; else if(al%3===2){g.style.left='50%';g.style.transform='translateX(-50%)';}else g.style.right='2%';
+      if(al<=3)g.style.bottom=Math.max(0,margin*scale)+'px';else if(al>=7)g.style.top=Math.max(0,margin*scale)+'px';else {g.style.top='50%';g.style.transform+=' translateY(-50%)';}
+      overlay.appendChild(g);groups[k]=g;return g;
+    }
+    function decorate(e,scale){
+      var o=styles[e.style]||styles.Default||{},tg=e.tags;
+      var fontSize=Math.max(8,Math.min(120,+(tg.fontsize||o.fontsize||40)*scale));
+      var color=assColor(tg.color||o.primarycolour,'white');
+      var outline=assColor(tg.outline||o.outlinecolour,'rgba(0,0,0,.85)');
+      var bord=+(tg.border!==null?tg.border:(o.outline||2))||0;
+      var shad=+(tg.shadow!==null?tg.shadow:(o.shadow||0))||0;
+      var node=document.createElement('div');node.className='mmhd-ass-line';node.textContent=e.text;
+      node.style.cssText='position:relative;display:inline-block;white-space:pre-wrap;overflow-wrap:normal;line-height:1.16;pointer-events:none;max-width:100%;';
+      node.style.fontFamily='"'+String(tg.font||o.fontname||'Arial').replace(/["\\]/g,'')+'",Arial,sans-serif';
+      node.style.fontWeight=(tg.bold!==null?tg.bold!==0:+o.bold!==0)?'700':'400';
+      node.style.fontStyle=(tg.italic!==null?tg.italic!==0:+o.italic!==0)?'italic':'normal';
+      node.style.fontSize=fontSize+'px';node.style.color=color;
+      node.style.webkitTextStroke=(Math.max(0,bord*scale)+'px '+outline);
+      node.style.paintOrder='stroke fill';
+      node.style.textShadow=shad?Math.max(0,shad*scale)+'px '+Math.max(0,shad*scale)+'px 2px rgba(0,0,0,.7)':'0 1px 2px rgba(0,0,0,.4)';
+      var al=tg.an||(+o.alignment||2);if(al<1||al>9)al=2;
+      node.style.textAlign=al%3===1?'left':al%3===2?'center':'right';
+      return {node:node,al:al,style:o};
+    }
+    function render(){
+      if(!overlay.isConnected||!visible)return;
+      if(!setSize())return;
+      var now=Number(video.currentTime)||0;var scale=Math.min(overlay.clientWidth/scriptW,overlay.clientHeight/scriptH)||.65;
+      // Para eventos largos y efectos en tiempo real, no basta con mirar solo los recién iniciados.
+      var active=[];for(var i=0;i<events.length;i++){
+        var e=events[i];if(e.start>now)break;if(e.end>now)active.push(e);
+      }
+      // Limita capas superpuestas patológicas sin perder diálogo normal.
+      if(active.length>100)active.sort(function(a,b){return b.layer-a.layer;}).splice(100);
+      var sig=active.map(function(e){return e.id;}).join(',')+'|'+lastSize;
+      if(sig!==lastSignature){
+        nodeMap.forEach(function(x){x.remove();});nodeMap.clear();
+        Object.keys(groups).forEach(function(k){groups[k].remove();});groups=Object.create(null);
+        active.sort(function(a,b){return a.start-b.start||a.id-b.id;});
+        active.forEach(function(e){
+          var d=decorate(e,scale),g=d.node,o=d.style,al=d.al,tg=e.tags;
+          var margin=e.marginv||+o.marginv||12;
+          if(tg.pos||tg.move){
+            var x=tg.pos?+tg.pos[0]:+tg.move[0],y=tg.pos?+tg.pos[1]:+tg.move[1];
+            g.style.position='absolute';g.style.left=x*scale+'px';g.style.top=y*scale+'px';
+            var hx=al%3===1?'0%':al%3===2?'-50%':'-100%';var vy=al<=3?'-100%':al>=7?'0%':'-50%';
+            g.style.transform='translate('+hx+','+vy+')';
+            overlay.appendChild(g);
+          }else{buildGroup(al,margin,scale).appendChild(g);}
+          nodeMap.set(e.id,g);
+        });
+        lastSignature=sig;
+      }
+      active.forEach(function(e){
+        var n=nodeMap.get(e.id);if(!n)return;
+        if(e.tags.fade){
+          var fi=Math.max(0,+e.tags.fade[0]||0)/1000,fo=Math.max(0,+e.tags.fade[1]||0)/1000;
+          n.style.opacity=String(Math.max(0,Math.min(1,fi?(now-e.start)/fi:1,fo?(e.end-now)/fo:1)));
+        }
+        if(e.tags.move){
+          var m=e.tags.move,at=now-e.start,t1=m[4]?+m[4]/1000:0,t2=m[5]?+m[5]/1000:e.end-e.start;
+          var frac=Math.max(0,Math.min(1,(at-t1)/Math.max(.01,t2-t1)));n.style.left=(+m[0]+(+m[2]-m[0])*frac)*scale+'px';n.style.top=(+m[1]+(+m[3]-m[1])*frac)*scale+'px';
+        }
+      });
+    }
+    function refresh(){render();}
+    video.addEventListener('seeked',refresh);video.addEventListener('timeupdate',refresh);
+    video.addEventListener('loadedmetadata',refresh);video.addEventListener('play',refresh);
+    window.addEventListener('resize',refresh);
+    timer=setInterval(refresh,120);refresh();
+    return {
+      refresh:refresh,
+      setVisible:function(v){visible=Boolean(v);overlay.style.display=visible?'':'none';if(visible)refresh();},
+      destroy:function(){clearInterval(timer);video.removeEventListener('seeked',refresh);video.removeEventListener('timeupdate',refresh);video.removeEventListener('loadedmetadata',refresh);video.removeEventListener('play',refresh);window.removeEventListener('resize',refresh);overlay.remove();if(changedPosition)parent.style.position=previousPosition;}
+    };
+  }
+
   function assToVtt(body){
     var lines=String(body||'').replace(/\r\n?/g,'\n').split('\n');
     var format=null,inEvents=false,out=['WEBVTT','','STYLE','::cue { font-family: Arial, sans-serif; color: white; background: transparent; text-shadow: 1px 1px 2px black; }',''];
@@ -3903,6 +4068,7 @@ function mmhdSubtitleLoader(){
     ++assRevision;
     var old=assInstance;
     assInstance=null;assVideo=null;assLanguage='';assLoading=null;assFailed=false;assLive=false;
+    if(assFallback){assFallback.destroy();assFallback=null;}
     if(old && typeof old.destroy==='function'){
       try{Promise.resolve(old.destroy()).catch(function(e){warn('Liberación ASS: '+e.message);});}catch(_){}
     }
@@ -3924,6 +4090,7 @@ function mmhdSubtitleLoader(){
     stopASS();updateTracks();
     if(!video || !item)return;
     assVideo=video;assLanguage=item.language;
+    try{assFallback=createASSFallback(video,item.assContent);}catch(e){warn('Modo ASS con estilos: '+e.message);}
     var ticket=assRevision;
     assLoading=getASSClass().then(function(JASSUB){
       if(ticket!==assRevision || selected!==item.language || !video.isConnected)return;
@@ -3956,16 +4123,20 @@ function mmhdSubtitleLoader(){
       ]).then(function(){
         if(ticket!==assRevision && assInstance===instance){stopASS();return;}
         if(ticket===assRevision){
-          assLive=true;
+          var canvas=instance._canvas; var visibleCanvas=!!(canvas&&canvas.isConnected&&canvas.getBoundingClientRect().width>0);
+          assLive=visibleCanvas;
+          if(assFallback)assFallback.setVisible(!visibleCanvas);
           updateTracks();
+          if(!visibleCanvas)warn('JASSUB inicializó, pero el lienzo no apareció; se conserva el modo compatible.');
           status('');
-          console.info('[Movie Mania HD] ASS/SSA: renderizador listo, estilos activados.');
+          console.info(visibleCanvas?'[Movie Mania HD] ASS/SSA: JASSUB activo.':'[Movie Mania HD] ASS/SSA: modo compatible con estilos activo.');
         }
       });
     }).catch(function(error){
       if(ticket!==assRevision)return;
       assFailed=true;assLive=false;updateTracks();
-      status('Subtítulos ASS: mostrando texto compatible, sin efectos avanzados.');
+      if(assFallback)assFallback.setVisible(true);
+      status(''); // Sin cartel que tape la película; se avisa solo en la consola.
       if(assInstance){
         try{if(assInstance._worker)assInstance._worker.terminate();}catch(_){}
         try{if(assInstance._canvas)assInstance._canvas.remove();}catch(_){}
@@ -4083,9 +4254,7 @@ function mmhdSubtitleLoader(){
         return response.text();
       }).then(function(body){
         if(isASS(body)){
-          var fallback=URL.createObjectURL(new Blob([assToVtt(body)],{type:'text/vtt;charset=utf-8'}));
-          createdUrls.push(fallback);
-          return {language:item.language,name:item.name,kind:'ass',assContent:body,trackUrl:fallback};
+          return {language:item.language,name:item.name,kind:'ass',assContent:body};
         }
         if(isASSLink(item.url))throw Error('Archivo ASS/SSA no válido');
         var uri=URL.createObjectURL(new Blob([normalizeVtt(body)],{type:'text/vtt;charset=utf-8'}));
