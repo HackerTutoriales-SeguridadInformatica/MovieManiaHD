@@ -3791,6 +3791,8 @@ function buildNextEpisodeBannerScript(movie,next){
 /* Subtítulos multidioma: WebVTT nativo y ASS/SSA por JASSUB. */
 /* MMHD V3 — pistas SRT/VTT y ASS/SSA (libass / JASSUB), ventana y fullscreen.
    El renderizador ASS se carga solo al seleccionar una pista de anime. */
+/* MMHD V3 — pistas SRT/VTT y ASS/SSA (libass / JASSUB), ventana y fullscreen.
+   El renderizador ASS se carga solo al seleccionar una pista de anime. */
 function mmhdSubtitleLoader(){
   'use strict';
   var sources=Array.isArray(window.__MMHD_SUBTITLE_TRACKS__)?window.__MMHD_SUBTITLE_TRACKS__:[];
@@ -3800,10 +3802,71 @@ function mmhdSubtitleLoader(){
   var entries=[],menu,button,host,observer;
   var createdUrls=[];
   var parentHasSubtitleControls=false,lastSubtitleState='';
-  var assInstance=null,assVideo=null,assLanguage='',assLoading=null,assFailed=false,assRevision=0;
+  var assInstance=null,assVideo=null,assLanguage='',assLoading=null,assFailed=false,assRevision=0,assLive=false;
   var assModule=null,assWorkerURL=null,attachTimer=0;
   // Pinned: no se actualiza automáticamente al cambiar una versión del paquete.
   var ASS_CDN='https://cdn.jsdelivr.net/npm/jassub@2.5.1';
+  // Las dependencias del Worker (abslink, wasm, etc.) deben quedar empaquetadas.
+  // El Worker original es un módulo ES con imports que NO resuelve el navegador.
+  var ASS_WORKER_BUNDLE='https://esm.sh/jassub@2.5.1/dist/worker/worker.js?bundle&target=es2022';
+  var ASS_MODULE='https://esm.sh/jassub@2.5.1?bundle&target=es2022';
+  var notice=null,noticeTimer=0;
+  function status(message){
+    if(!message){if(notice)notice.hidden=true;return;}
+    if(!document.body)return;
+    if(!notice){
+      notice=document.createElement('div');notice.id='mmhdAssNotice';
+      notice.style.cssText='position:fixed;bottom:68px;left:50%;transform:translateX(-50%);z-index:2147483600;max-width:min(500px,calc(100% - 30px));background:rgba(13,22,40,.94);color:#fff;border:1px solid #6b88bb;padding:10px 14px;border-radius:9px;font:600 12px Arial,sans-serif;text-align:center;pointer-events:none;box-shadow:0 7px 24px #0009';
+      document.body.appendChild(notice);
+    }
+    notice.textContent=message;notice.hidden=false;
+    clearTimeout(noticeTimer);
+    noticeTimer=setTimeout(function(){if(notice)notice.hidden=true;},10000);
+  }
+  function updateTracks(){
+    var active=entries.find(function(item){return item.language===selected;});
+    document.querySelectorAll('video track[data-mmhd-subtitles]').forEach(function(track){
+      var yes=!!active&&track.dataset.mmhdLanguage===selected&&(active.kind==='vtt'||(active.kind==='ass'&&!assLive));
+      try{track.track.mode=yes?'showing':'disabled';}catch(_){}
+    });
+  }
+  function normalizeASSTime(t){
+    var m=String(t||'').trim().match(/^(\d+):(\d{1,2}):(\d{1,2})\.(\d{1,3})$/);
+    if(!m)return null;
+    return String(m[1]).padStart(2,'0')+':'+m[2].padStart(2,'0')+':'+m[3].padStart(2,'0')+'.'+m[4].padEnd(3,'0');
+  }
+  // Solo plan B para lectura: esta conversión elimina karaoke/colores/dibujos.
+  // Así no queda la pantalla sin texto si el Worker o WebAssembly no inicia.
+  function assToVtt(body){
+    var lines=String(body||'').replace(/\r\n?/g,'\n').split('\n');
+    var format=null,inEvents=false,out=['WEBVTT','','STYLE','::cue { font-family: Arial, sans-serif; color: white; background: transparent; text-shadow: 1px 1px 2px black; }',''];
+    var n=0;
+    lines.forEach(function(line){
+      var t=line.trim();
+      if(/^\[Events\]$/i.test(t)){inEvents=true;return;}
+      if(/^\[.*\]$/.test(t)){inEvents=false;return;}
+      if(!inEvents)return;
+      if(/^Format\s*:/i.test(line)){
+        format=line.slice(line.indexOf(':')+1).split(',').map(function(v){return v.trim().toLowerCase();});return;
+      }
+      if(!/^Dialogue\s*:/i.test(line)||!format)return;
+      var fields=line.slice(line.indexOf(':')+1).split(',');
+      if(fields.length<format.length)return;
+      var textIndex=format.indexOf('text'),startIndex=format.indexOf('start'),endIndex=format.indexOf('end');
+      if(startIndex<0||endIndex<0||textIndex<0)return;
+      // Normalmente Text es la última columna, y puede incluir comas.
+      var content=fields.slice(textIndex).join(',');
+      if(/\{\\p[1-9]/i.test(content))return; // dibujo vectorial, no texto
+      content=content.replace(/\{[^}]*\}/g,'').replace(/\\[Nn]/g,'\n').replace(/\\h/g,' ')
+        .replace(/<[^>]+>/g,'').replace(/&(?!amp;|lt;|gt;)/g,'&amp;').replace(/\s+$/,'').trim();
+      if(!content)return;
+      var start=normalizeASSTime(fields[startIndex]),end=normalizeASSTime(fields[endIndex]);
+      if(!start||!end||end<=start)return;
+      out.push(String(++n),' '+start+' --> '+end+' line:79%',content,'');
+    });
+    if(!n)throw Error('El ASS no incluye líneas de diálogo legibles');
+    return out.join('\n');
+  }
   function warn(message){
     console.warn('[Movie Mania HD] Subtítulos:',message);
     if(host && button && !entries.length)button.textContent='CC · Subtítulos no disponibles';
@@ -3839,7 +3902,7 @@ function mmhdSubtitleLoader(){
   function stopASS(){
     ++assRevision;
     var old=assInstance;
-    assInstance=null;assVideo=null;assLanguage='';assLoading=null;assFailed=false;
+    assInstance=null;assVideo=null;assLanguage='';assLoading=null;assFailed=false;assLive=false;
     if(old && typeof old.destroy==='function'){
       try{Promise.resolve(old.destroy()).catch(function(e){warn('Liberación ASS: '+e.message);});}catch(_){}
     }
@@ -3848,7 +3911,7 @@ function mmhdSubtitleLoader(){
     // Permite ejecutar pruebas del catálogo sin descargar la biblioteca remota.
     if(window.__MMHD_TEST_JASSUB__)return Promise.resolve(window.__MMHD_TEST_JASSUB__);
     if(!assModule){
-      assModule=import(ASS_CDN+'/+esm').then(function(module){
+      assModule=import(ASS_MODULE).then(function(module){
         var C=module.default;
         if(typeof C!=='function')throw Error('JASSUB no disponible');
         return C;
@@ -3858,7 +3921,7 @@ function mmhdSubtitleLoader(){
   }
   function ensureASS(video,item){
     if(assVideo===video && assLanguage===item.language && (assLoading || assInstance || assFailed))return;
-    stopASS();
+    stopASS();updateTracks();
     if(!video || !item)return;
     assVideo=video;assLanguage=item.language;
     var ticket=assRevision;
@@ -3868,7 +3931,7 @@ function mmhdSubtitleLoader(){
         // Los Workers deben pertenecer al origen de la página; este blob importa
         // el módulo CORS desde el CDN, sin alojar un Worker de origen cruzado.
         assWorkerURL=URL.createObjectURL(new Blob([
-          'import '+JSON.stringify(ASS_CDN+'/dist/worker/worker.js/+esm')+';'
+          'import '+JSON.stringify(ASS_WORKER_BUNDLE)+';'
         ],{type:'text/javascript'}));
       }
       var options={
@@ -3891,11 +3954,18 @@ function mmhdSubtitleLoader(){
         Promise.resolve(instance.ready),
         new Promise(function(_,reject){setTimeout(function(){reject(Error('Tiempo de espera del motor ASS agotado (20 s)'));},20000);})
       ]).then(function(){
-        if(ticket!==assRevision && assInstance===instance)stopASS();
+        if(ticket!==assRevision && assInstance===instance){stopASS();return;}
+        if(ticket===assRevision){
+          assLive=true;
+          updateTracks();
+          status('');
+          console.info('[Movie Mania HD] ASS/SSA: renderizador listo, estilos activados.');
+        }
       });
     }).catch(function(error){
       if(ticket!==assRevision)return;
-      assFailed=true;
+      assFailed=true;assLive=false;updateTracks();
+      status('Subtítulos ASS: mostrando texto compatible, sin efectos avanzados.');
       if(assInstance){
         try{if(assInstance._worker)assInstance._worker.terminate();}catch(_){}
         try{if(assInstance._canvas)assInstance._canvas.remove();}catch(_){}
@@ -3919,16 +3989,13 @@ function mmhdSubtitleLoader(){
   }
   function applySelection(){
     var active=entries.find(function(item){return item.language===selected;});
-    document.querySelectorAll('video').forEach(function(video){
-      video.querySelectorAll('track[data-mmhd-subtitles]').forEach(function(track){
-        try{track.track.mode=(active && active.kind==='vtt' && track.dataset.mmhdLanguage===selected)?'showing':'disabled';}catch(_){}
-      });
-    });
+    updateTracks();
     if(active && active.kind==='ass'){
       var video=activeVideo();
       if(video)ensureASS(video,active);
       else if(assVideo)stopASS();
     }else if(assInstance || assLoading || assVideo){stopASS();}
+    if(selected==='off')status('');
     if(button){
       var caption='CC · '+(selected==='off'?'Desactivados':(sources.find(function(s){return s.language===selected;})||{}).name||'Subtítulos')+' ▾';
       if(button.textContent!==caption)button.textContent=caption;
@@ -3989,7 +4056,7 @@ function mmhdSubtitleLoader(){
   function attachTracks(){
     document.querySelectorAll('video').forEach(function(video){
       entries.forEach(function(item){
-        if(item.kind!=='vtt')return;
+        if(!item.trackUrl)return;
         if(video.querySelector('track[data-mmhd-subtitles="'+item.language+'"]'))return;
         var track=document.createElement('track');
         track.dataset.mmhdSubtitles=item.language;
@@ -4015,7 +4082,11 @@ function mmhdSubtitleLoader(){
         if(!response.ok)throw Error('HTTP '+response.status);
         return response.text();
       }).then(function(body){
-        if(isASS(body))return {language:item.language,name:item.name,kind:'ass',assContent:body};
+        if(isASS(body)){
+          var fallback=URL.createObjectURL(new Blob([assToVtt(body)],{type:'text/vtt;charset=utf-8'}));
+          createdUrls.push(fallback);
+          return {language:item.language,name:item.name,kind:'ass',assContent:body,trackUrl:fallback};
+        }
         if(isASSLink(item.url))throw Error('Archivo ASS/SSA no válido');
         var uri=URL.createObjectURL(new Blob([normalizeVtt(body)],{type:'text/vtt;charset=utf-8'}));
         createdUrls.push(uri);
@@ -4040,11 +4111,11 @@ function mmhdSubtitleLoader(){
       stopASS();
       if(assWorkerURL)URL.revokeObjectURL(assWorkerURL);
       createdUrls.forEach(URL.revokeObjectURL);
+      clearTimeout(noticeTimer);
     },{once:true});
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',begin,{once:true});else begin();
 }
-
 
 
 /* Idioma del audio: Latino/Inglés, arriba a la derecha en pantalla completa.
@@ -4233,7 +4304,7 @@ function mmhdNormalizeSubtitleTracks(tracks,legacy){
   var old=String(legacy||'').trim();
   if(/^https:\/\//i.test(old)){
     var spanish=result.find(function(t){return t.language.toLowerCase()==='es-419';});
-    if(spanish)spanish.url=old;else result.unshift({language:'es-419',name:'Español (Latino)',url:old});
+    if(!spanish)result.unshift({language:'es-419',name:'Español (Latino)',url:old});
   }
   return result.slice(0,12);
 }
