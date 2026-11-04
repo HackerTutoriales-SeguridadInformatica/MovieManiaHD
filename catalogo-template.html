@@ -7231,7 +7231,7 @@ function mmhdDownloadSelectedSeason(){
       console.warn("MMHD: Chrome no permitió abrir el enlace de descarga",err);
     }
     if(index+1<jobs.length){
-      mmhdSeasonQueueTimer=setTimeout(()=>step(index+1),1600);
+      mmhdSeasonQueueTimer=setTimeout(()=>step(index+1),5000);
     }else{
       mmhdSeasonQueueTimer=null;
       mmhdSeasonQueueRunning=false;
