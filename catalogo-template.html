@@ -6774,6 +6774,7 @@ async function mmhdCastSubtitleTracks(movie){
     // No modifica los subtítulos originales que JASSUB usa en el navegador.
     const endpoint=new URL(isASS?'/api/cast-ass':'/api/cast-subtitles',location.origin);
     endpoint.searchParams.set('url',subtitleUrl.href);
+    if (isASS) endpoint.searchParams.set('cast_format', 'v2_clean'); // invalidar VTT antiguo en caché
     const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),18000);
     try{
       const response=await fetch(endpoint.href,{signal:controller.signal,credentials:'omit'});
@@ -6784,6 +6785,7 @@ async function mmhdCastSubtitleTracks(movie){
     track.trackContentId=endpoint.href;track.trackContentType='text/vtt';
     track.subtype=chrome.cast.media.TextTrackType.SUBTITLES;
     track.name=source.name;track.language=source.language;
+    if (isASS) track.customData={mmhdSourceFormat:'ass'};
     return track;
   }));
   const tracks=[];
@@ -6914,7 +6916,22 @@ async function handleCast(movie, requestedLanguage) {
         const tracks = await mmhdCastSubtitleTracks(movie);
         if (tracks.length) {
           info.tracks = tracks;
-          info.textTrackStyle = new chrome.cast.media.TextTrackStyle();
+          // Sólo personalizar el texto si se convirtió ASS/SSA; películas con sólo SRT/VTT
+          // mantienen exactamente la configuración de Cast que ya funcionaba.
+          if (tracks.some(t => t.customData?.mmhdSourceFormat === 'ass')) {
+            const style = new chrome.cast.media.TextTrackStyle();
+            style.foregroundColor = '#FFFFFFFF';
+            style.backgroundColor = '#00000000'; // sin rectángulos negros
+            style.edgeColor = '#000000FF';
+            style.edgeType = chrome.cast.media.TextTrackEdgeType.OUTLINE;
+            style.windowType = chrome.cast.media.TextTrackWindowType.NONE;
+            style.windowColor = '#00000000';
+            style.fontGenericFamily = chrome.cast.media.TextTrackFontGenericFamily.SANS_SERIF;
+            style.fontScale = 1;
+            info.textTrackStyle = style;
+          } else {
+            info.textTrackStyle = new chrome.cast.media.TextTrackStyle();
+          }
         }
       } catch (error) {
         console.warn('Movie Mania HD: subtítulos Cast no disponibles', error);
