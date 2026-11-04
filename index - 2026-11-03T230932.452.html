@@ -14,7 +14,8 @@
     gtag('event', eventName, details || {});
   }
 </script>
-<meta name="referrer" content="no-referrer" />
+<!-- YouTube requiere Referer para iframe: solo se comparte el origen, nunca la URL completa -->
+<meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a12">
@@ -2515,6 +2516,81 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 .trailer-body{position:relative;background:#000;aspect-ratio:16/9}.trailer-body iframe{width:100%;height:100%;display:block;border:0}
 @media(max-width:700px){.detail-inner{margin-top:-118px;padding-inline:12px}.detail-top-card{padding:18px 14px 16px;border-radius:22px}.detail-logo{max-width:260px;max-height:108px}.detail-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.detail-btn{height:50px;font-size:12.5px;padding:0 8px}.detail-quick-actions{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.detail-quick-btn{min-height:66px;padding-inline:2px}.detail-quick-btn .detail-quick-icon{width:40px;height:40px;border-radius:13px}.detail-backdrop{height:46vh}.detail-synopsis,.detail-cast,.detail-episodes,.detail-similar,.mmhd-cast-area,.detail-download{padding:15px;border-radius:18px}.trailer-modal{padding:10px 8px calc(10px + env(safe-area-inset-bottom))}.trailer-card{border-radius:18px}.trailer-head{padding:10px}.trailer-badge{padding:7px 10px;font-size:11px}.trailer-head strong{font-size:14px}}
 
+
+/* MMHD V2 · Detalle cinematográfico: imagen protagonista, sin tarjetas */
+.detail{background:#090a0e}
+.detail-backdrop{height:clamp(410px,68svh,760px);background-position:center 23%;background-size:cover;filter:none}
+.detail-backdrop::before{display:none!important}
+.detail-backdrop::after{background:linear-gradient(to bottom,rgba(6,8,12,.04) 2%,rgba(6,8,12,.08) 28%,rgba(6,8,12,.35) 52%,rgba(6,8,12,.8) 83%,#090a0e 100%)}
+.detail-inner{max-width:1040px;margin-top:-250px;padding:0 30px 70px}
+.detail-top-card{border:none;box-shadow:none;border-radius:0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:0;margin:0 0 8px}
+.detail-poster-wrap{display:none!important}
+.detail-titles{margin:0 0 12px;text-align:left}
+.detail-title{font-size:clamp(36px,5vw,64px);line-height:1.04;letter-spacing:-1.6px;text-transform:none;color:#fff;font-weight:900;text-shadow:0 3px 14px #0009}
+.detail-logo{margin:0 0 10px;max-width:530px;max-height:155px}
+.detail-meta{justify-content:flex-start;gap:11px;font-size:14px;font-weight:600;color:#e4e4ec;margin:0 0 10px}
+.detail-meta .star{color:#ee5962;gap:6px}.detail-meta .star span{color:#f1f2f5}
+.detail-meta .cert{padding:3px 8px;border-color:#d8dae185;border-radius:5px;font-size:11px}
+.detail-genres{justify-content:flex-start;gap:9px;margin:0 0 23px}
+.genre-chip{background:rgba(35,35,47,.88);border-color:#48485e;color:#eff0f8;border-radius:99px;padding:8px 12px;min-height:34px;font-size:12px}
+.detail-actions,.detail.series-detail .detail-actions{max-width:760px;margin:0 0 17px;display:grid;grid-template-columns:1.32fr 1fr 1fr;gap:9px}
+.detail-btn{height:51px;border-radius:12px;font-size:14px;gap:9px;font-weight:800;box-shadow:none;transition:background .18s}
+.detail-btn-primary{background:#fff;color:#15141c;border:1px solid #fff}.detail-btn-primary:hover{background:#e8e8f0;transform:none}
+.detail-btn-secondary{background:#282936;color:#fff;border:1px solid #323443}.detail-btn-secondary:hover{background:#353745;border-color:#454759}
+.detail-quick-actions{max-width:760px;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 18px}
+.detail-quick-btn{min-height:66px;padding:7px 2px;gap:7px;color:#f8f8ff;background:transparent}
+.detail-quick-btn .detail-quick-icon{background:none!important;border:none!important;width:40px;height:30px;border-radius:0;font-size:20px;color:#f3f4f8}
+.detail-quick-btn span:last-child{color:#dcdde7;font-size:12px;font-weight:500}
+.detail-quick-btn:hover .detail-quick-icon,.detail-quick-btn:focus-visible .detail-quick-icon{color:#fff;transform:translateY(-1px)}
+.detail-quick-btn.active .detail-quick-icon{color:#68dfb8}.detail-quick-btn.list-active .detail-quick-icon{color:#f85e7c}
+.detail-more-wrap{position:relative}.detail-more-menu{top:calc(100% - 2px);right:0;width:min(235px,82vw);padding:7px;border:1px solid #363749;border-radius:15px;background:#242433;box-shadow:0 16px 45px #000b}
+.detail-more-menu button{padding:13px;color:#fff}
+.detail-synopsis,.detail-cast,.detail-similar,.detail-episodes,.mmhd-cast-area,.detail-download{background:none!important;border:none!important;box-shadow:none!important;border-radius:0!important;max-width:100%;padding:0!important}
+.detail-synopsis{margin:18px 0 24px}.detail-synopsis h3{font-size:19px;margin-bottom:12px}.detail-synopsis p{font-size:14px;line-height:1.65;color:#c2c4d2}
+.detail-cast,.detail-episodes,.detail-similar{margin:30px 0 0}.detail-cast h3,.detail-similar-head h3,.detail-episodes-head h3{font-size:19px}
+.detail-cast-face{width:92px;height:92px;border:0;background:#1e2230}.detail-cast-name{font-size:12px}
+.similar-card{background:transparent!important;border:0!important;border-radius:11px;box-shadow:none}
+.similar-poster{border-radius:11px;overflow:hidden}
+.similar-info{padding:8px 2px 10px}
+.mmhd-cast-area{margin:0 0 18px;color:#9aa0b3;font-size:11px}
+#mmhdCastPanel:not([hidden]){padding:13px;border:1px solid #35394c;border-radius:12px;background:#141927}
+#mmhdCastStatus{opacity:.85}
+.detail-download{margin:0 0 22px}
+.detail.series-detail #btnCast,.detail.series-detail #btnTrailer{display:flex}.detail.series-detail #btnPlay{min-height:51px;grid-column:auto}
+.trailer-modal{position:fixed;inset:0;display:none;align-items:center!important;justify-content:center!important;padding:18px 12px!important;background:#000b;backdrop-filter:blur(5px);z-index:350}
+.trailer-modal.show{display:flex}
+.trailer-card{width:min(750px,100%);max-height:calc(100svh - 36px);overflow:auto;background:#111522;border:1px solid #3e4156;border-radius:17px;box-shadow:0 18px 70px #000b}
+.trailer-head{padding:10px 13px;background:#1b1d2c;min-height:55px;gap:9px}
+.trailer-badge{background:#253d68;border:0;border-radius:9px;color:#b8d2ff;font-size:11px;padding:7px 10px}
+.trailer-head strong{font-size:13px}.trailer-close{height:36px;width:36px;border-radius:10px}
+.trailer-body{aspect-ratio:16 / 9;min-height:205px;background:#060607;position:relative}
+.trailer-body iframe{display:block;width:100%;height:100%;border:0;position:absolute;inset:0}
+.trailer-status{display:none;padding:34px 20px;color:#dbe1f0;text-align:center;min-height:205px;align-items:center;justify-content:center;line-height:1.55;font-size:14px}
+.trailer-status:not([hidden]){display:flex}.trailer-body:has(.trailer-status:not([hidden])) iframe{display:none}
+.trailer-footer{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#141927;color:#adb8d0;font-size:11px}
+.trailer-footer a{border-radius:9px;padding:10px 12px;border:1px solid #4a5b80;background:#222f4b;color:#f0f4ff;text-decoration:none;font-size:12px;font-weight:700}.trailer-footer a[hidden]{display:none}
+@media(max-width:650px){
+  .detail-backdrop{height:clamp(330px,63svh,640px);background-position:center 15%}
+  .detail-inner{margin-top:-189px;padding:0 17px calc(42px + env(safe-area-inset-bottom))}
+  .detail-top-card{padding:0;margin-bottom:6px}
+  .detail-title{font-size:38px;line-height:1.02}
+  .detail-logo{max-width:275px;max-height:120px}
+  .detail-meta{font-size:12.5px;gap:8px}.detail-genres{gap:6px;margin-bottom:19px}.genre-chip{font-size:11px;padding:7px 10px;min-height:29px}
+  .detail-actions,.detail.series-detail .detail-actions{grid-template-columns:1.27fr 1fr 1fr;gap:7px;margin-bottom:9px}
+  .detail-btn{height:45px;min-width:0;padding:0 5px;gap:5px;font-size:11.5px;border-radius:10px;white-space:nowrap}
+  .detail-btn i{font-size:12px}
+  .detail-quick-actions{gap:2px;margin-bottom:12px}
+  .detail-quick-btn{min-height:67px;gap:6px;padding:4px 0}
+  .detail-quick-btn .detail-quick-icon{height:29px;font-size:20px}
+  .detail-quick-btn span:last-child{font-size:11px}
+  .detail-synopsis{margin:19px 0 22px}.detail-synopsis h3,.detail-cast h3,.detail-similar-head h3,.detail-episodes-head h3{font-size:17px}
+  .detail-cast,.detail-episodes,.detail-similar{margin-top:25px}
+  .trailer-modal{padding:12px 10px!important}
+  .trailer-card{max-height:calc(100svh - 24px);border-radius:15px}
+  .trailer-head{gap:7px;padding:8px}.trailer-badge{padding:7px 8px}.trailer-head strong{font-size:12px}
+  .trailer-body{aspect-ratio:16 / 9;min-height:205px}
+}
+
 </style>
 <style id="mmhd-req-contact-css">
 .mmhd-request-card textarea{display:block;width:100%;min-height:82px;resize:vertical;border:1px solid #434357;background:#090d18;color:#fff;padding:12px;border-radius:9px;margin:7px 0 12px;outline:none;font:inherit}
@@ -2891,6 +2967,12 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
     </div>
     <div class="trailer-body">
       <iframe id="trailerFrame" src="about:blank" allow="autoplay; encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen title="Tráiler"></iframe>
+      <p class="trailer-status" id="trailerStatus" role="status" hidden></p>
+    </div>
+    <div class="trailer-footer">
+      <span>El video se inicia en silencio cuando el navegador lo permite.</span>
+      <a id="trailerYouTubeLink" href="#" target="_blank" rel="noopener" hidden>Ver en YouTube <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+      <a id="trailerWebLink" href="#" target="_blank" rel="noopener" hidden>Abrir Movie Mania HD</a>
     </div>
   </div>
 </div>
@@ -5665,7 +5747,8 @@ async function castRecoverAfterResume(recovery) {
 const castPanel = () => document.getElementById('mmhdCastPanel');
 function castMessage(message) { if (castStatus()) castStatus().textContent = message; }
 function castSession() {
-  return castReady ? cast.framework.CastContext.getInstance().getCurrentSession() : null;
+  if(!castReady || !window.cast?.framework) return null;
+  return window.cast.framework.CastContext.getInstance().getCurrentSession();
 }
 function castMatchesVideoRequest(media) {
   if (!media) return false;
@@ -5881,9 +5964,11 @@ function castObserve() {
   castSync();
 }
 window.__onGCastApiAvailable = function(available) {
-  if (!available) { castMessage('Google Cast no está disponible en este navegador.'); return; }
+  if (!available || !window.cast?.framework || !window.chrome?.cast?.media) {
+    castMessage('Google Cast no está disponible en este navegador.'); return;
+  }
   try {
-    const ctx = cast.framework.CastContext.getInstance();
+    const ctx = window.cast.framework.CastContext.getInstance();
     ctx.setOptions({
       receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
       autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
@@ -6646,9 +6731,16 @@ function buildDetailShareUrl(movie){
   const pathname = location.pathname || '';
   return `${origin}${pathname}#movie-${movie.id}`;
 }
-function buildTrailerEmbedUrl(movie){
-  const query = `${movie?.title || ''} ${movie?.year || ''} ${movie?.kind === 'SERIES' ? 'series' : 'pelicula'} trailer oficial`;
-  return `https://www.youtube.com/embed?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&listType=search&list=${encodeURIComponent(query.trim())}`;
+function buildTrailerEmbedUrl(key){
+  const params=new URLSearchParams({autoplay:'1',mute:'1',playsinline:'1',rel:'0',origin:location.origin});
+  return `https://www.youtube.com/embed/${encodeURIComponent(key)}?${params}`;
+}
+let trailerLoadSerial=0;
+function setTrailerStatus(message){
+  const el=$("trailerStatus");
+  if(!el)return;
+  el.hidden=!message;
+  el.textContent=message||'';
 }
 function closeDetailMoreMenu(){
   const menu=$("detailMoreMenu"),btn=$("btnMore");
@@ -6663,24 +6755,60 @@ function toggleDetailMoreMenu(force){
   menu.hidden=!willOpen;
   btn.setAttribute("aria-expanded",willOpen?"true":"false");
 }
-function openTrailerModal(){
+async function openTrailerModal(){
   const movie=state.currentMovie;if(!movie)return;
   const modal=$("trailerModal"),frame=$("trailerFrame"),title=$("trailerModalTitle");
+  const youTubeLink=$("trailerYouTubeLink"),webLink=$("trailerWebLink");
   if(!modal||!frame||!title)return;
-  title.textContent = `${movie.title} · Tráiler`;
-  frame.src = buildTrailerEmbedUrl(movie);
-  modal.classList.add("show");
-  modal.setAttribute("aria-hidden","false");
-  document.body.style.overflow = "hidden";
+  const serial=++trailerLoadSerial;
+  title.textContent=movie.title;
+  frame.src='about:blank';
+  youTubeLink.hidden=true;youTubeLink.removeAttribute('href');
+  webLink.hidden=true;webLink.removeAttribute('href');
+  setTrailerStatus('Buscando el tráiler oficial…');
+  modal.classList.add('show');
+  modal.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
   closeDetailMoreMenu();
+  const validOrigin=/^https?:$/.test(location.protocol) && location.hostname;
+  if(!validOrigin){
+    setTrailerStatus('Para reproducir YouTube, abre Movie Mania HD directamente en Chrome o Safari. Los enlaces abiertos como archivos o dentro de Telegram pueden mostrar el Error 153.');
+    webLink.href='https://moviemaniahd.vercel.app/#movie-'+encodeURIComponent(movie.id);
+    webLink.hidden=false;
+    return;
+  }
+  try{
+    const type=movie.kind==='SERIES'?'tv':'movie';
+    const id=Math.abs(Number(movie.tmdbId??movie.id));
+    if(!Number.isSafeInteger(id)||id<1)throw new Error('No se identificó este título en TMDB.');
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),9000);
+    let response;
+    try{response=await fetch('/api/trailer?type='+type+'&id='+encodeURIComponent(id),{signal:controller.signal});}
+    finally{clearTimeout(timer);}
+    const data=await response.json().catch(()=>({}));
+    if(serial!==trailerLoadSerial||!modal.classList.contains('show'))return;
+    if(!response.ok)throw new Error(data.error||'No se encontró un tráiler disponible.');
+    const key=String(data.key||'');
+    if(!/^[a-zA-Z0-9_-]{11}$/.test(key))throw new Error('TMDB no proporcionó un enlace válido de YouTube.');
+    youTubeLink.href='https://www.youtube.com/watch?v='+encodeURIComponent(key);
+    youTubeLink.hidden=false;
+    setTrailerStatus('');
+    frame.src=buildTrailerEmbedUrl(key);
+  }catch(error){
+    if(serial!==trailerLoadSerial||!modal.classList.contains('show'))return;
+    setTrailerStatus(error.name==='AbortError'?'La consulta del tráiler tardó demasiado. Inténtalo nuevamente.':(error.message||'No hay tráiler disponible.'));
+  }
 }
 function closeTrailerModal(){
+  ++trailerLoadSerial;
   const modal=$("trailerModal"),frame=$("trailerFrame");
   if(!modal||!frame)return;
   modal.classList.remove("show");
   modal.setAttribute("aria-hidden","true");
-  frame.src = "about:blank";
-  if($("detailScreen").classList.contains("show")) document.body.style.overflow = "hidden";
+  frame.src="about:blank";
+  setTrailerStatus('');
+  if($("detailScreen").classList.contains("show")) document.body.style.overflow="hidden";
 }
 async function shareCurrentDetail(){
   const movie=state.currentMovie;if(!movie)return;
