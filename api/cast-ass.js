@@ -38,6 +38,22 @@ function vttTime(seconds) {
   const secs = Math.floor(ms / 1000); ms -= secs*1000;
   return String(hrs).padStart(2,'0')+':'+String(mins).padStart(2,'0')+':'+String(secs).padStart(2,'0')+'.'+String(ms).padStart(3,'0');
 }
+// Divide frases excepcionalmente largas sin alterar los tiempos ni las posiciones ASS.
+// Las líneas de letras de canciones ya separadas mediante \N se conservan.
+function wrapCastLine(text, maxChars = 52) {
+  return String(text).split('\n').map(line => {
+    if (line.length <= maxChars || !/\s/.test(line)) return line;
+    const result = [];
+    let current = '';
+    for (const word of line.split(/\s+/)) {
+      if (current && current.length + 1 + word.length > maxChars) {
+        result.push(current); current = word;
+      } else current += (current ? ' ' : '') + word;
+    }
+    if (current) result.push(current);
+    return result.join('\n');
+  }).join('\n');
+}
 function fieldObject(str, columns) {
   const values = str.split(',');
   if (values.length > columns.length) {
@@ -83,10 +99,16 @@ function convertASS(content) {
         const rawText = o.text || '';
         // Los dibujos vectoriales de ASS no son líneas de texto.
         if (/\{[^}]*\\p[1-9]/i.test(rawText)) continue;
+        // El formato ASS usa {\an8}, {\pos(...)} y otras etiquetas técnicas,
+        // pero algunos archivos también traen anotaciones editoriales como
+        // {escuela}, {lluvia pasajera} o {¿...}. NINGÚN bloque entre llaves
+        // debe llegar como texto visible al receptor Cast.
         const text = rawText
-          .replace(/\{[^}]*\\[^}]*\}/g, '')
+          .replace(/\{[^{}]*\}/g, '')
           .replace(/\\N/g,'\n').replace(/\\n/g,' ').replace(/\\h/g,' ')
-          .replace(/\u0000/g,'').trim();
+          .replace(/\\([{}])/g,'$1')
+          .replace(/\u0000/g,'')
+          .replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').trim();
         if (!text || !/[^\s]/.test(text)) continue;
         // ASS normalmente duplica eventos en varias capas para crear brillo/contorno.
         const tags = (rawText.match(/\{[^}]*\\[^}]*\}/g) || []).join('');
@@ -144,7 +166,7 @@ function convertASS(content) {
   let output = 'WEBVTT\n\n', outputBytes = Buffer.byteLength(output,'utf8');
   for (const e of filtered) {
     // Evitar que una letra que contenga HTML sea interpretada como marcado VTT.
-    const safe = e.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const safe = wrapCastLine(e.text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const cue = vttTime(e.start)+' --> '+vttTime(e.end)+' '+e.cueSettings+'\n'+safe+'\n\n';
     outputBytes += Buffer.byteLength(cue,'utf8');
     if (outputBytes > MAX_VTT_BYTES) throw new Error('La pista convertida supera 5 MB.');
