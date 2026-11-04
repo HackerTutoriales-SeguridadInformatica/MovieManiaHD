@@ -3810,6 +3810,210 @@ function mmhdSubtitleLoader(){
   // El Worker original es un módulo ES con imports que NO resuelve el navegador.
   var ASS_WORKER_BUNDLE='https://esm.sh/jassub@2.5.1/dist/worker/worker.js?bundle&target=es2022';
   var ASS_MODULE='https://esm.sh/jassub@2.5.1?bundle&target=es2022';
+  /* Fuentes originales ASS/SSA:
+     Si existen archivos de fuentes propios/licenciados, publícalos en tu sitio
+     y configura sus URL en /ass-fonts.json. Ver ejemplo incluido en el ZIP.
+     No se incorporan ni redistribuyen tipografías comerciales. */
+  var ASS_FONT_MANIFEST='/ass-fonts.json';
+  var assFontConfigPromise=null,assCSSFontsRequested=false;
+  // Alternativas visuales de licencia abierta cuando el tipo original no está disponible.
+  // El nombre original siempre tiene prioridad: si el usuario instala/aporta la fuente,
+  // Chrome la utilizará antes que la alternativa.
+  var ASS_FONT_ALTERNATIVES={
+    'quaysansmditctt':'Alegreya Sans',
+    'alegreya sans':'Alegreya Sans',
+    'giddyup std':'Caveat',
+    'rf akbar':'Kalam',
+    'district pro thin':'Alegreya Sans',
+    'blue highway':'Alegreya Sans',
+    'adobe ming std l':'Noto Serif',
+    'kozuka mincho pro strp el':'Noto Serif'
+  };
+  function assFontFamily(name){
+    var family=String(name||'Arial').replace(/[\"\\\x00-\x1f]/g,'').trim()||'Arial';
+    var alternative=ASS_FONT_ALTERNATIVES[family.toLowerCase()];
+    return '"'+family+'"'+(alternative && alternative.toLowerCase()!==family.toLowerCase()?',"'+alternative+'"':'')+',Arial,sans-serif';
+  }
+  function requestOpenASSFonts(){
+    if(assCSSFontsRequested)return;
+    assCSSFontsRequested=true;
+    var link=document.createElement('link');link.rel='stylesheet';
+    link.href='https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@400;700&family=Kalam:wght@400;700&family=Noto+Serif:wght@400;700&display=swap';
+    link.dataset.mmhdAssFonts='alternativas';
+    (document.head||document.documentElement).appendChild(link);
+  }
+  function assFontConfig(){
+    if(assFontConfigPromise)return assFontConfigPromise;
+    // La configuración es opcional: la ausencia de manifest no afecta al catálogo.
+    assFontConfigPromise=Promise.resolve().then(function(){
+      var inline=window.__MMHD_ASS_FONT_URLS__||{};
+      return fetch(ASS_FONT_MANIFEST,{mode:'same-origin',credentials:'same-origin'}).then(function(res){
+        if(!res.ok)return {};
+        return res.json();
+      }).catch(function(){return {};}).then(function(manifest){
+        // Un objeto directo o {"fonts":{...}} son formatos aceptados.
+        var raw=manifest&&manifest.fonts&&typeof manifest.fonts==='object'?manifest.fonts:manifest;
+        var merged=Object.assign({},raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{},inline);
+        var verified={};
+        Object.keys(merged).slice(0,80).forEach(function(font){
+          var url=String(merged[font]||'').trim();
+          if(!font||font.length>100||!url)return;
+          try{var parsed=new URL(url,location.href);
+            if(parsed.protocol!=='https:' && parsed.origin!==location.origin)return;
+            verified[font]=parsed.href;
+          }catch(_){}
+        });
+        return verified;
+      });
+    });
+    return assFontConfigPromise;
+  }
+  /* MMHD — Autodescubrimiento de fuentes ASS en la carpeta GitHub del .ass.
+     Se usan las fuentes que el usuario ya publica, sin copiarlas al ZIP.
+     Compatible con raw.githubusercontent.com, github.com/blob y jsDelivr/gh.
+     El manifiesto /ass-fonts.json sigue siendo opcional y tiene prioridad. */
+  var assGitHubDirCache=Object.create(null);
+  var ASS_KNOWN_AOHARU_FILES=[
+    'A Bebedera.ttf','ABeeZee-Regular.otf','AdobeMingStd-Light.otf',
+    'AlegreyaSans-BoldItalic.otf','AlegreyaSans-Bold_0.otf',
+    'DistProTh.otf','FOTPopFuryStdStripped-Bold.otf',
+    'FOTRocknRollStdStrp-DemiBold.otf','GiddyupStd.otf',
+    'IwaGyoPro-Bd-Kami.ttf','KozukaMinchoProStrp-EL_0.otf',
+    'QuaySansMdITCTT Italic.ttf','akbar_3.ttf','blue highway bd.otf','raavi_0.ttf'
+  ];
+  function assGitHubLocation(link){
+    var u;try{u=new URL(String(link||''),location.href);}catch(_){return null;}
+    if(u.protocol!=='https:')return null;
+    var pieces=u.pathname.split('/').filter(Boolean).map(function(p){try{return decodeURIComponent(p);}catch(_){return p;}});
+    var owner,repo,ref,dirs;
+    if(u.hostname==='raw.githubusercontent.com'){
+      if(pieces.length<5)return null;
+      owner=pieces[0];repo=pieces[1];
+      var start=2;
+      if(pieces[2]==='refs'&&pieces[3]==='heads')start=4;
+      ref=pieces[start];dirs=pieces.slice(start+1,-1);
+    }else if(u.hostname==='github.com'){
+      if(pieces.length<6||!['blob','raw'].includes(pieces[2]))return null;
+      owner=pieces[0];repo=pieces[1];ref=pieces[3];dirs=pieces.slice(4,-1);
+    }else if(u.hostname==='cdn.jsdelivr.net'&&pieces[0]==='gh'){
+      if(pieces.length<4)return null;
+      var pair=pieces[2].split('@');owner=pieces[1];repo=pair[0];ref=pair[1]||'main';dirs=pieces.slice(3,-1);
+    }else return null;
+    if(!owner||!repo||!ref||!dirs.length||![owner,repo,ref].every(function(x){return /^[\w.\-]+$/.test(x);}))return null;
+    if(!dirs.every(function(x){return !!x&&x!=='.'&&x!=='..';}))return null;
+    var path=dirs.map(encodeURIComponent).join('/');
+    var base='https://raw.githubusercontent.com/'+owner+'/'+repo+'/'+encodeURIComponent(ref)+'/'+path+'/';
+    var api='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path+'?ref='+encodeURIComponent(ref);
+    return {owner:owner,repo:repo,ref:ref,dirs:dirs,base:base,api:api,key:owner+'/'+repo+'@'+ref+'/'+path};
+  }
+  function assFontKey(name){return String(name||'').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]/g,'');}
+  function assRequestedNames(content){
+    var result=[],used=Object.create(null);
+    function add(n){n=String(n||'').trim();var key=n.toLowerCase();if(n&&!used[key]&&n.length<100){used[key]=true;result.push(n);}}
+    var lines=String(content||'').split(/\r?\n/);
+    lines.forEach(function(line){
+      var m=line.match(/^Style\s*:\s*[^,]*,([^,\r\n]+)/i);if(m)add(m[1]);
+    });
+    var match,rx=/\\fn([^\\}\r\n]+)/g;
+    while((match=rx.exec(String(content||'')))!==null){add(match[1]);if(result.length>90)break;}
+    return result;
+  }
+  function assFontInventory(locationInfo){
+    if(!locationInfo)return Promise.resolve([]);
+    var key=locationInfo.key;
+    if(assGitHubDirCache[key])return assGitHubDirCache[key];
+    var known=locationInfo.owner.toLowerCase()==='hackertutoriales-seguridadinformatica' &&
+      locationInfo.repo.toLowerCase()==='subtitulos' &&
+      locationInfo.dirs.join('/').toLowerCase()==='ao haru ride';
+    // Con la carpeta conocida no necesitamos pedir un listado a GitHub cada visita.
+    if(known){
+      assGitHubDirCache[key]=Promise.resolve(ASS_KNOWN_AOHARU_FILES.map(function(n){
+        return {name:n,url:locationInfo.base+encodeURIComponent(n)};
+      }));
+      return assGitHubDirCache[key];
+    }
+    var controller=typeof AbortController==='function'?new AbortController():null;
+    var timer=controller?setTimeout(function(){controller.abort();},5000):0;
+    assGitHubDirCache[key]=fetch(locationInfo.api,{
+      mode:'cors',credentials:'omit',headers:{Accept:'application/vnd.github+json'},
+      signal:controller?controller.signal:undefined
+    }).then(function(response){if(!response.ok)throw Error('GitHub API HTTP '+response.status);return response.json();})
+      .then(function(files){
+        if(!Array.isArray(files))return [];
+        return files.filter(function(f){return f&&f.type==='file'&&/\.(?:ttf|otf|woff2?)$/i.test(f.name||'');})
+          .slice(0,100).map(function(f){return {name:f.name,url:f.download_url||locationInfo.base+encodeURIComponent(f.name)};});
+      }).catch(function(e){warn('No se pudo listar las fuentes de GitHub ('+e.message+'); se usan alternativas.');return [];})
+      .finally(function(){if(timer)clearTimeout(timer);});
+    return assGitHubDirCache[key];
+  }
+  function assMatchFont(font,files){
+    var n=assFontKey(font);
+    // Algunas familias tienen nombres internos distintos a sus nombres de archivo.
+    var aliases={
+      'rfakbar':['akbar3','akbar'],
+      'quaysansmdicttt':['quaysansmdictttitalic'],
+      'giddyupstd':['giddyupstd'],
+      'alegreyasans':['alegreyasansbold0','alegreyasansbolditalic'],
+      'adobemingstdl':['adobemingstdlight'],
+      'districtprothin':['distproth'],
+      'bluehighway':['bluehighwaybd'],
+      'iwatagyoushoprokamib':['iwagyoprobdkami'],
+      'kozukaminchoprostrpel':['kozukaminchoprostrpel0'],
+      'fotpopfurystdstripped':['fotpopfurystdstrippedbold'],
+      'fotrocknrollstdstripped':['fotrocknrollstdstrpdemibold']
+    };
+    var desired=[n].concat(aliases[n]||[]);
+    // Prioriza nombre exacto, después coincidencia de familia y variante.
+    var matches=files.map(function(f){
+      var filename=String(f.name||'').replace(/\.(?:ttf|otf|woff2?)$/i,'');
+      var k=assFontKey(filename.replace(/[_-][0-9]+$/,''));
+      var score=0;
+      for(var i=0;i<desired.length;i++){
+        var d=desired[i];
+        if(k===d)score=Math.max(score,100-i);
+        else if(k.startsWith(d))score=Math.max(score,85-i);
+        else if(d.startsWith(k)&&k.length>=5)score=Math.max(score,75-i);
+      }
+      // Para la familia Alegreya Sans, una variante regular/negrita se prefiere
+      // frente a la variante BoldItalic si el ASS no solicita cursiva explícita.
+      if(n==='alegreyasans'&&k.includes('italic'))score-=25;
+      return {file:f,score:score};
+    }).filter(function(x){return x.score>0;});
+    matches.sort(function(a,b){return b.score-a.score;});
+    return matches.length?matches[0].file:null;
+  }
+  function assFontsForItem(item){
+    var where=assGitHubLocation(item&&item.url);
+    return Promise.all([assFontConfig(),assFontInventory(where)]).then(function(deps){
+      var explicit=deps[0],files=deps[1],matched=Object.create(null);
+      assRequestedNames(item&&item.assContent).forEach(function(font){
+        var f=assMatchFont(font,files);
+        if(f)matched[font]=f.url;
+      });
+      // Si GitHub tiene el segundo archivo, permitir itálicas reales de Alegreya Sans.
+      if(matched['Alegreya Sans']){
+        var italic=files.find(function(f){return /^AlegreyaSans-BoldItalic\.otf$/i.test(f.name);});
+        if(italic)matched['Alegreya Sans BoldItalic']=italic.url;
+      }
+      // Mantener prioridades del usuario: GitHub automático, luego manifest/inline.
+      return Object.assign({},matched,explicit);
+    });
+  }
+  var assRequestedFontFaces=new Set();
+  function installASSFontFaces(fontMap){
+    if(!('FontFace' in window)||!document.fonts)return Promise.resolve();
+    var names=Object.keys(fontMap);
+    return Promise.allSettled(names.map(function(name){
+      var key=name.toLowerCase();
+      if(assRequestedFontFaces.has(key))return Promise.resolve();
+      assRequestedFontFaces.add(key);
+      var italicFace=name==='Alegreya Sans BoldItalic';
+      var face=new FontFace(italicFace?'Alegreya Sans':name,'url('+JSON.stringify(fontMap[name])+')',italicFace?{style:'italic',weight:'700'}:(name==='Alegreya Sans'?{weight:'700'}:{}));
+      return face.load().then(function(loaded){document.fonts.add(loaded);}).catch(function(err){
+        warn('No se pudo cargar la fuente '+name+': '+(err&&err.message||err));
+      });
+    }));
+  }
   var notice=null,noticeTimer=0;
   function status(message){
     if(!message){if(notice)notice.hidden=true;return;}
@@ -3839,7 +4043,9 @@ function mmhdSubtitleLoader(){
   // Así no queda la pantalla sin texto si el Worker o WebAssembly no inicia.
   /* Modo compatible ASS: conserva colores, tamaños, posiciones y pistas simultáneas.
      JASSUB/libass sigue siendo el renderizador de referencia para los efectos complejos. */
-  function createASSFallback(video, content){
+  function createASSFallback(video, content, item){
+    requestOpenASSFonts();
+    assFontsForItem(item).then(installASSFontFaces).catch(function(e){warn("Fuentes ASS: "+e.message);});
     var scriptW=1280,scriptH=720,styles=Object.create(null),styleFmt=[],eventFmt=[],section='';
     var events=[],lines=String(content||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n');
     function fields(str,fmt){
@@ -3864,11 +4070,11 @@ function mmhdSubtitleLoader(){
       if(!fade){var f=find(/\\fade\([^)]*?,[^)]*?,[^)]*?,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i);if(f)fade=[f[1]-f[0],f[3]-f[2]];}
       var color=find(/\\(?:1c|c)(&H[0-9A-Fa-f]+&?)/i),outline=find(/\\3c(&H[0-9A-Fa-f]+&?)/i);
       var fontsize=find(/\\fs([\d.]+)/i),bold=find(/\\b([01])/i),italic=find(/\\i([01])/i);
-      var border=find(/\\bord([\d.]+)/i),shadow=find(/\\shad([\d.]+)/i);
+      var border=find(/\\bord([\d.]+)/i),shadow=find(/\\shad([\d.]+)/i),blur=find(/\\blur([\d.]+)/i);
       var angle=find(/\\frz?([-\d.]+)/i);
       var font=find(/\\fn([^\\}]+)/i);
       var draw=/\\p[1-9]/i.test(tagContent);
-      return {an:an?+an[0]:0,pos:pos,move:move,fade:fade,color:color&&color[0],outline:outline&&outline[0],fontsize:fontsize&&+fontsize[0],bold:bold&&+bold[0],italic:italic&&+italic[0],border:border&&+border[0],shadow:shadow&&+shadow[0],angle:angle&&+angle[0],font:font&&font[0],draw:draw};
+      return {an:an?+an[0]:0,pos:pos,move:move,fade:fade,color:color&&color[0],outline:outline&&outline[0],fontsize:fontsize&&+fontsize[0],bold:bold&&+bold[0],italic:italic&&+italic[0],border:border&&+border[0],shadow:shadow&&+shadow[0],blur:blur&&+blur[0],angle:angle&&+angle[0],font:font&&font[0],draw:draw};
     }
     function plain(s){
       return String(s||'').replace(/\{[^}]*\}/g,'').replace(/\\N/g,'\n').replace(/\\n/g,' ').replace(/\\h/g,'\u00a0').trim();
@@ -3938,13 +4144,20 @@ function mmhdSubtitleLoader(){
       var shad=+(tg.shadow!==null?tg.shadow:(o.shadow||0))||0;
       var node=document.createElement('div');node.className='mmhd-ass-line';node.textContent=e.text;
       node.style.cssText='position:relative;display:inline-block;white-space:pre-wrap;overflow-wrap:normal;line-height:1.16;pointer-events:none;max-width:100%;';
-      node.style.fontFamily='"'+String(tg.font||o.fontname||'Arial').replace(/["\\]/g,'')+'",Arial,sans-serif';
+      node.style.fontFamily=assFontFamily(tg.font||o.fontname||'Arial');
       node.style.fontWeight=(tg.bold!==null?tg.bold!==0:+o.bold!==0)?'700':'400';
       node.style.fontStyle=(tg.italic!==null?tg.italic!==0:+o.italic!==0)?'italic':'normal';
       node.style.fontSize=fontSize+'px';node.style.color=color;
       node.style.webkitTextStroke=(Math.max(0,bord*scale)+'px '+outline);
       node.style.paintOrder='stroke fill';
-      node.style.textShadow=shad?Math.max(0,shad*scale)+'px '+Math.max(0,shad*scale)+'px 2px rgba(0,0,0,.7)':'0 1px 2px rgba(0,0,0,.4)';
+      // El ASS puede tener sombra de color, transparencia y desenfoque propios.
+      // Combinar borde pintado + resplandor CSS aproxima más el aspecto de VLC.
+      var shadowColor=assColor(o.backcolour,'rgba(0,0,0,.65)');
+      var blurAmount=Math.max(0,(tg.blur===null?0:tg.blur)*scale);
+      var shadows=[];
+      if(blurAmount>0)shadows.push('0 0 '+blurAmount.toFixed(2)+'px '+outline);
+      if(shad>0)shadows.push((shad*scale).toFixed(2)+'px '+(shad*scale).toFixed(2)+'px '+Math.max(.35,blurAmount).toFixed(2)+'px '+shadowColor);
+      node.style.textShadow=shadows.join(',')||'none';
       var al=tg.an||(+o.alignment||2);if(al<1||al>9)al=2;
       node.style.textAlign=al%3===1?'left':al%3===2?'center':'right';
       return {node:node,al:al,style:o};
@@ -4090,9 +4303,10 @@ function mmhdSubtitleLoader(){
     stopASS();updateTracks();
     if(!video || !item)return;
     assVideo=video;assLanguage=item.language;
-    try{assFallback=createASSFallback(video,item.assContent);}catch(e){warn('Modo ASS con estilos: '+e.message);}
+    try{assFallback=createASSFallback(video,item.assContent,item);}catch(e){warn('Modo ASS con estilos: '+e.message);}
     var ticket=assRevision;
-    assLoading=getASSClass().then(function(JASSUB){
+    assLoading=Promise.all([getASSClass(),assFontsForItem(item)]).then(function(deps){
+      var JASSUB=deps[0],userFontURLs=deps[1];
       if(ticket!==assRevision || selected!==item.language || !video.isConnected)return;
       if(!assWorkerURL){
         // Los Workers deben pertenecer al origen de la página; este blob importa
@@ -4106,7 +4320,7 @@ function mmhdSubtitleLoader(){
         workerUrl:assWorkerURL,
         wasmUrl:ASS_CDN+'/dist/wasm/jassub-worker.wasm',
         modernWasmUrl:ASS_CDN+'/dist/wasm/jassub-worker-modern.wasm',
-        availableFonts:{'liberation sans':ASS_CDN+'/dist/default.woff2'},
+        availableFonts:Object.assign({'liberation sans':ASS_CDN+'/dist/default.woff2'},userFontURLs),
         defaultFont:'liberation sans',
         queryFonts:'local',
         maxRenderHeight:720
@@ -4254,7 +4468,7 @@ function mmhdSubtitleLoader(){
         return response.text();
       }).then(function(body){
         if(isASS(body)){
-          return {language:item.language,name:item.name,kind:'ass',assContent:body};
+          return {language:item.language,name:item.name,kind:'ass',assContent:body,url:item.url};
         }
         if(isASSLink(item.url))throw Error('Archivo ASS/SSA no válido');
         var uri=URL.createObjectURL(new Blob([normalizeVtt(body)],{type:'text/vtt;charset=utf-8'}));
