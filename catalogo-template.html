@@ -2653,6 +2653,41 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
  .detail.series-detail .detail-episodes-note{margin:10px 0 0;color:#a5aec4;font-size:10px;line-height:1.5}
 }
 
+
+/* MMHD V6 — Acciones de serie y descarga masiva de temporada. */
+.detail.series-detail .detail-actions{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  width:min(100%,620px)!important;max-width:620px!important;
+  margin-left:auto!important;margin-right:auto!important;justify-content:center!important;gap:10px!important;
+}
+.detail.series-detail .detail-actions #btnCast{display:none!important}
+.detail.series-detail .detail-actions #btnPlay,
+.detail.series-detail .detail-actions #btnTrailer{
+  display:flex!important;grid-column:auto!important;min-width:0;width:100%;
+}
+.season-download-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  background:#25283b;color:#f0f5ff;border:1px solid #505875;
+  padding:9px 12px;min-height:38px;border-radius:9px;
+  font:750 12px/1.25 Inter,Arial,sans-serif;white-space:nowrap;cursor:pointer;
+}
+.season-download-btn:hover:not(:disabled){background:#333c56;border-color:#829ad4}
+.season-download-btn:focus-visible{outline:2px solid #acc8ff;outline-offset:2px}
+.season-download-btn:disabled{opacity:.45;cursor:not-allowed}
+.season-download-status{font-size:12px;line-height:1.5;color:#cbd7ea;margin:9px 0 0;}
+.season-download-status[hidden],.season-download-manual[hidden]{display:none!important}
+.season-download-manual{margin-top:10px;padding:10px 12px;border:1px solid #404967;border-radius:12px;background:#151b29}
+.season-download-manual summary{cursor:pointer;color:#b6d4ff;font-size:12px;font-weight:750}
+.season-download-manual-list{display:grid;gap:7px;margin:10px 0 0}
+.season-download-manual-list a{font-size:12px;color:#dbe8ff;border:1px solid #36435b;border-radius:8px;padding:9px;text-decoration:none;overflow-wrap:anywhere}
+.season-download-manual-list a:hover,.season-download-manual-list a:focus-visible{background:#29344e}
+@media(max-width:600px){
+ .detail.series-detail .detail-actions{width:100%!important;max-width:100%!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+ .detail.series-detail .detail-actions #btnPlay,.detail.series-detail .detail-actions #btnTrailer{min-height:46px;font-size:11px}
+ .detail.series-detail .detail-episodes-head .season-download-btn{grid-row:2;grid-column:2;justify-self:end;align-self:center;min-height:37px;padding:8px 10px;gap:6px;font-size:11px}
+ .detail.series-detail .detail-episodes-head select{grid-row:2;grid-column:1;min-width:0;max-width:100%}
+}
+
 </style>
 <style id="mmhd-req-contact-css">
 .mmhd-request-card textarea{display:block;width:100%;min-height:82px;resize:vertical;border:1px solid #434357;background:#090d18;color:#fff;padding:12px;border-radius:9px;margin:7px 0 12px;outline:none;font:inherit}
@@ -2938,7 +2973,13 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
         <span id="seasonSeenCount" class="episode-season-count" aria-live="polite"></span>
         <span id="seasonTotalCount" class="episode-season-total" aria-hidden="true"></span>
         <select id="detailSeason" aria-label="Elegir temporada"></select>
+        <button id="btnSeasonDownload" class="season-download-btn" type="button" aria-label="Descargar todos los episodios disponibles de la temporada seleccionada"><i class="fa-solid fa-download" aria-hidden="true"></i> Descargar temporada</button>
       </div>
+      <div id="seasonDownloadStatus" class="season-download-status" role="status" aria-live="polite" hidden></div>
+      <details id="seasonDownloadManual" class="season-download-manual" hidden>
+        <summary>Si faltó alguna descarga: abrir enlaces individuales</summary>
+        <div id="seasonDownloadManualList" class="season-download-manual-list"></div>
+      </details>
       <div class="detail-episode-list" id="detailEpisodeList"></div>
       <p class="detail-episodes-note" id="detailEpisodesNote"></p>
     </section>
@@ -6723,6 +6764,8 @@ function renderSeriesSeasons(series,chosenSeason){
   const selectedSeason=chosenSeason==null?preferred?.season:chosenSeason;
   const current=seasons.find(s=>Number(s.number)===Number(selectedSeason))||seasons[0];
   if(current)select.value=String(current.number);
+  mmhdClearSeasonDownloadFeedback();
+  mmhdUpdateSeasonDownloadButton(series,current);
   list.replaceChildren();
   const episodes=(current?.episodes||[]).slice().sort((a,b)=>a.number-b.number);
   $("seasonTotalCount").textContent=`${episodes.length} ${episodes.length===1?"episodio":"episodios"}`;
@@ -7032,6 +7075,16 @@ function hideBrowserVerification(){
   const area=$("downloadConfirmArea");
   if(area)area.hidden=true;
 }
+// Mismo enlace directo para descargas individuales o de temporada.
+// Se elige la mejor calidad configurada (m37 > m22 > m18) en el
+// idioma principal; Google Photos permite solicitar el original con =dv.
+function mmhdDirectDownloadUrl(movie){
+  const source = mmhdAudioVariants(movie)
+    .flatMap(v=>[v.m37,v.m22,v.m18])
+    .map(url=>String(url||"").trim()).find(Boolean)||"";
+  if(!/^https?:\/\//i.test(source))return "";
+  return source.replace(/=m(?:37|22|18)(?=$|[?#&])/,"=dv");
+}
 function startBrowserDownload(url, filename){
   const a = document.createElement("a");
   a.href = url;
@@ -7048,6 +7101,71 @@ function formatDownloadBytes(bytes){
   while (bytes >= 1024 && i < units.length - 1){ bytes /= 1024; i++; }
   return bytes.toFixed(i ? 1 : 0) + " " + units[i];
 }
+// Solo peticiones de descarga; los navegadores no exponen su éxito/progreso.
+// Los enlaces individuales quedan accesibles por si Chrome bloquea la descarga múltiple.
+function mmhdSeasonDownloadJobs(series,season){
+  const jobs=[],missing=[],seenUrls=new Set();
+  const episodes=(season?.episodes||[]).slice().sort((a,b)=>Number(a.number)-Number(b.number));
+  episodes.forEach(ep=>{
+    const media=playableForSeries(series,season.number,ep);
+    const url=mmhdDirectDownloadUrl(media);
+    if(!url){missing.push(ep.number);return;}
+    if(seenUrls.has(url)){missing.push(ep.number);return;}
+    seenUrls.add(url);
+    const safeTitle=String(series.title||"Serie").replace(/[\\/:*?"<>|\x00-\x1f]/g,"_").slice(0,70);
+    const name=String(ep.name||"Episodio").replace(/[\\/:*?"<>|\x00-\x1f]/g,"_").slice(0,55);
+    const filename=`${safeTitle} - T${String(season.number).padStart(2,"0")}E${String(ep.number).padStart(2,"0")} - ${name}.mp4`;
+    jobs.push({media,url,filename,number:ep.number});
+  });
+  return {jobs,missing};
+}
+function mmhdClearSeasonDownloadFeedback(){
+  const status=$("seasonDownloadStatus"),details=$("seasonDownloadManual"),list=$("seasonDownloadManualList");
+  status.hidden=true;status.textContent="";
+  details.hidden=true;details.open=false;list.replaceChildren();
+}
+function mmhdUpdateSeasonDownloadButton(series,season){
+  const btn=$("btnSeasonDownload");
+  if(!series||series.kind!=="SERIES"||!season){btn.disabled=true;return;}
+  btn.disabled=mmhdSeasonDownloadJobs(series,season).jobs.length===0;
+}
+function mmhdDownloadSelectedSeason(){
+  const series=state.currentMovie;
+  if(!series||series.kind!=="SERIES")return;
+  const season=orderedSeriesSeasons(series).find(s=>Number(s.number)===Number($("detailSeason").value));
+  if(!season)return;
+  const {jobs,missing}=mmhdSeasonDownloadJobs(series,season);
+  if(!jobs.length){
+    const status=$("seasonDownloadStatus");status.hidden=false;
+    status.textContent="Esta temporada todavía no tiene episodios con enlace de descarga.";
+    return;
+  }
+  const warning=missing.length ? `\n${missing.length} episodio(s) sin enlace válido o con enlace repetido se omitirán.` : "";
+  // Confirmación antes de solicitar todos los archivos; no inicia descargas en segundo plano.
+  if(!window.confirm(`¿Solicitar la descarga de ${jobs.length} episodio(s) de la temporada ${season.number}?${warning}\n\nChrome podría pedir permiso para varias descargas.`))return;
+  // Todas las solicitudes se disparan desde el clic del usuario, sin fetch masivo de videos.
+  jobs.forEach(job=>{
+    startBrowserDownload(job.url,job.filename);
+  });
+  const status=$("seasonDownloadStatus");status.hidden=false;
+  status.textContent=`Se solicitaron ${jobs.length} descarga(s) de la temporada ${season.number}. `+
+    `Revisa las descargas del navegador y permite descargas múltiples si te lo solicita.`+
+    (missing.length?` ${missing.length} capítulo(s) omitido(s) por falta de enlace válido o enlace repetido.`:"");
+  // Alternativa segura que requiere un clic propio por archivo, si el navegador bloquea el lote.
+  const list=$("seasonDownloadManualList"),details=$("seasonDownloadManual");
+  list.replaceChildren();
+  jobs.forEach(job=>{
+    const link=document.createElement("a");
+    link.href=job.url;link.download=job.filename;
+    link.rel="noopener noreferrer";link.target="_blank";
+    link.textContent=`Descargar episodio ${job.number}`;
+    list.appendChild(link);
+  });
+  details.hidden=false;details.open=false;
+  mmhdTrackAnalytics('mmhd_season_download_request',{
+    content_id:String(series.id),content_type:'series',season:Number(season.number),episodes:jobs.length
+  });
+}
 async function showDownloadBox(movieOverride){
   // Los botones HTML entregan un MouseEvent al listener. Solo aceptar como
   // override un título/episodio con sus campos de calidad, no el evento.
@@ -7056,15 +7174,14 @@ async function showDownloadBox(movieOverride){
   const m = isMedia ? movieOverride : selectedPlayable();
   if (!m || activeDownload) return;
   hideBrowserVerification();
-  const sourceUrl = mmhdAudioVariants(m).flatMap(v=>[v.m37,v.m22,v.m18]).map(url=>String(url||"").trim()).find(Boolean) || "";
-  if (!sourceUrl){ alert("Esta película o episodio no tiene URLs configuradas."); return; }
+  const downloadUrl = mmhdDirectDownloadUrl(m);
+  if (!downloadUrl){ alert("Esta película o episodio no tiene URLs configuradas."); return; }
   mmhdTrackAnalytics('mmhd_download_request', {
     content_id: String(m.parentSeriesId ?? m.id),
     content_type: m.parentSeriesId != null ? 'episode' : (m.kind === 'SERIES' ? 'series' : 'movie')
   });
   // La descarga de Google Photos utiliza el mismo enlace, cambiando la
   // calidad =m37 (o la disponible =m22/=m18) por =dv.
-  const downloadUrl = sourceUrl.replace(/=m(?:37|22|18)(?=$|[?#&])/, "=dv");
   const filename = (m.title || "video").replace(/[\\/:*?"<>|\x00-\x1f]/g, "_") + ".mp4";
   const box = $("downloadBox"), fill = $("downloadFill"), pctEl = $("downloadPct");
   const status = $("downloadStatus"), label = $("downloadLabel");
@@ -7543,6 +7660,7 @@ $("mmhdCastSubtitlesToggle").addEventListener("click", castToggleSubtitles);
 $("mmhdCastSubtitleSelect").addEventListener("change", castSelectSubtitleLanguage);
 
 $("btnDownload").addEventListener("click", () => showDownloadBox());
+$("btnSeasonDownload").addEventListener("click",mmhdDownloadSelectedSeason);
 $("detailSeason").addEventListener("change",()=>{
   if(state.currentMovie?.kind==="SERIES")renderSeriesSeasons(state.currentMovie,Number($("detailSeason").value));
 });
