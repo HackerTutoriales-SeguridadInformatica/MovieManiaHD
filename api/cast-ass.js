@@ -274,39 +274,123 @@ async function tryStaticWebVTT(input) {
     return null;
   } finally {try{await response?.body?.cancel();}catch(_){}}
 }
-async function fetchASS(input, signal) {
-  const ready=await tryStaticWebVTT(input);
-  if(ready)return ready;
-  let url = checkedUrl(input);
-  for (let tries = 0; tries <= MAX_REDIRECTS; tries++) {
-    const response = await fetch(url.href, {
-      method:'GET', redirect:'manual', signal,
-      headers:{Accept:'text/plain,application/octet-stream;q=0.9,*/*;q=0.1'}
-    });
-    if (response.status >= 300 && response.status < 400) {
-      const redirect = response.headers.get('location');
-      if (response.body) await response.body.cancel();
-      if (!redirect) throw new Error('Redirección sin destino.');
-      url = checkedUrl(new URL(redirect,url).href); continue;
+// Cuando GitHub Raw devuelve 404, probar primero otra ruta de distribución
+// del MISMO archivo (jsDelivr y la forma /main/ del enlace /refs/heads/main/).
+// No cambiar la pista a otro episodio ni idioma por aproximación.
+function githubRawFileParts(input){
+  const url=checkedUrl(input);
+  if(url.hostname!=='raw.githubusercontent.com')return null;
+  let pieces;
+  try{pieces=url.pathname.split('/').filter(Boolean).map(decodeURIComponent);}catch{return null;}
+  if(pieces.length<4)return null;
+  const owner=pieces.shift(),repo=pieces.shift();
+  if(!/^[a-z0-9_.-]+$/i.test(owner)||!/^[a-z0-9_.-]+$/i.test(repo))return null;
+  let branch;
+  if(pieces[0]==='refs'&&pieces[1]==='heads'&&pieces[2]){
+    branch=pieces[2];pieces.splice(0,3);
+  }else branch=pieces.shift();
+  if(!/^[a-z0-9_.-]+$/i.test(branch)||pieces.length<1||
+    pieces.some(v=>!v||v==='.'||v==='..'||v.includes('/')||v.includes('\\')))return null;
+  return {owner,repo,branch,path:pieces};
+}
+function sourceAlternatives(input){
+  const parts=githubRawFileParts(input);
+  if(!parts)return [];
+  const encoded=parts.path.map(encodeURIComponent).join('/');
+  return [
+    `https://raw.githubusercontent.com/${parts.owner}/${parts.repo}/${parts.branch}/${encoded}`,
+    `https://cdn.jsdelivr.net/gh/${parts.owner}/${parts.repo}@${parts.branch}/${encoded}`
+  ].filter(u=>u!==checkedUrl(input).href);
+}
+async function fetchPlainASS(url,signal){
+  let checked=checkedUrl(url);
+  for(let tries=0;tries<=MAX_REDIRECTS;tries++){
+    const response=await fetch(checked.href,{method:'GET',redirect:'manual',signal,
+      headers:{Accept:'text/plain,application/octet-stream;q=0.9,*/*;q=0.1'}});
+    if(response.status>=300&&response.status<400){
+      const redirect=response.headers.get('location');
+      if(response.body)await response.body.cancel();
+      if(!redirect)throw new Error('Redirección sin destino.');
+      checked=checkedUrl(new URL(redirect,checked).href);continue;
     }
-    if (!response.ok) throw new Error('El archivo ASS respondió HTTP '+response.status+'.');
-    const type = (response.headers.get('content-type') || '').toLowerCase();
-    if (type.includes('text/html') || type.includes('application/json')) throw new Error('La URL devolvió una página, no un archivo ASS.');
-    if (+response.headers.get('content-length') > MAX_SUBTITLE_BYTES) throw new Error('Archivo ASS mayor a 8 MB.');
-    if (!response.body) throw new Error('Archivo de subtítulos vacío.');
-    const reader = response.body.getReader(), chunks=[];
+    if(response.status===404){
+      if(response.body)await response.body.cancel();
+      const error=new Error('El archivo ASS respondió HTTP 404.');
+      error.originStatus=404;throw error;
+    }
+    if(!response.ok)throw new Error('GitHub respondió HTTP '+response.status+'.');
+    const type=(response.headers.get('content-type')||'').toLowerCase();
+    if(type.includes('text/html')||type.includes('application/json'))throw new Error('La URL devolvió una página, no un archivo ASS.');
+    if(+response.headers.get('content-length')>MAX_SUBTITLE_BYTES)throw new Error('Archivo ASS mayor a 8 MB.');
+    if(!response.body)throw new Error('Archivo de subtítulos vacío.');
+    const reader=response.body.getReader(),chunks=[];
     let total=0;
-    try {
-      while (true) {
-        const {done,value} = await reader.read(); if (done) break;
-        total += value.byteLength;
-        if (total > MAX_SUBTITLE_BYTES) throw new Error('Archivo ASS mayor a 8 MB.');
+    try{
+      while(true){
+        const {done,value}=await reader.read();if(done)break;
+        total+=value.byteLength;
+        if(total>MAX_SUBTITLE_BYTES)throw new Error('Archivo ASS mayor a 8 MB.');
         chunks.push(Buffer.from(value));
       }
-    } finally { await reader.cancel().catch(()=>{}); reader.releaseLock(); }
+    }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
     return convertASS(Buffer.concat(chunks,total).toString('utf8'));
   }
   throw new Error('Demasiadas redirecciones.');
+}
+// Resolver únicamente variantes del nombre de un archivo en su MISMA carpeta.
+// Esto permite recuperarse cuando cambió la forma de escribir espacios,
+// guiones o mayúsculas en GitHub, sin elegir otra temporada ni capítulo.
+async function sameFolderGithubCandidate(input,signal){
+  const p=githubRawFileParts(input);
+  if(!p||p.path.length<2)return null;
+  const filename=p.path[p.path.length-1];
+  const folder=p.path.slice(0,-1).map(encodeURIComponent).join('/');
+  const apiUrl=`https://api.github.com/repos/${encodeURIComponent(p.owner)}/${encodeURIComponent(p.repo)}/contents/${folder}?ref=${encodeURIComponent(p.branch)}`;
+  try{
+    const response=await fetch(apiUrl,{signal,headers:{Accept:'application/vnd.github+json','User-Agent':'MovieManiaHD-Subtitles'}});
+    if(!response.ok)return null;
+    const items=await response.json();
+    if(!Array.isArray(items)||items.length>1000)return null;
+    const normalize=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+    // Comparación fuerte: mismos caracteres en el mismo orden tras quitar
+    // separadores y tildes; NO adivinar nombres de películas diferentes.
+    const expected=normalize(filename);
+    const hits=items.filter(item=>item&&item.type==='file'&&
+      /\.(?:ass|ssa)$/i.test(item.name||'')&&normalize(item.name)===expected&&
+      typeof item.download_url==='string');
+    if(hits.length!==1)return null;
+    const candidate=checkedUrl(hits[0].download_url).href;
+    return candidate===checkedUrl(input).href?null:candidate;
+  }catch(_){return null;}
+}
+async function fetchASS(input, signal){
+  const ready=await tryStaticWebVTT(input);
+  if(ready)return ready;
+  let last404=null;
+  const candidates=[checkedUrl(input).href,...sourceAlternatives(input)];
+  const used=new Set();
+  for(const url of candidates){
+    if(used.has(url))continue;used.add(url);
+    try{return await fetchPlainASS(url,signal);}
+    catch(error){
+      if(error?.originStatus!==404)throw error;
+      last404=error;
+      console.info('[MMHD Cast] Fuente 404; se prueba alternativa del mismo archivo.');
+    }
+  }
+  if(last404){
+    const variant=await sameFolderGithubCandidate(input,signal);
+    if(variant&&!used.has(variant)){
+      try{return await fetchPlainASS(variant,signal);}
+      catch(error){if(error?.originStatus!==404)throw error;}
+    }
+    let basename=checkedUrl(input).pathname.split('/').pop()||'subtitulo.ass';
+    try{basename=decodeURIComponent(basename);}catch(_){}
+    basename=basename.slice(0,125);
+    const error=new Error(`La consulta al ASS recibió HTTP 404: ${basename}. No indica necesariamente que el archivo haya sido eliminado; reintenta y consulta los registros del origen si persiste.`);
+    error.originStatus=404;throw error;
+  }
+  throw new Error('No se pudo obtener el archivo ASS.');
 }
 export default async function handler(req,res) {
   res.setHeader('Access-Control-Allow-Origin','*');
@@ -347,10 +431,10 @@ export default async function handler(req,res) {
     return res.status(200).send(buffer);
   } catch(e) {
     console.warn('[MMHD] Conversión ASS para Chromecast:',e.message);
-    const code = /mayor a|supera 5 MB/.test(e.message) ? 413 : 502;
-    if(code===502)res.setHeader('Retry-After','2');
+    const code = e.originStatus===404 ? 404 : (/mayor a|supera 5 MB/.test(e.message) ? 413 : 502);
+    if(code===502||code===404)res.setHeader('Retry-After','2');
     res.setHeader('Cache-Control','no-store');
     return res.status(code).json({error:e.name==='TimeoutError'?'Tiempo de descarga de subtítulos agotado.':e.message});
   }
 }
-export const __testing = {convertASS, checkedUrl, fetchASS, tryStaticWebVTT};
+export const __testing = {convertASS, checkedUrl, fetchASS, tryStaticWebVTT, githubRawFileParts, sourceAlternatives, fetchPlainASS, sameFolderGithubCandidate};
