@@ -6454,6 +6454,14 @@ let castCommandPending = '';
 let castCommandTimer = null;
 let castLastCommandAt = 0;
 let castHadMedia = false;
+// Diagnóstico de cortes; no exponer URLs sensibles en consola ni en pantalla.
+let castLastPlayableTime = 0;
+let castLastMediaInfo = null;
+let castLastTrackIds = [];
+let castAutomaticRecoveryUsed = false;
+let castAutomaticRecoveryInProgress = false;
+let castLastSessionState = '';
+let castLastFailureText = '';
 let castResumeRecovery = null;
 let castRecoveryLoading = false;
 const castStatus = () => document.getElementById('mmhdCastStatus');
@@ -6471,6 +6479,45 @@ function castResumePosition(media) {
     return Number.isFinite(value) && value >= 0 ? value : 0;
   } catch (_) { return Number(media.currentTime) || 0; }
 }
+// El receptor puede devolver IDLE/ERROR varios minutos después del LOAD.
+// Se intenta UNA sola recuperación dentro de la misma sesión; nunca se abre
+// un diálogo Cast ni se crea un ciclo de reinicios automáticos.
+async function castRecoverUnexpectedError(reason) {
+  if (castAutomaticRecoveryUsed || castAutomaticRecoveryInProgress ||
+      !castLastMediaInfo || castLastPlayableTime < 15 || !castSession()) return false;
+  castAutomaticRecoveryUsed = true;
+  castAutomaticRecoveryInProgress = true;
+  const seconds = Math.max(0, castLastPlayableTime - 2);
+  const session = castSession();
+  castMessage('⚠️ Cast informó ' + (reason || 'ERROR') +
+    '. Reintentando una vez desde ' + Math.round(seconds) + ' s…');
+  console.warn('[MMHD Cast] Error del receptor:', String(reason || 'ERROR'),
+    'segundo:', Math.round(seconds), 'recuperación: 1/1');
+  try {
+    const request = new chrome.cast.media.LoadRequest(castLastMediaInfo);
+    request.autoplay = true;
+    request.currentTime = seconds;
+    if (castLastTrackIds.length) request.activeTrackIds = castLastTrackIds.slice();
+    castPreviousMediaId = session.getMediaSession()?.mediaSessionId ?? null;
+    castMediaLoadPending();
+    await session.loadMedia(request);
+    castObserve();
+    return true;
+  } catch (error) {
+    castAwaitingMedia = false;
+    clearTimeout(castMediaReadyTimeout);
+    clearInterval(castMediaReadyPoll);
+    castMediaReadyTimeout = null;
+    castMediaReadyPoll = null;
+    castLastFailureText = 'Error Cast ('+ String(reason || 'ERROR') +') · recuperación fallida: '+castErrorText(error);
+    castMessage('❌ ' + castLastFailureText + '. Vuelve a transmitir manualmente.');
+    console.warn('[MMHD Cast] No se pudo recuperar:',castErrorText(error));
+    return false;
+  } finally {
+    castAutomaticRecoveryInProgress = false;
+  }
+}
+
 // Si el receptor informa ERROR justo al reanudar, probamos una sola carga del mismo
 // archivo desde la posición pausada. No hacemos bucles ni cambiamos el enlace de video.
 async function castRecoverAfterResume(recovery) {
@@ -6621,7 +6668,10 @@ function castSync() {
     if (row) row.hidden = true;
     if (pauseBtn) pauseBtn.disabled = true;
     if (castHadMedia && !castRecoveryLoading) {
-      castMessage('⚠️ La sesión de Chromecast se desconectó. Comprueba la conexión de la TV y el enlace de Google Photos.');
+      castMessage('⚠️ Se perdió la sesión Cast' +
+        (castLastSessionState ? ' (' + castLastSessionState + ')' : '') +
+        ', aproximadamente en ' + Math.round(castLastPlayableTime) +
+        ' s. Comprueba la conexión de la TV y el enlace de Google Photos.');
     }
     return;
   }
@@ -6630,6 +6680,11 @@ function castSync() {
   if (active) {
     castHadMedia = true;
     castConfirmedMediaId = m.mediaSessionId;
+    if (state === 'PLAYING' || state === 'PAUSED' || state === 'BUFFERING') {
+      const seconds = castResumePosition(m);
+      if (Number.isFinite(seconds) && seconds > 0) castLastPlayableTime = seconds;
+      if (Array.isArray(m.activeTrackIds)) castLastTrackIds = m.activeTrackIds.slice();
+    }
   }
   if (castPanel()) castPanel().hidden = !active;
   const tracks=active ? (m.media?.tracks||[]).filter(t=>t.type===chrome.cast.media.TrackType.TEXT) : [];
@@ -6673,15 +6728,20 @@ function castSync() {
         castMessage('⏳ Intentando recuperar la reproducción…');
       } else if (castResumeRecovery && !castResumeRecovery.attempted && Date.now() <= castResumeRecovery.until) {
         void castRecoverAfterResume(castResumeRecovery);
-      } else {
-        castMessage('❌ La TV detuvo el video por un error (Cast: ERROR). Es posible que Google Photos rechace la reanudación o las solicitudes por rango.');
+      } else if (!castAutomaticRecoveryUsed && !castAutomaticRecoveryInProgress && castLastPlayableTime >= 15) {
+        void castRecoverUnexpectedError(reason);
+      } else if (!castAutomaticRecoveryInProgress) {
+        castLastFailureText = 'Cast: ERROR, segundo aproximado ' + Math.round(castLastPlayableTime);
+        castMessage('❌ ' + castLastFailureText + '. La URL del video podría fallar al pedir datos adicionales.');
       }
     } else if (reason === 'FINISHED') castMessage('✅ La película terminó.');
     else if (reason === 'INTERRUPTED') castMessage('El video fue reemplazado por otra transmisión.');
     else castMessage('Transmisión detenida' + (reason ? ' (' + reason + ')' : ''));
   } else castMessage('Estado Cast: ' + String(state) + notice);
   // El motivo exacto queda disponible en la consola sin mostrar enlaces privados.
-  if (state === 'IDLE' && m.idleReason) console.info('[MMHD Cast] Fin de reproducción:', m.idleReason);
+  if (state === 'IDLE' && m.idleReason) console.info('[MMHD Cast] Fin de reproducción:',
+    m.idleReason, 'segundo aproximado:',Math.round(castLastPlayableTime),
+    'recuperación utilizada:',castAutomaticRecoveryUsed);
 }
 function castObserve() {
   const session = castSession();
@@ -6717,6 +6777,14 @@ function castObserve() {
   }
   castSync();
 }
+function castSessionStateChanged(event){
+  castLastSessionState = String(event?.sessionState || '');
+  if (/ENDED|ENDING|FAILED|NO_SESSION/i.test(castLastSessionState) && castHadMedia){
+    console.warn('[MMHD Cast] Sesión finalizada:',castLastSessionState,
+      'segundo aproximado:',Math.round(castLastPlayableTime));
+  }
+  castObserve();
+}
 window.__onGCastApiAvailable = function(available) {
   if (!available || !window.cast?.framework || !window.chrome?.cast?.media) {
     castMessage('Google Cast no está disponible en este navegador.'); return;
@@ -6727,7 +6795,7 @@ window.__onGCastApiAvailable = function(available) {
       receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
       autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
     });
-    ctx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, castObserve);
+    ctx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, castSessionStateChanged);
     castReady = true;
     castMessage('Google Cast listo');
     updateCastButton();
@@ -6810,7 +6878,7 @@ async function mmhdCastSubtitleTracks(movie){
     if(subtitleUrl.protocol!=='https:')throw Error('Los subtítulos requieren HTTPS');
     const endpoint=new URL(isASS?'/api/cast-ass':'/api/cast-subtitles',location.origin);
     endpoint.searchParams.set('url',subtitleUrl.href);
-    if(isASS)endpoint.searchParams.set('cast_format','v4_estable');
+    if(isASS)endpoint.searchParams.set('cast_format','v5_posiciones');
     await mmhdCastValidateSubtitle(endpoint,source.name||'');
     const track=new chrome.cast.media.Track(index+1,chrome.cast.media.TrackType.TEXT);
     track.trackContentId=endpoint.href;track.trackContentType='text/vtt';
@@ -6925,6 +6993,12 @@ async function handleCast(movie, requestedLanguage) {
   castResumeRecovery = null;
   castRecoveryLoading = false;
   castHadMedia = false;
+  castLastPlayableTime = 0;
+  castLastMediaInfo = null;
+  castLastTrackIds = [];
+  castAutomaticRecoveryUsed = false;
+  castAutomaticRecoveryInProgress = false;
+  castLastFailureText = '';
   let url = mmhdCastAvailableSource(movie,castAudioLanguage);
   if (!url) { castMessage('Esta película no tiene enlace de video.'); return; }
   url = url.replace(/=m\d+(?=($|[&#]))/, '=dv');
@@ -6974,6 +7048,8 @@ async function handleCast(movie, requestedLanguage) {
     const request = new chrome.cast.media.LoadRequest(info);
     request.autoplay = true;
     if (info.tracks?.length) request.activeTrackIds = [info.tracks[0].trackId];
+    castLastMediaInfo = info;
+    castLastTrackIds = request.activeTrackIds ? request.activeTrackIds.slice() : [];
     castMessage('Enviando video en ' + castAudioLanguage + ' a la TV…' + (castSubtitleNotice ? ' ' + castSubtitleNotice : ''));
     // Marcar el enlace esperado y la MediaSession previa justo antes del LOAD.
     // Así un estado IDLE antiguo no oculta los controles del video nuevo.
@@ -7075,6 +7151,7 @@ function castStop() {
   castMediaReadyPoll = null;
   castCommandClear();
   castResumeRecovery = null;
+  castAutomaticRecoveryUsed = true; // parada voluntaria; nunca reintentar
   castHadMedia = false;
   m.stop(null, () => { castSync(); castMessage('Transmisión detenida'); }, e => castMessage('Error: ' + JSON.stringify(e)));
 }
