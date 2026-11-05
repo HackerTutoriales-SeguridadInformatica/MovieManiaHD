@@ -247,7 +247,36 @@ function convertASS(content) {
   }
   return output;
 }
+// Una pista .cast.vtt preconvertida junto al .ass evita que el receptor
+// dependa de convertir miles de líneas ASS cada vez que cambia de episodio.
+// Si el archivo estático no existe, la API conserva su conversión habitual.
+async function tryStaticWebVTT(input) {
+  const url=checkedUrl(input);
+  if(!/\.(?:ass|ssa)$/i.test(url.pathname))return null;
+  url.pathname=url.pathname.replace(/\.(?:ass|ssa)$/i,'.cast.vtt');
+  let response;
+  try {
+    response=await fetch(url.href,{method:'GET',redirect:'manual',
+      signal:AbortSignal.timeout(3500),headers:{Accept:'text/vtt,text/plain;q=0.9,*/*;q=0.1'}});
+    if(!response.ok)return null;
+    const type=(response.headers.get('content-type')||'').toLowerCase();
+    if(/text\/html|application\/json/.test(type))return null;
+    if(Number(response.headers.get('content-length')||0)>MAX_VTT_BYTES)return null;
+    const bytes=Buffer.from(await response.arrayBuffer());
+    if(bytes.byteLength>MAX_VTT_BYTES)return null;
+    const value=bytes.toString('utf8').replace(/^\uFEFF/,'');
+    if(!/^WEBVTT(?:[ \t]|\r?\n)/.test(value))return null;
+    return value;
+  } catch(error) {
+    // No impedir el vídeo si GitHub no responde: convertir el ASS normal.
+    console.info('[MMHD Cast] VTT preconvertido no disponible:',
+      String(error?.name||'error'));
+    return null;
+  } finally {try{await response?.body?.cancel();}catch(_){}}
+}
 async function fetchASS(input, signal) {
+  const ready=await tryStaticWebVTT(input);
+  if(ready)return ready;
   let url = checkedUrl(input);
   for (let tries = 0; tries <= MAX_REDIRECTS; tries++) {
     const response = await fetch(url.href, {
@@ -282,7 +311,8 @@ async function fetchASS(input, signal) {
 export default async function handler(req,res) {
   res.setHeader('Access-Control-Allow-Origin','*');
   res.setHeader('Access-Control-Allow-Methods','GET, HEAD, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers','Content-Type');
+  res.setHeader('Access-Control-Allow-Headers','Content-Type, Range, Accept-Encoding');
+  res.setHeader('Access-Control-Expose-Headers','Content-Length, Content-Range, Accept-Ranges');
   res.setHeader('Cross-Origin-Resource-Policy','cross-origin');
   res.setHeader('X-Content-Type-Options','nosniff');
   if(req.method==='OPTIONS') return res.status(204).end();
@@ -292,9 +322,29 @@ export default async function handler(req,res) {
   try {
     const output = await fetchASS(req.query.url,AbortSignal.timeout(TIMEOUT_MS));
     res.setHeader('Content-Type','text/vtt; charset=utf-8');
-    res.setHeader('Cache-Control','public, max-age=120, s-maxage=3600, stale-while-revalidate=86400, stale-if-error=86400');
+    // Los ASS públicos y versionados rara vez cambian: la TV debe poder
+    // volver a descargar el MISMO WebVTT sin convertir el ASS otra vez.
+    res.setHeader('Cache-Control','public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400');
+    res.setHeader('Accept-Ranges','bytes');
+    const buffer=Buffer.from(output,'utf8');
+    const range=String(req.headers?.range||'');
+    const parsed=range.match(/^bytes=(\d+)-(\d*)$/i);
+    if(parsed){
+      const begin=Number(parsed[1]);
+      const finish=parsed[2]?Number(parsed[2]):buffer.length-1;
+      if(begin>=buffer.length || finish<begin){
+        res.setHeader('Content-Range','bytes */'+buffer.length);
+        return res.status(416).end();
+      }
+      const end=Math.min(finish,buffer.length-1);
+      res.setHeader('Content-Range',`bytes ${begin}-${end}/${buffer.length}`);
+      res.setHeader('Content-Length',end-begin+1);
+      if(req.method==='HEAD')return res.status(206).end();
+      return res.status(206).send(buffer.subarray(begin,end+1));
+    }
+    res.setHeader('Content-Length',buffer.length);
     if(req.method==='HEAD')return res.status(200).end();
-    return res.status(200).send(output);
+    return res.status(200).send(buffer);
   } catch(e) {
     console.warn('[MMHD] Conversión ASS para Chromecast:',e.message);
     const code = /mayor a|supera 5 MB/.test(e.message) ? 413 : 502;
@@ -303,4 +353,4 @@ export default async function handler(req,res) {
     return res.status(code).json({error:e.name==='TimeoutError'?'Tiempo de descarga de subtítulos agotado.':e.message});
   }
 }
-export const __testing = {convertASS, checkedUrl, fetchASS};
+export const __testing = {convertASS, checkedUrl, fetchASS, tryStaticWebVTT};
