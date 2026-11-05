@@ -380,44 +380,72 @@ async function sameFolderGithubCandidate(input,signal){
   }catch(_){return null;}
 }
 async function fetchASS(input, signal){
+  // No buscar ni cambiar el archivo: únicamente probar distribuciones del MISMO ASS.
   const ready=await tryStaticWebVTT(input);
   if(ready)return ready;
-  let last404=null, lastTemporary=null;
-  const candidates=[checkedUrl(input).href,...sourceAlternatives(input)];
-  const used=new Set();
-  for(const url of candidates){
-    if(used.has(url))continue;used.add(url);
-    try{return await fetchPlainASS(url,signal);}
-    catch(error){
-      // Si un CDN responde 429/5xx o se interrumpe la red, probar otra
-      // distribución del MISMO archivo; no modificar el idioma ni episodio.
-      // Los errores de conversión (ASS inválido) NO se atribuyen a la red.
+  const original=checkedUrl(input).href;
+  const candidates=[original,...sourceAlternatives(input)];
+  const visited=new Set();
+  const failures=[];
+  const attempt=async (url,reason)=>{
+    try{
+      return await fetchPlainASS(url,signal);
+    }catch(error){
       const status=Number(error?.originStatus||0);
-      const recoverable=status===404 || status===408 || status===425 ||
-        status===429 || status>=500 || error?.originNetwork===true;
-      if(!recoverable || signal?.aborted)throw error;
-      if(status===404)last404=error;
-      else lastTemporary=error;
-      console.info('[MMHD Cast] Origen alternativo del mismo archivo',
-        {status:status||'red',stage:error.mmhdStage||'origen-http'});
+      const host=checkedUrl(url).hostname;
+      const item={host,status:status||0,kind:error?.originNetwork?'network':error?.mmhdStage||'http',reason};
+      failures.push(item);
+      console.warn('[MMHD Cast] Error al obtener ASS:',item);
+      if(signal?.aborted)throw error;
+      if(status && status!==404 && status!==408 && status!==425 && status!==429 && status<500)throw error;
+      if(!status && !error?.originNetwork)throw error; // error real del convertidor o del archivo
+      return null;
     }
+  };
+  for(const candidate of candidates){
+    if(visited.has(candidate))continue;
+    visited.add(candidate);
+    const converted=await attempt(candidate,'principal-o-alternativa');
+    if(converted)return converted;
   }
-  if(lastTemporary && !last404)throw lastTemporary;
-  if(last404){
+  // IMPORTANTE: si Raw falla temporalmente pero una CDN responde 404, eso
+  // NO significa que el archivo haya sido eliminado. Reintentar Raw antes
+  // de asignar un error definitivo a la fuente.
+  const transient=failures.some(f=>f.status!==404);
+  if(transient && !signal?.aborted){
+    await new Promise(resolve=>setTimeout(resolve,500));
+    const converted=await attempt(original,'revalidacion-raw');
+    if(converted)return converted;
+  }
+  if(signal?.aborted){
+    const error=new Error('Tiempo de descarga del ASS agotado.');
+    error.mmhdStage='origen-tiempo';
+    throw error;
+  }
+  // Sólo afirmar que el archivo no se encuentra si TODOS los orígenes
+  // realmente devolvieron 404, sin ninguna respuesta 429/5xx o fallo de red.
+  const all404=failures.length>0 && failures.every(f=>f.status===404);
+  if(all404){
     const variant=await sameFolderGithubCandidate(input,signal);
-    if(variant&&!used.has(variant)){
-      try{return await fetchPlainASS(variant,signal);}
-      catch(error){if(error?.originStatus!==404)throw error;}
+    if(variant&&!visited.has(variant)){
+      const converted=await attempt(variant,'misma-carpeta');
+      if(converted)return converted;
     }
-    let basename=checkedUrl(input).pathname.split('/').pop()||'subtitulo.ass';
-    try{basename=decodeURIComponent(basename);}catch(_){}
-    basename=basename.slice(0,125);
-    const error=new Error(`La consulta al ASS recibió HTTP 404: ${basename}. No indica necesariamente que el archivo haya sido eliminado; reintenta y consulta los registros del origen si persiste.`);
-    error.originStatus=404;throw error;
   }
-  if(lastTemporary)throw lastTemporary;
-  throw new Error('No se pudo obtener el archivo ASS.');
+  if(!all404 || failures.some(f=>f.status!==404)){
+    const error=new Error('No se pudo obtener el ASS tras probar GitHub Raw y su distribución alternativa. Consulta los estados de origen en Vercel Logs.');
+    error.mmhdStage='origen-transitorio';
+    error.originStatus=502;
+    throw error;
+  }
+  let basename=checkedUrl(input).pathname.split('/').pop()||'subtitulo.ass';
+  try{basename=decodeURIComponent(basename);}catch(_){}
+  const error=new Error('Los orígenes consultados devolvieron HTTP 404 para '+basename.slice(0,120)+'. Comprueba el enlace exacto guardado en el panel.');
+  error.mmhdStage='origen-http';
+  error.originStatus=404;
+  throw error;
 }
+
 export default async function handler(req,res) {
   // Permite distinguir 404 emitidos por ESTA función de 404 de la ruta Vercel.
   // No se envía ninguna URL ni token privado en las cabeceras.
