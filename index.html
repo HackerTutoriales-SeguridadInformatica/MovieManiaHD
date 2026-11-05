@@ -6916,22 +6916,19 @@ async function handleCast(movie, requestedLanguage) {
         const tracks = await mmhdCastSubtitleTracks(movie);
         if (tracks.length) {
           info.tracks = tracks;
-          // Sólo personalizar el texto si se convirtió ASS/SSA; películas con sólo SRT/VTT
-          // mantienen exactamente la configuración de Cast que ya funcionaba.
-          if (tracks.some(t => t.customData?.mmhdSourceFormat === 'ass')) {
-            const style = new chrome.cast.media.TextTrackStyle();
-            style.foregroundColor = '#FFFFFFFF';
-            style.backgroundColor = '#00000000'; // sin rectángulos negros
-            style.edgeColor = '#000000FF';
-            style.edgeType = chrome.cast.media.TextTrackEdgeType.OUTLINE;
-            style.windowType = chrome.cast.media.TextTrackWindowType.NONE;
-            style.windowColor = '#00000000';
-            style.fontGenericFamily = chrome.cast.media.TextTrackFontGenericFamily.SANS_SERIF;
-            style.fontScale = 1;
-            info.textTrackStyle = style;
-          } else {
-            info.textTrackStyle = new chrome.cast.media.TextTrackStyle();
-          }
+          // Mismo diseño para TODAS las pistas Cast: SRT, VTT y ASS/SSA convertido.
+          // Antes sólo se aplicaba a ASS y las películas SRT heredaban la caja negra del receptor.
+          // El cambio afecta exclusivamente al estilo, no a las pistas ni a sus tiempos.
+          const style = new chrome.cast.media.TextTrackStyle();
+          style.foregroundColor = '#FFFFFFFF';
+          style.backgroundColor = '#00000000'; // fondo transparente
+          style.edgeColor = '#000000FF';
+          style.edgeType = chrome.cast.media.TextTrackEdgeType.OUTLINE;
+          style.windowType = chrome.cast.media.TextTrackWindowType.NONE;
+          style.windowColor = '#00000000';
+          style.fontGenericFamily = chrome.cast.media.TextTrackFontGenericFamily.SANS_SERIF;
+          style.fontScale = 1;
+          info.textTrackStyle = style;
         }
       } catch (error) {
         console.warn('Movie Mania HD: subtítulos Cast no disponibles', error);
