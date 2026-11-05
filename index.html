@@ -6835,44 +6835,57 @@ function mmhdCastSubtitleRetryable(error){
     error?.name==='TypeError' || error?.networkFailure===true;
 }
 function mmhdCastSubtitleDelay(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+// Prueba la pista de forma independiente de la sesión Cast actual. Un 404
+// intermitente NO significa que el usuario haya borrado el ASS de GitHub.
+// Ante un 404, revalidar la MISMA pista con una URL de API nueva (sin alterar
+// req.query.url): si funciona, esa misma URL se entrega después a la TV.
 async function mmhdCastValidateSubtitle(endpoint,sourceName){
-  const url=endpoint.href;
-  const cached=mmhdCastReadySubtitleUrls.get(url);
-  if(cached && Date.now()<cached)return;
+  const isASS=endpoint.pathname.endsWith('/cast-ass');
+  const original=endpoint.href;
+  const cached=mmhdCastReadySubtitleUrls.get(original);
+  if(cached && Date.now()<cached.until)return cached.url;
   const maxAttempts=3;
   let lastError;
   for(let attempt=1;attempt<=maxAttempts;attempt++){
     const controller=new AbortController();
-    // Más que el timeout de la función Vercel (21 s): no cancelar
-    // mientras el backend sigue descargando/transformando el ASS.
     const timer=setTimeout(()=>controller.abort(),27000);
+    const requestUrl=new URL(original);
+    // Revalidar una respuesta 404 temporal sin reutilizar un error en caché.
+    // No cambiar el enlace del subtítulo; sólo se agrega un parámetro a la API.
+    if(attempt>1)requestUrl.searchParams.set('mmhd_recheck',String(Date.now())+'-'+attempt);
     try{
-      const response=await fetch(url,{signal:controller.signal,credentials:'omit'});
+      const response=await fetch(requestUrl.href,{signal:controller.signal,credentials:'omit',cache:'no-store'});
       if(!response.ok){
         let message='HTTP '+response.status;
         try{const body=await response.json();message=String(body?.error||message);}catch(_){}
         const error=new Error(message);error.httpStatus=response.status;throw error;
       }
       const text=await response.text();
-      if(!text.replace(/^\uFEFF/,'').startsWith('WEBVTT')){
-        throw Error('El servidor respondió sin una pista WebVTT válida.');
-      }
-      mmhdCastReadySubtitleUrls.set(url,Date.now()+MMHD_CAST_SUBTITLE_CACHE_MS);
+      if(!text.replace(/^\uFEFF/,'').startsWith('WEBVTT'))throw Error('El servidor respondió sin una pista WebVTT válida.');
+      // Guardar exactamente la URL validada: la TV cargará esa misma pista.
+      mmhdCastReadySubtitleUrls.set(original,{until:Date.now()+MMHD_CAST_SUBTITLE_CACHE_MS,url:requestUrl.href});
       if(mmhdCastReadySubtitleUrls.size>40){
-        for(const [key,deadline] of mmhdCastReadySubtitleUrls){
-          if(Date.now()>deadline || mmhdCastReadySubtitleUrls.size>30)mmhdCastReadySubtitleUrls.delete(key);
+        for(const [key,entry] of mmhdCastReadySubtitleUrls){
+          if(Date.now()>entry.until || mmhdCastReadySubtitleUrls.size>30)mmhdCastReadySubtitleUrls.delete(key);
         }
       }
-      return;
+      if(attempt>1)console.info('[MMHD Cast] ASS validado tras reintento. Formato:',isASS?'ASS':'SRT/VTT','intento:',attempt);
+      return requestUrl.href;
     }catch(error){
       lastError=error;
-      if(attempt===maxAttempts || !mmhdCastSubtitleRetryable(error))break;
-      console.warn('[MMHD Cast] Preparación temporalmente fallida:',sourceName,
-        'intento',attempt+'/'+maxAttempts,error?.message||error);
-      castMessage('⏳ Reintentando subtítulos '+sourceName+' ('+(attempt+1)+'/'+maxAttempts+')…');
-      await mmhdCastSubtitleDelay(attempt===1?1000:2500);
+      // El 404 sólo merece una nueva verificación al convertir un ASS;
+      // los errores definitivos siguen apareciendo tras el último intento.
+      const retry404=isASS && Number(error.httpStatus)===404;
+      const transient=mmhdCastSubtitleRetryable(error);
+      if(attempt===maxAttempts || !(retry404||transient))break;
+      console.warn('[MMHD Cast] Fallo temporal al preparar',isASS?'ASS':'SRT/VTT',
+        'idioma:',sourceName,'HTTP:',error.httpStatus||'red',
+        'intento:',attempt+'/'+maxAttempts);
+      castMessage('⏳ Comprobando de nuevo los subtítulos '+sourceName+' ('+(attempt+1)+'/'+maxAttempts+')…');
+      await mmhdCastSubtitleDelay(attempt===1?900:1800);
     }finally{clearTimeout(timer);}
   }
+  if(lastError){lastError.mmhdASS=isASS;lastError.mmhdTried=maxAttempts;}
   throw lastError||new Error('No se pudo cargar la pista de subtítulos.');
 }
 async function mmhdCastSubtitleTracks(movie,generation){
@@ -6884,12 +6897,12 @@ async function mmhdCastSubtitleTracks(movie,generation){
     if(subtitleUrl.protocol!=='https:')throw Error('Los subtítulos requieren HTTPS');
     const endpoint=new URL(isASS?'/api/cast-ass':'/api/cast-subtitles',location.origin);
     endpoint.searchParams.set('url',subtitleUrl.href);
-    if(isASS)endpoint.searchParams.set('cast_format','v6_estable');
+    if(isASS)endpoint.searchParams.set('cast_format','v8_revalidacion');
     // La primera solicitud prepara la pista en el CDN; la TV usa la URL
     // IDENTICA y recibe el mismo WebVTT, no uno de una sesión SRT anterior.
-    await mmhdCastValidateSubtitle(endpoint,source.name||'');
+    const validatedURL=await mmhdCastValidateSubtitle(endpoint,source.name||'');
     const track=new chrome.cast.media.Track(index+1,chrome.cast.media.TrackType.TEXT);
-    track.trackContentId=endpoint.href;track.trackContentType='text/vtt';
+    track.trackContentId=validatedURL;track.trackContentType='text/vtt';
     track.subtype=chrome.cast.media.TextTrackType.SUBTITLES;
     track.name=source.name;track.language=source.language;
     if(isASS)track.customData={mmhdSourceFormat:'ass'};
@@ -6899,9 +6912,11 @@ async function mmhdCastSubtitleTracks(movie,generation){
   validated.forEach((r,i)=>{if(r.status==='fulfilled')tracks.push(r.value);
     else console.warn('[MMHD Cast] Pista no disponible:',sources[i].name,r.reason);});
   if(!tracks.length){
-    const causes=validated.filter(r=>r.status==='rejected').map(r=>r.reason?.message||'error');
-    throw Error('No se pudieron preparar las pistas tras los reintentos. '+
-      (causes[0]||'Comprueba la API y los enlaces HTTPS.'));
+    const firstFailure=validated.findIndex(r=>r.status==='rejected');
+    const sourceName=firstFailure>=0 ? (sources[firstFailure]?.name||'Subtítulo') : 'Subtítulo';
+    const cause=firstFailure>=0 ? validated[firstFailure].reason?.message : '';
+    throw Error('No se pudieron preparar las pistas: '+sourceName+'. '+
+      (cause||'Comprueba la API y los enlaces HTTPS.'));
   }
   // Una preparación anterior no debe alterar el aviso del nuevo video.
   if(generation==null || generation===mmhdCastLoadGeneration){
@@ -7066,8 +7081,10 @@ async function handleCast(movie, requestedLanguage) {
           .some(t => /\.(?:ass|ssa)(?:$|[?#])/i.test(t.url));
         if(hasASS){
           castObserve();
-          castMessage('⚠️ No se cambió a este episodio: el ASS todavía no está listo ('+
-            String(message||'error de red')+'). Vuelve a pulsar Transmitir.');
+          const missing=/\b(?:404|no se encontr[oó]|no existe)\b/i.test(String(message||''));
+          castMessage(missing
+            ? '⚠️ No se cambió de video: la API recibió HTTP 404 al preparar el ASS incluso tras comprobarlo de nuevo. Esto NO confirma que el archivo haya desaparecido; intenta otra transmisión. Si continúa, revisaremos la respuesta de Vercel.'
+            : '⚠️ No se cambió a este episodio: el ASS todavía no está listo ('+String(message||'error de red')+'). Vuelve a pulsar Transmitir.');
           return;
         }
         castSubtitleNotice = '⚠️ Subtítulos no disponibles: ' + message + ' · Intenta transmitir de nuevo.';
