@@ -1,4 +1,4 @@
-// Movie Mania HD V3 — endpoint exclusivo para Chromecast: ASS/SSA -> WebVTT.
+// Movie Mania HD V3 — Chromecast: ASS/SSA -> WebVTT, karaoke complejo legible.
 // El archivo ASS original se mantiene sin cambios para el reproductor web.
 // Compatible con el receptor Cast estándar, que no admite renderizado ASS/libass.
 // Seguridad: no es un proxy abierto; sólo lee archivos HTTPS de dominios autorizados.
@@ -70,10 +70,42 @@ function convertASS(content) {
   if (!/\[Events\]/i.test(src) || !/^\s*Dialogue\s*:/mi.test(src)) {
     throw new Error('No se encontró contenido ASS/SSA válido.');
   }
+  // Al hacer karaoke con Aegisub, el ASS puede contener miles de letras
+  // individuales (Effector [fx]) y los versos completos como Comment.
+  // Sólo para archivos MUY complejos activamos la lectura segura usada
+  // por el reproductor web: línea original ROMAJI arriba, traducción abajo.
+  // El umbral protege la conversión existente de SRT y ASS más sencillos.
+  const sourceLines = src.split('\n');
+  const complexKaraoke = sourceLines.filter(l =>
+    /^\s*Dialogue\s*:/i.test(l) && /,\s*Effector\s*\[fx\]\s*,/i.test(l)
+  ).length > 1200;
+  const lyricStyle = name => /(?:OP|ED)[^,]*-(?:RO|TL)$/i.test(String(name || ''));
+  const japaneseLyricStyle = name => /(?:OP|ED)[^,]*-KA$/i.test(String(name || ''));
+  const originalLyrics = new Set();
+  if (complexKaraoke) {
+    // Registrar los estilos con versos recuperables. Es importante no
+    // introducir notas de Comment que sólo documentan el proyecto.
+    for (const raw of sourceLines) {
+      if (!/^\s*Comment\s*:/i.test(raw)) continue;
+      const cols = raw.slice(raw.indexOf(':')+1).split(',',10);
+      if (cols.length >= 10 && lyricStyle(cols[3]) && cols[9].trim() &&
+          !/^(?:opening|ending)\s*[-–]\s*(?:ro|tl)\b/i.test(cols[9].trim())) {
+        originalLyrics.add(cols[3].trim());
+      }
+    }
+  }
+  // Otro caso habitual: el ASS no tiene miles de efectos pero sí contiene
+  // tres pistas del mismo opening: romaji, japonés (KA) y traducción (TL).
+  // Para la TV mantener las dos pistas legibles RO/TL, como el modo web seguro.
+  const layeredLyrics = sourceLines.some(l =>
+    /^\s*Style\s*:[^,]*(?:OP|ED)[^,]*-RO\s*,/i.test(l)
+  ) && sourceLines.some(l =>
+    /^\s*Style\s*:[^,]*(?:OP|ED)[^,]*-TL\s*,/i.test(l)
+  );
   let section = '', width = 1280, height = 720, styleColumns = [], eventColumns = [];
   const styles = Object.create(null), entries = [];
   let sequence = 0;
-  for (const raw of src.split('\n')) {
+  for (const raw of sourceLines) {
     const line = raw.trim();
     if (/^\[[^\]]+\]$/.test(line)) { section = line.toLowerCase(); continue; }
     if (section === '[script info]') {
@@ -89,13 +121,23 @@ function convertASS(content) {
     } else if (section === '[events]') {
       if (/^Format\s*:/i.test(line)) {
         eventColumns = line.replace(/^Format\s*:/i,'').split(',').map(x => x.trim().toLowerCase());
-      } else if (/^Dialogue\s*:/i.test(line)) {
+      } else if (/^(?:Dialogue|Comment)\s*:/i.test(line)) {
+        const isComment = /^Comment\s*:/i.test(line);
         if (eventColumns.length === 0) {
           eventColumns = ['layer','start','end','style','name','marginl','marginr','marginv','effect','text'];
         }
-        const o = fieldObject(line.replace(/^Dialogue\s*:/i,''), eventColumns);
+        const o = fieldObject(line.replace(/^(?:Dialogue|Comment)\s*:/i,''), eventColumns);
         const start = parseTime(o.start), end = parseTime(o.end);
         if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+        // Los Comment normales son notas de producción: nunca enviarlos.
+        // Únicamente recuperar versos originales RO/TL en ASS complejos.
+        if (isComment) {
+          if (!complexKaraoke || !lyricStyle(o.style) || !originalLyrics.has(o.style)) continue;
+        } else {
+          if (complexKaraoke && /Effector\s*\[fx\]/i.test(o.effect || '')) continue;
+          if ((complexKaraoke || layeredLyrics) && japaneseLyricStyle(o.style)) continue;
+          if (complexKaraoke && lyricStyle(o.style) && originalLyrics.has(o.style)) continue;
+        }
         const rawText = o.text || '';
         // Los dibujos vectoriales de ASS no son líneas de texto.
         if (/\{[^}]*\\p[1-9]/i.test(rawText)) continue;
@@ -110,6 +152,11 @@ function convertASS(content) {
           .replace(/\u0000/g,'')
           .replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').trim();
         if (!text || !/[^\s]/.test(text)) continue;
+        // Los letreros de anime también pueden estar dibujados letra por
+        // letra o a intervalos de unos fotogramas: no enviarlos como cues
+        // independientes que parpadean o tapan el vídeo en Chromecast.
+        if (complexKaraoke && !isComment && /signs?/i.test(o.style || '') &&
+            ((end-start)<0.45 || text.length < 3)) continue;
         // ASS normalmente duplica eventos en varias capas para crear brillo/contorno.
         const tags = (rawText.match(/\{[^}]*\\[^}]*\}/g) || []).join('');
         const alignMatch = tags.match(/\\an([1-9])(?:\\|\}|$)/i);
@@ -139,8 +186,10 @@ function convertASS(content) {
         const cueSettings = `line:${linePercent}% position:${positionPercent}% align:${align}`;
         // Para subtítulos simultáneos, conservar cada texto y su posicionamiento.
         // Ignoramos diferencias de margen entre capas con el mismo texto para no duplicarlo.
-        const dedupe = [Math.round(start*100),Math.round(end*100),text,alignment,
-          posMatch ? Math.round(x)+':'+Math.round(y) : 'flow'].join('|');
+        const dedupe = complexKaraoke && /signs?/i.test(o.style || '')
+          ? [Math.round(start*100),Math.round(end*100),text.toLowerCase(),o.style].join('|')
+          : [Math.round(start*100),Math.round(end*100),text,alignment,
+             posMatch ? Math.round(x)+':'+Math.round(y) : 'flow'].join('|');
         entries.push({start,end,text,cueSettings,dedupe,sequence:sequence++,x,y,align});
       }
     }
