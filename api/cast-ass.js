@@ -183,14 +183,38 @@ function convertASS(content) {
         const align = alignment%3===1?'start':alignment%3===2?'center':'end';
         const linePercent = Math.round(y*10)/10;
         const positionPercent = Math.round(x*10)/10;
-        const cueSettings = `line:${linePercent}% position:${positionPercent}% align:${align}`;
+        // Chromecast/WebVTT necesita además un ANCHO de caja (size).
+        // Sin size, los rótulos independientes terminan ocupando el ancho del
+        // cuadro completo y el receptor los puede apilar en el centro.
+        // Un letrero con \pos conserva su ancla X; diálogos centrados usan
+        // una sola región ancha; letras izquierda/derecha utilizan mitades.
+        const anchored = !!posMatch;
+        let cueSize, cueX = positionPercent, cueAlign = align;
+        if (anchored) {
+          cueAlign = 'center';
+          const sign = /(?:sign|letrero|cartel|type)/i.test(o.style || '');
+          // La región acotada de un letrero no se extiende hacia otra caja.
+          cueSize = sign ? 22 : 32;
+          if (text.length > 33 && !text.includes('\n')) cueSize = Math.min(38,cueSize+8);
+          cueSize = Math.min(cueSize, Math.max(9, 2*Math.min(cueX,100-cueX)-2));
+        } else if (align === 'start') {
+          cueX = clamp(cueX,3,45);
+          cueSize = Math.min(44, 96-cueX);
+        } else if (align === 'end') {
+          cueX = clamp(cueX,55,97);
+          cueSize = Math.min(44, cueX-3);
+        } else {
+          cueX = 50;
+          cueSize = 90;
+        }
+        const cueSettings = `line:${linePercent}% position:${Math.round(cueX*10)/10}% size:${Math.round(cueSize)}% align:${cueAlign}`;
         // Para subtítulos simultáneos, conservar cada texto y su posicionamiento.
         // Ignoramos diferencias de margen entre capas con el mismo texto para no duplicarlo.
         const dedupe = complexKaraoke && /signs?/i.test(o.style || '')
           ? [Math.round(start*100),Math.round(end*100),text.toLowerCase(),o.style].join('|')
           : [Math.round(start*100),Math.round(end*100),text,alignment,
              posMatch ? Math.round(x)+':'+Math.round(y) : 'flow'].join('|');
-        entries.push({start,end,text,cueSettings,dedupe,sequence:sequence++,x,y,align});
+        entries.push({start,end,text,cueSettings,dedupe,sequence:sequence++,x:cueX,y,align:cueAlign,size:cueSize});
       }
     }
     if (entries.length > 50000) throw new Error('ASS demasiado complejo para Chromecast.');
@@ -209,7 +233,7 @@ function convertASS(content) {
     occupied.set(key,index+1);
     if (index) {
       const shifted = clamp(e.y+(e.y<45 ? 6 : e.y>55 ? -6 : 5)*Math.min(3,index),3,92);
-      e.cueSettings = `line:${Math.round(shifted*10)/10}% position:${Math.round(e.x*10)/10}% align:${e.align}`;
+      e.cueSettings = `line:${Math.round(shifted*10)/10}% position:${Math.round(e.x*10)/10}% size:${Math.round(e.size)}% align:${e.align}`;
     }
   }
   let output = 'WEBVTT\n\n', outputBytes = Buffer.byteLength(output,'utf8');
