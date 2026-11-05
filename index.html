@@ -6449,6 +6449,8 @@ let castMediaReadyTimeout = null;
 let castMediaReadyPoll = null;
 let castTimeout = null;
 let castSubtitleNotice = '';
+// Impide que la preparación asíncrona de una pista antigua sustituya un LOAD nuevo.
+let mmhdCastLoadGeneration = 0;
 // Estado local de los controles; evita mandatos duplicados mientras la TV responde.
 let castCommandPending = '';
 let castCommandTimer = null;
@@ -6741,6 +6743,7 @@ function castSync() {
   // El motivo exacto queda disponible en la consola sin mostrar enlaces privados.
   if (state === 'IDLE' && m.idleReason) console.info('[MMHD Cast] Fin de reproducción:',
     m.idleReason, 'segundo aproximado:',Math.round(castLastPlayableTime),
+    'pistas:',(castLastMediaInfo?.tracks||[]).map(t=>t.customData?.mmhdSourceFormat||'srt/vtt').join(','),
     'recuperación utilizada:',castAutomaticRecoveryUsed);
 }
 function castObserve() {
@@ -6820,6 +6823,9 @@ function updateCastButton() {
 // MMHD: reintentos para evitar que errores transitorios de GitHub/Vercel
 // dejen una transmisión Cast sin ninguna pista de subtítulos.
 // La URL validada no cambia durante los reintentos: así aprovecha la caché CDN.
+// La API busca un .cast.vtt estático junto al ASS antes de convertirlo.
+// Siempre usamos un endpoint Vercel con Content-Type: text/vtt, porque
+// GitHub Raw puede devolver otro tipo de contenido al receptor Chromecast.
 const mmhdCastReadySubtitleUrls = new Map();
 const MMHD_CAST_SUBTITLE_CACHE_MS = 3 * 60 * 1000;
 function mmhdCastSubtitleRetryable(error){
@@ -6869,7 +6875,7 @@ async function mmhdCastValidateSubtitle(endpoint,sourceName){
   }
   throw lastError||new Error('No se pudo cargar la pista de subtítulos.');
 }
-async function mmhdCastSubtitleTracks(movie){
+async function mmhdCastSubtitleTracks(movie,generation){
   const sources=mmhdNormalizeSubtitleTracks(movie&&movie.subtitleTracks,movie&&movie.subtitlesUrl);
   if(!sources.length)return [];
   const validated=await Promise.allSettled(sources.map(async function(source,index){
@@ -6878,7 +6884,9 @@ async function mmhdCastSubtitleTracks(movie){
     if(subtitleUrl.protocol!=='https:')throw Error('Los subtítulos requieren HTTPS');
     const endpoint=new URL(isASS?'/api/cast-ass':'/api/cast-subtitles',location.origin);
     endpoint.searchParams.set('url',subtitleUrl.href);
-    if(isASS)endpoint.searchParams.set('cast_format','v5_posiciones');
+    if(isASS)endpoint.searchParams.set('cast_format','v6_estable');
+    // La primera solicitud prepara la pista en el CDN; la TV usa la URL
+    // IDENTICA y recibe el mismo WebVTT, no uno de una sesión SRT anterior.
     await mmhdCastValidateSubtitle(endpoint,source.name||'');
     const track=new chrome.cast.media.Track(index+1,chrome.cast.media.TrackType.TEXT);
     track.trackContentId=endpoint.href;track.trackContentType='text/vtt';
@@ -6895,9 +6903,12 @@ async function mmhdCastSubtitleTracks(movie){
     throw Error('No se pudieron preparar las pistas tras los reintentos. '+
       (causes[0]||'Comprueba la API y los enlaces HTTPS.'));
   }
-  if(tracks.length<sources.length)castSubtitleNotice='⚠️ Algunas pistas no están disponibles';
-  else if(sources.some(s=>/\.(?:ass|ssa)(?:$|[?#])/i.test(s.url)))
-    castSubtitleNotice='ℹ️ ASS convertido a WebVTT para TV (sin fuentes ni animaciones)';
+  // Una preparación anterior no debe alterar el aviso del nuevo video.
+  if(generation==null || generation===mmhdCastLoadGeneration){
+    if(tracks.length<sources.length)castSubtitleNotice='⚠️ Algunas pistas no están disponibles';
+    else if(sources.some(s=>/\.(?:ass|ssa)(?:$|[?#])/i.test(s.url)))
+      castSubtitleNotice='ℹ️ ASS en WebVTT para TV (sin fuentes ni animaciones)';
+  }
   return tracks;
 }
 function mmhdCastSetSubtitles(ids){
@@ -6989,6 +7000,8 @@ async function handleCast(movie, requestedLanguage) {
     mmhdCastChooseLanguage(movie);return;
   }
   const castAudioLanguage=variants.some(v=>v.language===requestedLanguage)?requestedLanguage:(variants[0]?.language||'Latino');
+  const loadGeneration=++mmhdCastLoadGeneration;
+  const isCurrentLoad=()=>loadGeneration===mmhdCastLoadGeneration;
   castCommandClear();
   castResumeRecovery = null;
   castRecoveryLoading = false;
@@ -7011,6 +7024,7 @@ async function handleCast(movie, requestedLanguage) {
     const ctx = cast.framework.CastContext.getInstance();
     let session = castSession();
     if (!session) { await ctx.requestSession(); session = castSession(); }
+    if (!isCurrentLoad()) return;
     if (!session) throw new Error('No se pudo conectar con la TV.');
     // Vincular MEDIA_SESSION antes del LOAD para no perder el primer evento.
     castObserve();
@@ -7023,7 +7037,8 @@ async function handleCast(movie, requestedLanguage) {
     if (mmhdNormalizeSubtitleTracks(movie.subtitleTracks,movie.subtitlesUrl).length) {
       castMessage('Preparando los subtítulos para Chromecast…');
       try {
-        const tracks = await mmhdCastSubtitleTracks(movie);
+        const tracks = await mmhdCastSubtitleTracks(movie,loadGeneration);
+        if (!isCurrentLoad()) return;
         if (tracks.length) {
           info.tracks = tracks;
           // Mismo diseño para TODAS las pistas Cast: SRT, VTT y ASS/SSA convertido.
@@ -7041,10 +7056,24 @@ async function handleCast(movie, requestedLanguage) {
           info.textTrackStyle = style;
         }
       } catch (error) {
+        if (!isCurrentLoad()) return;
         console.warn('Movie Mania HD: subtítulos Cast no disponibles', error);
-        castSubtitleNotice = '⚠️ Subtítulos no disponibles: ' + (error.name === 'AbortError' ? 'se agotó el tiempo' : error.message) + ' · Intenta transmitir de nuevo.';
+        const message = error.name === 'AbortError' ? 'se agotó el tiempo' : error.message;
+        // Si el usuario cambió de una película SRT a un anime ASS, NO cargar
+        // silenciosamente el anime sin CC. Dejar intacta la transmisión previa
+        // para poder reintentar en lugar de ocultar el error.
+        const hasASS = mmhdNormalizeSubtitleTracks(movie.subtitleTracks,movie.subtitlesUrl)
+          .some(t => /\.(?:ass|ssa)(?:$|[?#])/i.test(t.url));
+        if(hasASS){
+          castObserve();
+          castMessage('⚠️ No se cambió a este episodio: el ASS todavía no está listo ('+
+            String(message||'error de red')+'). Vuelve a pulsar Transmitir.');
+          return;
+        }
+        castSubtitleNotice = '⚠️ Subtítulos no disponibles: ' + message + ' · Intenta transmitir de nuevo.';
       }
     }
+    if (!isCurrentLoad()) return;
     const request = new chrome.cast.media.LoadRequest(info);
     request.autoplay = true;
     if (info.tracks?.length) request.activeTrackIds = [info.tracks[0].trackId];
@@ -7057,6 +7086,7 @@ async function handleCast(movie, requestedLanguage) {
     castPreviousMediaId = session.getMediaSession()?.mediaSessionId ?? null;
     castMediaLoadPending();
     await session.loadMedia(request);
+    if (!isCurrentLoad()) return;
     if(movie.parentSeriesId!=null)rememberSeriesEpisode(movie);
     // Fallback: si llegó el estado multimedia antes de resolver el Promise,
     // dejar listos los controles sin necesitar un segundo click.
@@ -7070,6 +7100,7 @@ async function handleCast(movie, requestedLanguage) {
       if (castMedia()?.playerState !== 'PLAYING') castMessage('⚠️ La TV no inició el video. Comprueba acceso al enlace, códecs y permisos del servidor.');
     }, 20000);
   } catch(e) {
+    if (!isCurrentLoad()) return;
     castAwaitingMedia = false;
     castExpectedVideoUrl = '';
     castPreviousMediaId = null;
@@ -7139,6 +7170,7 @@ async function castVolume(delta) {
   catch(e) { castMessage('Error de volumen: ' + e.message); }
 }
 function castStop() {
+  ++mmhdCastLoadGeneration; // cancelar LOAD pendiente del video anterior
   const m = castMedia(); if (!m) return;
   castAwaitingMedia = false;
   castExpectedVideoUrl = '';
