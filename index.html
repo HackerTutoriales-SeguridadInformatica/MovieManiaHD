@@ -7107,7 +7107,8 @@ async function handleCast(movie, requestedLanguage) {
             ? 'La ruta /api/cast-ass no respondió como función. Revisa en Vercel el deployment que contiene api/cast-ass.js.'
             : status===404
               ? 'El convertidor respondió HTTP 404 en esta solicitud (etapa: '+stage+'). La URL funcionó en otras transmisiones; revisa los registros de la función en Vercel.'
-              : 'La conversión no estuvo disponible ('+(status||'red')+', etapa: '+stage+').';
+              : 'La conversión no estuvo disponible ('+(status||'red')+', etapa: '+stage+'). '+
+                String(message||'').slice(0,190);
           castMessage('⚠️ No se cambió de video ni se alteró la sesión anterior. '+hint);
           return;
         }
