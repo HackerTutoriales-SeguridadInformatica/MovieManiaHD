@@ -2522,6 +2522,22 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 #mmhd-req-turnstile{max-width:100%;overflow:hidden}
 
 
+/* MMHD: flecha fija en el área desplazable de la ficha, escritorio y móvil. */
+.detail > .detail-back{
+  position:sticky;
+  top:max(12px, env(safe-area-inset-top, 0px));
+  left:auto;
+  margin:16px 0 -60px 16px;
+  z-index:210;
+  display:grid;
+  flex:none;
+  box-shadow:0 5px 22px rgba(0,0,0,.45);
+  -webkit-tap-highlight-color:transparent;
+}
+@media(max-width:600px){
+  .detail > .detail-back{margin:12px 0 -56px 12px;top:max(12px, env(safe-area-inset-top, 0px));}
+}
+
 /* ===== MMHD detalle rediseñado estilo app ===== */
 .detail{background:#050811}
 .detail-backdrop{height:min(56vh,430px);background-position:center 18%;background-color:#090d16;overflow:hidden}
@@ -3008,9 +3024,9 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 </div>
 
 <div class="detail" id="detailScreen">
+  <!-- Flecha independiente del banner: permanece visible al desplazarse por la ficha. -->
+  <button class="detail-back" id="btnDetailBack" type="button" aria-label="Volver al inicio del catálogo"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
   <div class="detail-backdrop" id="detailBackdrop">
-    <button class="detail-back" id="btnDetailBack"><i class="fa-solid fa-arrow-left"></i></button>
-  </div>
 
   <div class="detail-inner">
     <div class="detail-top-card">
@@ -7575,11 +7591,36 @@ function mmhdUseCleanPaths(){
 function mmhdHomePath(){
   return mmhdUseCleanPaths()?'/':(location.pathname||'')+(location.search||'');
 }
+/* Android/iOS: el botón físico Atrás va de la ficha al inicio.
+   En el inicio se requiere doble Atrás (en 2.2 s) para volver a la página anterior.
+   El navegador determina si puede salir de la pestaña; no intentamos cerrarla con JS.
+   Un guard y una base son entradas reales del historial, sin temporizadores globales. */
+const MMHD_MOBILE_BACK = (()=>{
+  try {return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'') ||
+    Boolean(navigator.userAgentData?.mobile) ||
+    (navigator.maxTouchPoints>0 && matchMedia('(max-width: 700px)').matches);}
+  catch(_){return false;}
+})();
+let mmhdExitBackAt=0;
+function mmhdSetupMobileBackHistory(initialTitle){
+  if(!MMHD_MOBILE_BACK)return false;
+  const nav=history.state?.mmhdV3Nav;
+  // Recargar una ficha o el inicio no debe acumular entradas nuevas.
+  if(nav==='detail'||nav==='home-guard')return false;
+  try{
+    const home=mmhdHomePath();
+    history.replaceState({mmhdV3Nav:'home-base'},'',home);
+    history.pushState({mmhdV3Nav:'home-guard'},'',home);
+    if(initialTitle)mmhdUpdateTitleHistory(initialTitle,'push');
+    return Boolean(initialTitle);
+  }catch(_){return false;}
+}
+
 function mmhdUpdateTitleHistory(movie,method){
   if(method==='none')return;
   const target=mmhdUseCleanPaths()?mmhdTitlePath(movie):`#movie-${movie.id}`;
   try{
-    history[method==='replace'?'replaceState':'pushState']({detail:movie.id},'',target);
+    history[method==='replace'?'replaceState':'pushState']({detail:movie.id,mmhdV3Nav:'detail'},'',target);
   }catch(_){
     // Una vista previa aislada no debe bloquear la ficha de la película.
     // En ella no es indispensable modificar el historial.
@@ -7779,7 +7820,13 @@ function closeDetail({syncUrl=true}={}){
   state.currentMovie = null;
   showMobileNav();
   if(syncUrl){
-    try{history.replaceState(null,'',mmhdHomePath());}catch(_){}
+    // En teléfono, regresar a la entrada «Inicio» conserva el historial real.
+    // En escritorio se mantiene la navegación anterior de Movie Mania HD.
+    if(MMHD_MOBILE_BACK && history.state?.mmhdV3Nav==='detail'){
+      history.back();
+    }else{
+      try{history.replaceState(null,'',mmhdHomePath());}catch(_){}
+    }
   }
 }
 
@@ -8537,11 +8584,33 @@ function mmhdSyncTitleWithBrowserHistory(){
     closeDetail({syncUrl:false});
   }
 }
-window.addEventListener('popstate',mmhdSyncTitleWithBrowserHistory);
+function mmhdHandleMobileBackPopstate(){
+  const nav=history.state?.mmhdV3Nav;
+  if(MMHD_MOBILE_BACK && nav==='home-base' && !mmhdTitleFromCurrentUrl()){
+    mmhdSyncTitleWithBrowserHistory();
+    const now=Date.now();
+    if(mmhdExitBackAt && now-mmhdExitBackAt<=2200){
+      mmhdExitBackAt=0;
+      // Segundo Atrás: permitir al navegador regresar a la web anterior.
+      // Una pestaña abierta directamente puede no tener página previa.
+      history.back();
+    }else{
+      mmhdExitBackAt=now;
+      try{history.pushState({mmhdV3Nav:'home-guard'},'',mmhdHomePath());}catch(_){}
+      showToast('Presiona Atrás otra vez para salir');
+    }
+    return;
+  }
+  mmhdExitBackAt=0;
+  mmhdSyncTitleWithBrowserHistory();
+}
+window.addEventListener('popstate',mmhdHandleMobileBackPopstate);
 window.addEventListener('hashchange',mmhdSyncTitleWithBrowserHistory);
-// Los enlaces compartidos abren directamente su ficha; no crean una segunda entrada.
+// Los enlaces compartidos abren directamente su ficha; en móviles colocamos
+// «Inicio» debajo de la ficha para que Atrás no cierre el navegador.
 const mmhdInitialTitle=mmhdTitleFromCurrentUrl();
-if(mmhdInitialTitle)openDetail(mmhdInitialTitle.id,{historyMode:'replace'});
+const mmhdBootstrappedTitle=mmhdSetupMobileBackHistory(mmhdInitialTitle);
+if(mmhdInitialTitle)openDetail(mmhdInitialTitle.id,{historyMode:mmhdBootstrappedTitle?'none':'replace'});
 
 /* ============================================================
    ACTUALIZACIÓN DE VERSIÓN
