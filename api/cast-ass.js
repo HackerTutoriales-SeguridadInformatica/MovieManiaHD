@@ -5,7 +5,7 @@
 const MAX_SUBTITLE_BYTES = 8 * 1024 * 1024;
 const MAX_VTT_BYTES = 5 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
-const TIMEOUT_MS = 15000;
+const TIMEOUT_MS = 21000;
 const DEFAULT_ALLOWED = ['raw.githubusercontent.com', 'gist.githubusercontent.com', 'cdn.jsdelivr.net'];
 
 function allowedHosts() {
@@ -268,12 +268,14 @@ export default async function handler(req,res) {
   try {
     const output = await fetchASS(req.query.url,AbortSignal.timeout(TIMEOUT_MS));
     res.setHeader('Content-Type','text/vtt; charset=utf-8');
-    res.setHeader('Cache-Control','public, max-age=300, s-maxage=1800');
+    res.setHeader('Cache-Control','public, max-age=120, s-maxage=3600, stale-while-revalidate=86400, stale-if-error=86400');
     if(req.method==='HEAD')return res.status(200).end();
     return res.status(200).send(output);
   } catch(e) {
     console.warn('[MMHD] Conversión ASS para Chromecast:',e.message);
     const code = /mayor a|supera 5 MB/.test(e.message) ? 413 : 502;
+    if(code===502)res.setHeader('Retry-After','2');
+    res.setHeader('Cache-Control','no-store');
     return res.status(code).json({error:e.name==='TimeoutError'?'Tiempo de descarga de subtítulos agotado.':e.message});
   }
 }
