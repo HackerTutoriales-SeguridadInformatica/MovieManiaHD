@@ -4458,7 +4458,30 @@ function mmhdSubtitleLoader(){
     if(attachTimer)return;
     attachTimer=setTimeout(function(){attachTimer=0;attachTracks();},120);
   }
+  /* MMHD V3 - Diseño de subtítulos SRT/VTT para web y móvil.
+     CSS ::cue se aplica dentro del iframe donde FWDEVPlayer crea el <video>.
+     El estilo no toca las capas ASS/JASSUB ni modifica las pistas Cast. */
+  function installNativeCueStyle(){
+    if(document.getElementById('mmhdNativeCueStyle'))return;
+    var style=document.createElement('style');
+    style.id='mmhdNativeCueStyle';
+    style.textContent=[
+      'video::cue {',
+      '  color: #ffffff !important;',
+      '  background-color: transparent !important;',
+      '  background-image: none !important;',
+      '  text-shadow: -1px -1px 0 #050505, 1px -1px 0 #050505,',
+      '    -1px 1px 0 #050505, 1px 1px 0 #050505,',
+      '    0 -2px 1px #080808, 0 2px 1px #080808,',
+      '    -2px 0 1px #080808, 2px 0 1px #080808;',
+      '  font-family: Arial, Helvetica, sans-serif;',
+      '  font-weight: 600;',
+      '}'
+    ].join('\n');
+    (document.head||document.documentElement).appendChild(style);
+  }
   function begin(){
+    installNativeCueStyle();
     createControls();
     document.addEventListener('fullscreenchange',syncFullscreen);
     document.addEventListener('webkitfullscreenchange',syncFullscreen);
