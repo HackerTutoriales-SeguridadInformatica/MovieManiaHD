@@ -4064,6 +4064,14 @@ function mmhdSubtitleLoader(){
     assFontsForItem(item).then(installASSFontFaces).catch(function(e){warn("Fuentes ASS: "+e.message);});
     var scriptW=1280,scriptH=720,styles=Object.create(null),styleFmt=[],eventFmt=[],section='';
     var events=[],lines=String(content||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n');
+    // ASS de anime con efectos generados cuadro por cuadro: miles de eventos
+    // "Effector [fx]" no son subtítulos independientes. Un renderizador CSS
+    // no puede interpretar sus transformaciones como libass y amontona letras.
+    // Solo el respaldo usa este modo seguro; JASSUB conserva el ASS íntegro.
+    var complexKaraoke=lines.filter(function(line){return /^Dialogue\s*:/i.test(line)&&/,Effector\s*\[fx\],/i.test(line);}).length>1200;
+    var layeredLyrics=lines.some(function(line){return /^Style\s*:[^,]*(?:OP|ED)[^,]*-RO\s*,/i.test(line);}) &&
+      lines.some(function(line){return /^Style\s*:[^,]*(?:OP|ED)[^,]*-TL\s*,/i.test(line);});
+
     function fields(str,fmt){
       var values=str.split(',');
       if(fmt.length && values.length>fmt.length)values=values.slice(0,fmt.length-1).concat(values.slice(fmt.length-1).join(','));
@@ -4104,11 +4112,29 @@ function mmhdSubtitleLoader(){
         else if(/^Style\s*:/i.test(t)&&styleFmt.length){var o=fields(t.slice(t.indexOf(':')+1),styleFmt);styles[o.name]=o;}
       }else if(section==='[events]'){
         if(/^Format\s*:/i.test(t))eventFmt=t.slice(t.indexOf(':')+1).split(',').map(function(s){return s.trim().toLowerCase();});
-        else if(/^Dialogue\s*:/i.test(t)&&eventFmt.length){
+        else if(/^(?:Dialogue|Comment)\s*:/i.test(t)&&eventFmt.length){
+          var isComment=/^Comment\s*:/i.test(t);
           var o=fields(t.slice(t.indexOf(':')+1),eventFmt),st=time(o.start),en=time(o.end),txt=plain(o.text);
-          if(!(en>st)||!txt) return;
+          if(!(en>st)||!txt)return;
+          if(isComment){
+            // Los originales de la canción están en Comment y sus miles de
+            // letras animadas están en Dialogue. Recuperamos SOLO las líneas
+            // cantadas completas (RO) y sus traducciones (TL), no japonés KA
+            // ni notas técnicas; así no aparecen tres renglones amontonados.
+            if(!complexKaraoke||!/(?:OP|ED)[^,]*-(?:RO|TL)$/i.test(o.style))return;
+          }else{
+            if(complexKaraoke&&/Effector\s*\[fx\]/i.test(o.effect||''))return;
+            // Evitar que la tercera línea japonesa se superponga al romaji y a
+            // la traducción en el modo compatible (libass sí maneja las tres).
+            if(layeredLyrics&&/(?:OP|ED)[^,]*-KA$/i.test(o.style||''))return;
+            // Los rótulos muy complejos suelen estar fragmentados por carácter
+            // o fotograma; conservar texto normal, no cada fragmento animado.
+            if((complexKaraoke||layeredLyrics)&&/signs?/i.test(o.style||'')&&((en-st)<0.45||txt.length<3))return;
+          }
           var tg=getTags(o.text);if(tg.draw)return;
-          events.push({id:events.length,start:st,end:en,layer:+o.layer||0,style:o.style,text:txt,tags:tg,marginl:+o.marginl||0,marginr:+o.marginr||0,marginv:+o.marginv||0});
+          var lyricType=/(?:OP|ED)[^,]*-TL$/i.test(o.style)?'translation':/(?:OP|ED)[^,]*-RO$/i.test(o.style)?'romaji':'';
+          events.push({id:events.length,start:st,end:en,layer:+o.layer||0,style:o.style,text:txt,tags:tg,marginl:+o.marginl||0,marginr:+o.marginr||0,marginv:+o.marginv||0,
+            safeLyric:(complexKaraoke||layeredLyrics)?lyricType:''});
         }
       }
     });
@@ -4154,6 +4180,9 @@ function mmhdSubtitleLoader(){
     function decorate(e,scale){
       var o=styles[e.style]||styles.Default||{},tg=e.tags;
       var fontSize=Math.max(8,Math.min(120,+(tg.fontsize||o.fontsize||40)*scale));
+      // Evitar que la traducción del karaoke tape media pantalla en modo
+      // compatible. Las pistas ASS normales y el motor JASSUB no se alteran.
+      if(e.safeLyric)fontSize=Math.min(fontSize,(e.safeLyric==='translation'?37:34)*scale);
       var color=assColor(tg.color||o.primarycolour,'white');
       var outline=assColor(tg.outline||o.outlinecolour,'rgba(0,0,0,.85)');
       var bord=+(tg.border!==null?tg.border:(o.outline||2))||0;
@@ -4320,6 +4349,14 @@ function mmhdSubtitleLoader(){
     if(!video || !item)return;
     assVideo=video;assLanguage=item.language;
     try{assFallback=createASSFallback(video,item.assContent,item);}catch(e){warn('Modo ASS con estilos: '+e.message);}
+    // Evita activar 9,000+ eventos animados generados por fotograma.
+    // Este modo seguro mantiene la letra original y los diálogos legibles.
+    var heavyEffects=(String(item.assContent||'').match(/,\s*Effector\s*\[fx\]\s*,/gi)||[]).length;
+    if(heavyEffects>1200){
+      assFailed=true;assLive=false;updateTracks();
+      console.info('[Movie Mania HD] ASS complejo: modo legible ('+heavyEffects+' efectos).');
+      return;
+    }
     var ticket=assRevision;
     assLoading=Promise.all([getASSClass(),assFontsForItem(item)]).then(function(deps){
       var JASSUB=deps[0],userFontURLs=deps[1];
