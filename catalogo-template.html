@@ -4062,6 +4062,56 @@ function mmhdSubtitleLoader(){
       node.style.textAlign=al%3===1?'left':al%3===2?'center':'right';
       return {node:node,al:al,style:o};
     }
+    // ASS: algunas canciones de anime colocan DOS letras en la misma línea,
+    // por ejemplo traducción (an1, izquierda) y romaji (an3, derecha).
+    // El modo CSS permitía que ambas ocuparan todo el ancho y se encimaran.
+    // Adaptar únicamente las parejas que realmente chocan, sin modificar
+    // diálogos centrados, rótulos con \pos ni los otros formatos.
+    function separateSideLyrics(scale){
+      var groupList=Object.keys(groups).map(function(key){return groups[key];});
+      var lefts=groupList.filter(function(g){return g.dataset.al==='1';});
+      var rights=groupList.filter(function(g){return g.dataset.al==='3';});
+      var used=new Set();
+      lefts.forEach(function(left){
+        if(used.has(left))return;
+        var ln=Array.from(left.querySelectorAll('.mmhd-ass-line'));
+        if(!ln.length)return;
+        rights.some(function(right){
+          if(used.has(right))return false;
+          var rn=Array.from(right.querySelectorAll('.mmhd-ass-line'));
+          if(!rn.length)return false;
+          // No combinar subtítulos de diferentes alturas del video.
+          var lb=parseFloat(left.style.bottom)||0,rb=parseFloat(right.style.bottom)||0;
+          if(Math.abs(lb-rb)>Math.max(4,12*scale))return false;
+          var lr=ln.map(function(n){return n.getBoundingClientRect();});
+          var rr=rn.map(function(n){return n.getBoundingClientRect();});
+          var leftEnd=Math.max.apply(null,lr.map(function(r){return r.right;}));
+          var rightStart=Math.min.apply(null,rr.map(function(r){return r.left;}));
+          if(leftEnd<=rightStart+1)return false;
+          // Mobile: dos renglones cortos legibles son mejores que reducir
+          // ambas letras a un tamaño diminuto para conservar una sola fila.
+          var leftWidth=Math.max.apply(null,lr.map(function(r){return r.width;}));
+          var rightWidth=Math.max.apply(null,rr.map(function(r){return r.width;}));
+          var gap=Math.max(6,overlay.clientWidth*.012);
+          var available=overlay.clientWidth-(parseFloat(left.style.left)||0)-(parseFloat(right.style.right)||0)-gap;
+          var fit=Math.max(.1,Math.min(1,available/(leftWidth+rightWidth)));
+          if(overlay.clientWidth<620 && fit<.86){
+            right.style.bottom=(rb+left.getBoundingClientRect().height+Math.max(3,3*scale))+'px';
+          }else{
+            ln.concat(rn).forEach(function(node){
+              var orig=parseFloat(node.style.fontSize)||20;
+              node.style.fontSize=(orig*fit)+'px';
+              var originalStroke=parseFloat(node.style.webkitTextStroke)||0;
+              if(originalStroke>0){
+                node.style.webkitTextStroke=(originalStroke*fit)+'px '+(node.style.webkitTextStroke.replace(/^[\d.]+px\s*/,''));
+              }
+            });
+          }
+          used.add(left);used.add(right);
+          return true;
+        });
+      });
+    }
     function render(){
       if(!overlay.isConnected||!visible)return;
       if(!setSize())return;
@@ -4092,6 +4142,7 @@ function mmhdSubtitleLoader(){
           }
           nodeMap.set(e.id,g);
         });
+        separateSideLyrics(scale);
         lastSignature=sig;
       }
       active.forEach(function(e){
@@ -4110,11 +4161,13 @@ function mmhdSubtitleLoader(){
     video.addEventListener('seeked',refresh);video.addEventListener('timeupdate',refresh);
     video.addEventListener('loadedmetadata',refresh);video.addEventListener('play',refresh);
     window.addEventListener('resize',refresh);
+    var fontsChanged=function(){lastSignature='';refresh();};
+    if(document.fonts&&document.fonts.addEventListener)document.fonts.addEventListener('loadingdone',fontsChanged);
     timer=setInterval(refresh,120);refresh();
     return {
       refresh:refresh,
       setVisible:function(v){visible=Boolean(v);overlay.style.display=visible?'':'none';if(visible)refresh();},
-      destroy:function(){clearInterval(timer);video.removeEventListener('seeked',refresh);video.removeEventListener('timeupdate',refresh);video.removeEventListener('loadedmetadata',refresh);video.removeEventListener('play',refresh);window.removeEventListener('resize',refresh);overlay.remove();if(changedPosition)parent.style.position=previousPosition;}
+      destroy:function(){clearInterval(timer);video.removeEventListener('seeked',refresh);video.removeEventListener('timeupdate',refresh);video.removeEventListener('loadedmetadata',refresh);video.removeEventListener('play',refresh);window.removeEventListener('resize',refresh);if(document.fonts&&document.fonts.removeEventListener)document.fonts.removeEventListener('loadingdone',fontsChanged);overlay.remove();if(changedPosition)parent.style.position=previousPosition;}
     };
   }
 
