@@ -3846,7 +3846,8 @@ function mmhdSubtitleLoader(){
     'kozuka mincho pro strp el':'Noto Serif'
   };
   function assFontFamily(name){
-    var family=String(name||'Arial').replace(/[\"\\\x00-\x1f]/g,'').trim()||'Arial';
+    // ASS usa @Nombre para fuentes verticales; CSS busca la familia sin @.
+    var family=String(name||'Arial').replace(/["\\\x00-\x1f]/g,'').trim().replace(/^@+/,'')||'Arial';
     var alternative=ASS_FONT_ALTERNATIVES[family.toLowerCase()];
     return '"'+family+'"'+(alternative && alternative.toLowerCase()!==family.toLowerCase()?',"'+alternative+'"':'')+',Arial,sans-serif';
   }
@@ -3884,10 +3885,11 @@ function mmhdSubtitleLoader(){
     });
     return assFontConfigPromise;
   }
-  /* MMHD — Autodescubrimiento de fuentes ASS en la carpeta GitHub del .ass.
-     Se usan las fuentes que el usuario ya publica, sin copiarlas al ZIP.
-     Compatible con raw.githubusercontent.com, github.com/blob y jsDelivr/gh.
-     El manifiesto /ass-fonts.json sigue siendo opcional y tiene prioridad. */
+  /* MMHD — Fuentes ASS por episodio y carpeta, sin centralizar archivos:
+     cada pista busca en la misma carpeta GitHub que el propio .ass,
+     incluso si está anidada en serie/temporada/capítulo.
+     El manifiesto /ass-fonts.json sigue siendo opcional y tiene prioridad.
+     El navegador registra coincidencias y fallos en la consola. */
   var assGitHubDirCache=Object.create(null);
   var ASS_KNOWN_AOHARU_FILES=[
     'A Bebedera.ttf','ABeeZee-Regular.otf','AdobeMingStd-Light.otf',
@@ -3963,8 +3965,11 @@ function mmhdSubtitleLoader(){
     return assGitHubDirCache[key];
   }
   function assMatchFont(font,files){
-    var n=assFontKey(font);
-    // Algunas familias tienen nombres internos distintos a sus nombres de archivo.
+    // Se comparan nombres de familia del ASS con nombres de archivo.
+    // Diferencias comunes: "Mf Texas Spring" vs "MfTexasSpring-Regular.ttf",
+    // o "@Heisei Mincho" vs "HeiseiMinchoStd-W9.otf".
+    var n=assFontKey(String(font||'').replace(/^@+/,''));
+    if(!n)return null;
     var aliases={
       'rfakbar':['akbar3','akbar'],
       'quaysansmdicttt':['quaysansmdictttitalic'],
@@ -3976,58 +3981,90 @@ function mmhdSubtitleLoader(){
       'iwatagyoushoprokamib':['iwagyoprobdkami'],
       'kozukaminchoprostrpel':['kozukaminchoprostrpel0'],
       'fotpopfurystdstripped':['fotpopfurystdstrippedbold'],
-      'fotrocknrollstdstripped':['fotrocknrollstdstrpdemibold']
+      'fotrocknrollstdstripped':['fotrocknrollstdstrpdemibold'],
+      'mftexasspring':['texasspring','mftexasspringregular'],
+      'bubblegumsans':['bubblegum','bubblegumsansregular'],
+      'narkisim':['narkisimregular'],
+      'kgredhands':['redhands','kgredhandsregular'],
+      'diverdassanscommedium':['diverdassans','diverdamedium','diverdassanscommed'],
+      'heiseiminchostdw9':['heiseiminchostd','heiseimincho']
     };
     var desired=[n].concat(aliases[n]||[]);
-    // Prioriza nombre exacto, después coincidencia de familia y variante.
+    var variants=/\b(italic|bold|light|medium)\b/i.test(font)?String(font).toLowerCase():'';
     var matches=files.map(function(f){
       var filename=String(f.name||'').replace(/\.(?:ttf|otf|woff2?)$/i,'');
       var k=assFontKey(filename.replace(/[_-][0-9]+$/,''));
+      var stem=k.replace(/(?:regular|medium|normal|italic|bold|semibold|demibold|light|book|otf|ttf|std)$/g,'');
       var score=0;
       for(var i=0;i<desired.length;i++){
         var d=desired[i];
-        if(k===d)score=Math.max(score,100-i);
-        else if(k.startsWith(d))score=Math.max(score,85-i);
-        else if(d.startsWith(k)&&k.length>=5)score=Math.max(score,75-i);
+        if(k===d)score=Math.max(score,120-i);
+        else if(stem===d)score=Math.max(score,115-i);
+        else if(k.startsWith(d))score=Math.max(score,100-i);
+        else if(d.startsWith(k)&&k.length>=5)score=Math.max(score,90-i);
+        else if(stem.length>=5 && d.startsWith(stem))score=Math.max(score,80-i);
+        else if(d.length>=7 && k.includes(d))score=Math.max(score,75-i);
       }
-      // Para la familia Alegreya Sans, una variante regular/negrita se prefiere
-      // frente a la variante BoldItalic si el ASS no solicita cursiva explícita.
-      if(n==='alegreyasans'&&k.includes('italic'))score-=25;
+      if(!variants && n==='alegreyasans'&&k.includes('italic'))score-=25;
       return {file:f,score:score};
     }).filter(function(x){return x.score>0;});
     matches.sort(function(a,b){return b.score-a.score;});
     return matches.length?matches[0].file:null;
   }
   function assFontsForItem(item){
+    // Calculado DESDE LA URL DE LA PISTA SELECCIONADA, no desde una ruta fija.
     var where=assGitHubLocation(item&&item.url);
+    var requested=assRequestedNames(item&&item.assContent);
     return Promise.all([assFontConfig(),assFontInventory(where)]).then(function(deps){
-      var explicit=deps[0],files=deps[1],matched=Object.create(null);
-      assRequestedNames(item&&item.assContent).forEach(function(font){
+      var explicit=deps[0],files=deps[1],matched=Object.create(null),missing=[];
+      requested.forEach(function(font){
         var f=assMatchFont(font,files);
         if(f)matched[font]=f.url;
+        else if(!Object.prototype.hasOwnProperty.call(explicit,font))missing.push(font);
       });
-      // Si GitHub tiene el segundo archivo, permitir itálicas reales de Alegreya Sans.
+      // Si GitHub tiene la variante cursiva de Alegreya, usarla cuando se necesite.
       if(matched['Alegreya Sans']){
         var italic=files.find(function(f){return /^AlegreyaSans-BoldItalic\.otf$/i.test(f.name);});
         if(italic)matched['Alegreya Sans BoldItalic']=italic.url;
       }
-      // Mantener prioridades del usuario: GitHub automático, luego manifest/inline.
-      return Object.assign({},matched,explicit);
+      var result=Object.assign({},matched,explicit);
+      console.info('[Movie Mania HD] Fuentes ASS —',{
+        carpetaGitHub:where?where.dirs.join('/'):'URL no reconocida como GitHub',
+        requeridas:requested.length,encontradasEnCarpeta:files.length,
+        relacionadas:Object.keys(result),sinCoincidencia:missing
+      });
+      return result;
     });
   }
-  var assRequestedFontFaces=new Set();
+  var assRequestedFontFaces=new Map();
   function installASSFontFaces(fontMap){
     if(!('FontFace' in window)||!document.fonts)return Promise.resolve();
     var names=Object.keys(fontMap);
     return Promise.allSettled(names.map(function(name){
       var key=name.toLowerCase();
-      if(assRequestedFontFaces.has(key))return Promise.resolve();
-      assRequestedFontFaces.add(key);
+      var url=fontMap[name];
+      var previous=assRequestedFontFaces.get(key);
+      if(previous&&previous.url===url)return previous.promise;
       var italicFace=name==='Alegreya Sans BoldItalic';
-      var face=new FontFace(italicFace?'Alegreya Sans':name,'url('+JSON.stringify(fontMap[name])+')',italicFace?{style:'italic',weight:'700'}:(name==='Alegreya Sans'?{weight:'700'}:{}));
-      return face.load().then(function(loaded){document.fonts.add(loaded);}).catch(function(err){
+      var cssFamily=italicFace?'Alegreya Sans':String(name).replace(/^@+/, '');
+      var face=new FontFace(cssFamily,'url('+JSON.stringify(url)+')',
+        italicFace?{style:'italic',weight:'700'}:(name==='Alegreya Sans'?{weight:'700'}:{}));
+      var entry={url:url,promise:null,face:face};
+      entry.promise=face.load().then(function(loaded){
+        // La pista puede haberse cambiado durante la descarga.
+        if(assRequestedFontFaces.get(key)!==entry)return;
+        if(previous&&previous.face){try{document.fonts.delete(previous.face);}catch(_){}}
+        document.fonts.add(loaded);
+        console.info('[Movie Mania HD] Fuente ASS cargada:',name);
+      }).catch(function(err){
+        if(assRequestedFontFaces.get(key)===entry){
+          if(previous)assRequestedFontFaces.set(key,previous);
+          else assRequestedFontFaces.delete(key);
+        }
         warn('No se pudo cargar la fuente '+name+': '+(err&&err.message||err));
       });
+      assRequestedFontFaces.set(key,entry);
+      return entry.promise;
     }));
   }
   var notice=null,noticeTimer=0;
