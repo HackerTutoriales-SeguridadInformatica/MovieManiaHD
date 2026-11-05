@@ -7550,10 +7550,61 @@ function renderSeriesSeasons(series,chosenSeason){
 /* ============================================================
    DETALLE
    ============================================================ */
+/* ============================================================
+   URLS AMIGABLES: /nombre-de-la-pelicula-123456 (ID TMDB)
+   El navegador abre la ficha sin recargar; Vercel sirve index.html
+   mediante una regla de reescritura cuando se entra por enlace directo.
+   ============================================================ */
+function mmhdTitleSlug(value){
+  const slug=String(value||'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/&/g,' y ')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')
+    .slice(0,100).replace(/-+$/g,'');
+  return slug||'titulo';
+}
+function mmhdTitlePath(movie){
+  const rawId=movie?.tmdbId??movie?.id;
+  const id=Number(rawId);
+  return `/${mmhdTitleSlug(movie?.title)}-${Number.isSafeInteger(id)&&id>0?id:movie.id}`;
+}
+function mmhdUseCleanPaths(){
+  // En vistas previas srcdoc y archivos locales conservar #movie-ID.
+  return (location.protocol==='https:'||location.protocol==='http:')&&location.origin!=='null';
+}
+function mmhdHomePath(){
+  return mmhdUseCleanPaths()?'/':(location.pathname||'')+(location.search||'');
+}
+function mmhdUpdateTitleHistory(movie,method){
+  if(method==='none')return;
+  const target=mmhdUseCleanPaths()?mmhdTitlePath(movie):`#movie-${movie.id}`;
+  try{
+    history[method==='replace'?'replaceState':'pushState']({detail:movie.id},'',target);
+  }catch(_){
+    // Una vista previa aislada no debe bloquear la ficha de la película.
+    // En ella no es indispensable modificar el historial.
+  }
+}
+function mmhdTitleFromCurrentUrl(){
+  const legacy=/^#movie-(\d+)$/i.exec(location.hash||'');
+  if(legacy){
+    const id=Number(legacy[1]);
+    return MOVIES.find(m=>Number(m.id)===id||Number(m.tmdbId)===id)||null;
+  }
+  let path;
+  try{path=decodeURIComponent(location.pathname||'').replace(/\/+$/,'').toLowerCase();}
+  catch(_){return null;}
+  const match=/^\/[a-z0-9][a-z0-9-]*-(\d+)$/.exec(path);
+  if(!match)return null;
+  const id=Number(match[1]);
+  const options=MOVIES.filter(m=>Number(m.tmdbId??m.id)===id);
+  // Si una película y una serie comparten ID, prevalece el slug completo.
+  return options.find(m=>mmhdTitlePath(m).toLowerCase()===path)||options[0]||null;
+}
 function buildDetailShareUrl(movie){
-  const origin = location.origin || '';
-  const pathname = location.pathname || '';
-  return `${origin}${pathname}#movie-${movie.id}`;
+  if(mmhdUseCleanPaths())return location.origin+mmhdTitlePath(movie);
+  // Al previsualizar localmente, compartir la URL pública con el nuevo formato.
+  return 'https://moviemaniahd.vercel.app'+mmhdTitlePath(movie);
 }
 function buildTrailerEmbedUrl(key){
   // Intentar comenzar con audio. La política de reproducción automática del
@@ -7647,8 +7698,8 @@ async function shareCurrentDetail(){
     if(e && e.name !== 'AbortError') showToast('No se pudo compartir el título');
   }
 }
-function openDetail(id){
-  const m = MOVIES.find(x => x.id === id);
+function openDetail(id,{historyMode="auto"}={}){
+  const m = MOVIES.find(x => Number(x.id) === Number(id));
   if (!m) return;
   mmhdTrackAnalytics('mmhd_title_open', {
     content_id: String(m.id),
@@ -7714,12 +7765,12 @@ function openDetail(id){
   $("detailScreen").scrollTop = 0;
   document.body.style.overflow = "hidden";
   hideMobileNav();
-  // Navegar de una recomendación a otra sin acumular entradas obsoletas.
-  if (wasDetailOpen) history.replaceState({ detail: m.id }, "", `#movie-${m.id}`);
-  else history.pushState({ detail: m.id }, "", `#movie-${m.id}`);
+  // Conservar una sola entrada al pasar entre recomendaciones.
+  // La carga directa y el historial (atrás/adelante) usan replace/none.
+  mmhdUpdateTitleHistory(m,historyMode==='auto'?(wasDetailOpen?'replace':'push'):historyMode);
 }
 
-function closeDetail(){
+function closeDetail({syncUrl=true}={}){
   mmhdStopSeasonDownloadQueue(true);
   if ($("playerModal").classList.contains("show")) closePlayer();
   closeTrailerModal();
@@ -7727,8 +7778,8 @@ function closeDetail(){
   document.body.style.overflow = "";
   state.currentMovie = null;
   showMobileNav();
-  if (location.hash.startsWith("#movie-")) {
-    history.replaceState(null, "", location.pathname);
+  if(syncUrl){
+    try{history.replaceState(null,'',mmhdHomePath());}catch(_){}
   }
 }
 
@@ -8470,16 +8521,27 @@ document.addEventListener("keydown", e => {
   }
 });
 
-window.addEventListener("popstate", () => {
+function mmhdSyncTitleWithBrowserHistory(){
   if ($("mobileSearchScreen").classList.contains("show")) closeMobileSearch();
-  else if ($("playerModal").classList.contains("show")) closePlayer();
-  else if ($("detailScreen").classList.contains("show")) closeDetail();
-});
-
-if (location.hash.startsWith("#movie-")){
-  const id = Number(location.hash.replace("#movie-", ""));
-  if (MOVIES.some(m => m.id === id)) openDetail(id);
+  if ($("playerModal").classList.contains("show")) closePlayer();
+  const movie=mmhdTitleFromCurrentUrl();
+  if(movie){
+    if(!$('detailScreen').classList.contains('show')||Number(state.currentMovie?.id)!==Number(movie.id)){
+      openDetail(movie.id,{historyMode:'none'});
+    }
+    // Corrige enlaces viejos #movie-ID o slugs desactualizados sin crear otra entrada.
+    if(mmhdUseCleanPaths() && location.pathname!==mmhdTitlePath(movie)){
+      mmhdUpdateTitleHistory(movie,'replace');
+    }
+  }else if($('detailScreen').classList.contains('show')){
+    closeDetail({syncUrl:false});
+  }
 }
+window.addEventListener('popstate',mmhdSyncTitleWithBrowserHistory);
+window.addEventListener('hashchange',mmhdSyncTitleWithBrowserHistory);
+// Los enlaces compartidos abren directamente su ficha; no crean una segunda entrada.
+const mmhdInitialTitle=mmhdTitleFromCurrentUrl();
+if(mmhdInitialTitle)openDetail(mmhdInitialTitle.id,{historyMode:'replace'});
 
 /* ============================================================
    ACTUALIZACIÓN DE VERSIÓN
@@ -8489,7 +8551,7 @@ const LS_UPDATE_DISMISSED = "mmhd_update_dismissed";
 
 async function checkForUpdate() {
   try {
-    const res = await fetch(location.pathname, {
+    const res = await fetch(mmhdUseCleanPaths()?"/index.html":location.pathname, {
       method: "HEAD",
       cache: "no-store"
     });
@@ -8553,7 +8615,7 @@ function restoreStateIfAny() {
   }
   if (saved.openMovieId) {
     const m = MOVIES.find(x => x.id === Number(saved.openMovieId));
-    if (m) openDetail(m.id);
+    if (m && Number(state.currentMovie?.id)!==Number(m.id)) openDetail(m.id,{historyMode:'replace'});
   }
   if (saved.scrollY > 0) {
     setTimeout(() => {
@@ -8776,7 +8838,7 @@ syncBackToTop();
    No afecta descargas de video, lista, historial ni progreso guardados en localStorage. */
 (function(){
   if (location.protocol !== 'https:' && location.protocol !== 'http:') return;
-  const appScope = new URL('./', location.href).href;
+  const appScope = new URL('/', location.origin).href;
   async function removeOfflineWeb(){
     try {
       if ('serviceWorker' in navigator) {
