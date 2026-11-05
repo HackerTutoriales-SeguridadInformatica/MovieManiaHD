@@ -305,8 +305,17 @@ function sourceAlternatives(input){
 async function fetchPlainASS(url,signal){
   let checked=checkedUrl(url);
   for(let tries=0;tries<=MAX_REDIRECTS;tries++){
-    const response=await fetch(checked.href,{method:'GET',redirect:'manual',signal,
-      headers:{Accept:'text/plain,application/octet-stream;q=0.9,*/*;q=0.1'}});
+    let response;
+    try{
+      response=await fetch(checked.href,{method:'GET',redirect:'manual',signal,
+        headers:{Accept:'text/plain,application/octet-stream;q=0.9,*/*;q=0.1'}});
+    }catch(cause){
+      const error=new Error('No se pudo descargar el subtítulo del servidor de origen ('+
+        String(cause?.name||'red')+').');
+      error.mmhdStage='origen-red';
+      error.originNetwork=true;
+      throw error;
+    }
     if(response.status>=300&&response.status<400){
       const redirect=response.headers.get('location');
       if(response.body)await response.body.cancel();
@@ -318,7 +327,13 @@ async function fetchPlainASS(url,signal){
       const error=new Error('El archivo ASS respondió HTTP 404.');
       error.originStatus=404;throw error;
     }
-    if(!response.ok)throw new Error('GitHub respondió HTTP '+response.status+'.');
+    if(!response.ok){
+      const error=new Error('El servidor de subtítulos respondió HTTP '+response.status+'.');
+      error.originStatus=response.status;
+      error.mmhdStage='origen-http';
+      if(response.body)await response.body.cancel().catch(()=>{});
+      throw error;
+    }
     const type=(response.headers.get('content-type')||'').toLowerCase();
     if(type.includes('text/html')||type.includes('application/json'))throw new Error('La URL devolvió una página, no un archivo ASS.');
     if(+response.headers.get('content-length')>MAX_SUBTITLE_BYTES)throw new Error('Archivo ASS mayor a 8 MB.');
@@ -333,7 +348,8 @@ async function fetchPlainASS(url,signal){
         chunks.push(Buffer.from(value));
       }
     }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
-    return convertASS(Buffer.concat(chunks,total).toString('utf8'));
+    try{return convertASS(Buffer.concat(chunks,total).toString('utf8'));}
+    catch(error){error.mmhdStage='conversion-ass';throw error;}
   }
   throw new Error('Demasiadas redirecciones.');
 }
@@ -366,18 +382,27 @@ async function sameFolderGithubCandidate(input,signal){
 async function fetchASS(input, signal){
   const ready=await tryStaticWebVTT(input);
   if(ready)return ready;
-  let last404=null;
+  let last404=null, lastTemporary=null;
   const candidates=[checkedUrl(input).href,...sourceAlternatives(input)];
   const used=new Set();
   for(const url of candidates){
     if(used.has(url))continue;used.add(url);
     try{return await fetchPlainASS(url,signal);}
     catch(error){
-      if(error?.originStatus!==404)throw error;
-      last404=error;
-      console.info('[MMHD Cast] Fuente 404; se prueba alternativa del mismo archivo.');
+      // Si un CDN responde 429/5xx o se interrumpe la red, probar otra
+      // distribución del MISMO archivo; no modificar el idioma ni episodio.
+      // Los errores de conversión (ASS inválido) NO se atribuyen a la red.
+      const status=Number(error?.originStatus||0);
+      const recoverable=status===404 || status===408 || status===425 ||
+        status===429 || status>=500 || error?.originNetwork===true;
+      if(!recoverable || signal?.aborted)throw error;
+      if(status===404)last404=error;
+      else lastTemporary=error;
+      console.info('[MMHD Cast] Origen alternativo del mismo archivo',
+        {status:status||'red',stage:error.mmhdStage||'origen-http'});
     }
   }
+  if(lastTemporary && !last404)throw lastTemporary;
   if(last404){
     const variant=await sameFolderGithubCandidate(input,signal);
     if(variant&&!used.has(variant)){
@@ -390,6 +415,7 @@ async function fetchASS(input, signal){
     const error=new Error(`La consulta al ASS recibió HTTP 404: ${basename}. No indica necesariamente que el archivo haya sido eliminado; reintenta y consulta los registros del origen si persiste.`);
     error.originStatus=404;throw error;
   }
+  if(lastTemporary)throw lastTemporary;
   throw new Error('No se pudo obtener el archivo ASS.');
 }
 export default async function handler(req,res) {
@@ -406,6 +432,7 @@ export default async function handler(req,res) {
   if(!['GET','HEAD'].includes(req.method))return res.status(405).json({error:'Método no permitido.'});
   try { checkedUrl(req.query?.url); }
   catch(e){return res.status(400).json({error:e.message});}
+  const startedAt=Date.now();
   try {
     const output = await fetchASS(req.query.url,AbortSignal.timeout(TIMEOUT_MS));
     res.setHeader('Content-Type','text/vtt; charset=utf-8');
@@ -433,12 +460,21 @@ export default async function handler(req,res) {
     if(req.method==='HEAD')return res.status(200).end();
     return res.status(200).send(buffer);
   } catch(e) {
-    console.warn('[MMHD] Conversión ASS para Chromecast:',e.message);
-    const code = e.originStatus===404 ? 404 : (/mayor a|supera 5 MB/.test(e.message) ? 413 : 502);
-    res.setHeader('X-MMHD-Error-Stage',e.originStatus===404?'origen-github':'conversion-o-red');
+    const code=e.originStatus===404 ? 404 : (/mayor a|supera 5 MB/.test(e.message) ? 413 : 502);
+    const stage=e.mmhdStage || (e.name==='TimeoutError'?'origen-tiempo':
+      e.originStatus===404?'origen-http':'conversion-o-red');
+    // Solo diagnósticos no sensibles: no escribir URL completa del ASS.
+    console.warn('[MMHD Cast] ASS no preparado',{
+      status:code,stage,originStatus:Number(e.originStatus||0),
+      milliseconds:Date.now()-startedAt,reason:String(e.message||'error').slice(0,180)
+    });
+    res.setHeader('X-MMHD-Error-Stage',stage);
     if(code===502||code===404)res.setHeader('Retry-After','2');
     res.setHeader('Cache-Control','no-store');
-    return res.status(code).json({error:e.name==='TimeoutError'?'Tiempo de descarga de subtítulos agotado.':e.message});
+    return res.status(code).json({
+      error:e.name==='TimeoutError'?'Tiempo de descarga de subtítulos agotado.':e.message,
+      stage
+    });
   }
 }
 export const __testing = {convertASS, checkedUrl, fetchASS, tryStaticWebVTT, githubRawFileParts, sourceAlternatives, fetchPlainASS, sameFolderGithubCandidate};
