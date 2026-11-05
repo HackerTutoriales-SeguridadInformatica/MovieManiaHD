@@ -4166,15 +4166,25 @@ function mmhdSubtitleLoader(){
       if(lastSize!==sz){overlay.style.left=x+'px';overlay.style.top=y+'px';overlay.style.width=w+'px';overlay.style.height=h+'px';lastSize=sz;lastSignature='';}
       return true;
     }
-    function buildGroup(al,margin,scale){
-      var k=al+':'+margin; if(groups[k])return groups[k];
+    function buildGroup(al,margin,scale,marginLeft,marginRight){
+      // Los ASS especifican márgenes horizontales dentro de PlayResX. Antes,
+      // al usar left:50% + translateX(-50%) sin un ancho explícito, Chrome
+      // reducía el bloque central a casi MEDIA pantalla y partía los diálogos
+      // en 3-4 líneas. VLC/libass utiliza todo el ancho entre ambos márgenes.
+      var leftInset=Math.max(8*scale,(+marginLeft||0)*scale);
+      var rightInset=Math.max(8*scale,(+marginRight||0)*scale);
+      var k=[al,margin,leftInset.toFixed(1),rightInset.toFixed(1)].join(':');
+      if(groups[k])return groups[k];
       var g=document.createElement('div');g.className='mmhd-ass-group';g.dataset.al=String(al);
       g.style.position='absolute';g.style.display='flex';g.style.flexDirection=al<=3?'column-reverse':'column';
       g.style.alignItems=al%3===1?'flex-start':al%3===2?'center':'flex-end';
       g.style.gap=Math.max(0,1*scale)+'px';
-      g.style.maxWidth='96%';g.style.pointerEvents='none';
-      if(al%3===1)g.style.left='2%'; else if(al%3===2){g.style.left='50%';g.style.transform='translateX(-50%)';}else g.style.right='2%';
-      if(al<=3)g.style.bottom=Math.max(0,margin*scale)+'px';else if(al>=7)g.style.top=Math.max(0,margin*scale)+'px';else {g.style.top='50%';g.style.transform+=' translateY(-50%)';}
+      g.style.boxSizing='border-box';g.style.pointerEvents='none';
+      g.style.left=leftInset+'px';g.style.right=rightInset+'px';
+      // left + right definen el ancho real, incluso para alineación central.
+      if(al<=3)g.style.bottom=Math.max(0,margin*scale)+'px';
+      else if(al>=7)g.style.top=Math.max(0,margin*scale)+'px';
+      else {g.style.top='50%';g.style.transform='translateY(-50%)';}
       overlay.appendChild(g);groups[k]=g;return g;
     }
     function decorate(e,scale){
@@ -4183,6 +4193,12 @@ function mmhdSubtitleLoader(){
       // Evitar que la traducción del karaoke tape media pantalla en modo
       // compatible. Las pistas ASS normales y el motor JASSUB no se alteran.
       if(e.safeLyric)fontSize=Math.min(fontSize,(e.safeLyric==='translation'?37:34)*scale);
+      // VLC conserva un tamaño proporcional al fotograma. El modo compatible
+      // CSS no debe inflar los diálogos normales de anime hasta ocupar media
+      // pantalla. Mantener rótulos posicionados y karaoke independientes.
+      var alignment=tg.an||(+o.alignment||2);
+      var normalDialogue=!e.safeLyric&&!tg.pos&&!tg.move&&alignment>=1&&alignment<=3;
+      if(normalDialogue)fontSize=Math.min(fontSize,Math.max(28,scriptH*.069)*scale);
       var color=assColor(tg.color||o.primarycolour,'white');
       var outline=assColor(tg.outline||o.outlinecolour,'rgba(0,0,0,.85)');
       var bord=+(tg.border!==null?tg.border:(o.outline||2))||0;
@@ -4231,7 +4247,10 @@ function mmhdSubtitleLoader(){
             var hx=al%3===1?'0%':al%3===2?'-50%':'-100%';var vy=al<=3?'-100%':al>=7?'0%':'-50%';
             g.style.transform='translate('+hx+','+vy+')';
             overlay.appendChild(g);
-          }else{buildGroup(al,margin,scale).appendChild(g);}
+          }else{
+            var ml=e.marginl||+o.marginl||0,mr=e.marginr||+o.marginr||0;
+            buildGroup(al,margin,scale,ml,mr).appendChild(g);
+          }
           nodeMap.set(e.id,g);
         });
         lastSignature=sig;
@@ -6850,7 +6869,7 @@ async function mmhdCastSubtitleTracks(movie){
     // No modifica los subtítulos originales que JASSUB usa en el navegador.
     const endpoint=new URL(isASS?'/api/cast-ass':'/api/cast-subtitles',location.origin);
     endpoint.searchParams.set('url',subtitleUrl.href);
-    if (isASS) endpoint.searchParams.set('cast_format', 'v2_clean'); // invalidar VTT antiguo en caché
+    if (isASS) endpoint.searchParams.set('cast_format', 'v3_karaoke'); // invalidar VTT antiguo en caché
     const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),18000);
     try{
       const response=await fetch(endpoint.href,{signal:controller.signal,credentials:'omit'});
