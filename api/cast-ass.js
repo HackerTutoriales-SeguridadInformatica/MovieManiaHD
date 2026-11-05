@@ -393,10 +393,13 @@ async function fetchASS(input, signal){
   throw new Error('No se pudo obtener el archivo ASS.');
 }
 export default async function handler(req,res) {
+  // Permite distinguir 404 emitidos por ESTA función de 404 de la ruta Vercel.
+  // No se envía ninguna URL ni token privado en las cabeceras.
+  res.setHeader('X-MMHD-Cast-ASS','1');
+  res.setHeader('Access-Control-Expose-Headers','Content-Length, Content-Range, Accept-Ranges, X-MMHD-Cast-ASS, X-MMHD-Error-Stage');
   res.setHeader('Access-Control-Allow-Origin','*');
   res.setHeader('Access-Control-Allow-Methods','GET, HEAD, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers','Content-Type, Range, Accept-Encoding');
-  res.setHeader('Access-Control-Expose-Headers','Content-Length, Content-Range, Accept-Ranges');
   res.setHeader('Cross-Origin-Resource-Policy','cross-origin');
   res.setHeader('X-Content-Type-Options','nosniff');
   if(req.method==='OPTIONS') return res.status(204).end();
@@ -432,6 +435,7 @@ export default async function handler(req,res) {
   } catch(e) {
     console.warn('[MMHD] Conversión ASS para Chromecast:',e.message);
     const code = e.originStatus===404 ? 404 : (/mayor a|supera 5 MB/.test(e.message) ? 413 : 502);
+    res.setHeader('X-MMHD-Error-Stage',e.originStatus===404?'origen-github':'conversion-o-red');
     if(code===502||code===404)res.setHeader('Retry-After','2');
     res.setHeader('Cache-Control','no-store');
     return res.status(code).json({error:e.name==='TimeoutError'?'Tiempo de descarga de subtítulos agotado.':e.message});
