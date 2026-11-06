@@ -1190,6 +1190,21 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-req-actions .mmhd-req-state-added.is-active{outline-color:#5ce4a9}
 .mmhd-req-actions .mmhd-req-state:disabled:not(.is-active){opacity:.55}
 @media(max-width:780px){.mmhd-req-actions{width:100%;justify-content:flex-start}.mmhd-req-actions .mmhd-req-state{flex:1 1 auto}}
+
+/* Solicitudes: datos de contacto de cada visitante (solo panel autorizado). */
+.mmhd-req-contacts{display:grid;gap:8px;margin-top:12px;min-width:0;max-width:640px}
+.mmhd-req-contacts-heading{font-size:11px;font-weight:800;color:#a8d4f5;letter-spacing:.15px}
+.mmhd-req-contact{min-width:0;background:#0a1a2a;border:1px solid #31475f;border-radius:9px;padding:10px 12px;display:grid;gap:6px;color:#d3e5f7;font-size:11px;line-height:1.55}
+.mmhd-req-contact-name,.mmhd-req-contact-email,.mmhd-req-contact-reason{min-width:0;overflow-wrap:anywhere}
+.mmhd-req-contact b{color:#a2c8e9;font-weight:750}
+.mmhd-req-contact-reason b{display:block}
+.mmhd-req-contact-reason p{margin:3px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;color:#e7f0fb}
+.mmhd-req-contact-date,.mmhd-req-contact-empty{color:#8ba3bb;font-size:10px}
+.mmhd-req-contacts-more{margin-top:2px;min-width:0}
+.mmhd-req-contacts-more summary{color:#91c6ed;font-size:11px;font-weight:700;cursor:pointer;padding:7px 0}
+.mmhd-req-contacts-more .mmhd-req-contact{margin:7px 0}
+@media(max-width:780px){.mmhd-req-contacts{max-width:100%}.mmhd-req-contact{padding:9px 10px}}
+
 /* Solicitudes: tarjetas, contador y acción rápida. */
 .mmhd-req-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0}
 .mmhd-req-stat{border:1px solid #314057;background:#101e2f;border-radius:12px;padding:13px 16px;display:flex;flex-direction:column;gap:4px}
@@ -5971,6 +5986,7 @@ renderCollection();
  const say=t=>{status.textContent=t;const mirror=document.getElementById('mmhd-requests-credential-status');if(mirror)mirror.textContent=t;};
  say(key?(savedPersistent?'Clave guardada. Conectando automáticamente…':'Clave disponible para conectar.'): 'Sin conexión. Introduce la clave en Configuración → Credenciales.');
  async function api(method,path,data){const res=await fetch(path,{method,headers:{'content-type':'application/json','x-mmhd-admin-key':key},body:data?JSON.stringify(data):undefined,cache:'no-store'});const payload=await res.json();if(!res.ok)throw Error(payload.error||'Error de conexión');return payload}
+ function requestSignature(rows){return JSON.stringify(rows.map(r=>[r.id,r.status,r.votes,r.updated_at,r.poster_path,r.title,Array.isArray(r.contacts)?r.contacts.map(c=>[c.id,c.requester_name,c.requester_email,c.reason,c.created_at,c.updated_at]):[]]));}
  function renderStats(){pendingEl.textContent=items.filter(x=>x.status==='pending').length;progressEl.textContent=items.filter(x=>x.status==='progress').length;addedEl.textContent=items.filter(x=>x.status==='added').length;stats.hidden=false}
  function render(){list.replaceChildren();renderStats();if(!items.length){list.textContent='Todavía no hay solicitudes.';countEl.textContent='';return;}
  let shown=items.filter(r=>filterEl.value==='all'||(filterEl.value==='existing'?!!catalogMatch(r):r.status===filterEl.value));
@@ -5980,7 +5996,47 @@ renderCollection();
  if(typeof r.poster_path==='string'&&/^\/[a-zA-Z0-9_/-]+\.(jpg|jpeg|png|webp)$/i.test(r.poster_path)){
  const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w154'+r.poster_path;im.alt='Póster de '+r.title;im.loading='lazy';im.referrerPolicy='no-referrer';im.onerror=()=>{const ph=document.createElement('div');ph.className='mmhd-req-placeholder';ph.textContent='Sin póster';im.replaceWith(ph)};row.append(im)
  }else{const ph=document.createElement('div');ph.className='mmhd-req-placeholder';ph.textContent='Sin póster';row.append(ph)}
- const info=document.createElement('div');info.className='details';const title=document.createElement('strong'),small=document.createElement('small');title.textContent=r.title;small.textContent=(r.media_type==='tv'?'Serie':'Película')+' · '+(r.release_year||'Sin año')+' · '+r.votes+' solicitud(es) · '+new Date(r.updated_at).toLocaleDateString('es-MX');info.append(title,small);const existing=catalogMatch(r);if(existing){const flag=document.createElement('span');flag.textContent='✓ Ya está en tu catálogo';flag.style.cssText='display:inline-block;margin-top:6px;color:#6de6a6;font-size:12px;font-weight:700';info.append(flag);}if(newIds.has(String(r.id))){const fresh=document.createElement('span');fresh.textContent=' · NUEVA';fresh.style.cssText='color:#ff7395;font-size:11px;font-weight:bold';info.append(fresh)}row.append(info);
+ const info=document.createElement('div');info.className='details';const title=document.createElement('strong'),small=document.createElement('small');title.textContent=r.title;small.textContent=(r.media_type==='tv'?'Serie':'Película')+' · '+(r.release_year||'Sin año')+' · '+r.votes+' solicitud(es) · '+new Date(r.updated_at).toLocaleDateString('es-MX');info.append(title,small);const existing=catalogMatch(r);if(existing){const flag=document.createElement('span');flag.textContent='✓ Ya está en tu catálogo';flag.style.cssText='display:inline-block;margin-top:6px;color:#6de6a6;font-size:12px;font-weight:700';info.append(flag);}if(newIds.has(String(r.id))){const fresh=document.createElement('span');fresh.textContent=' · NUEVA';fresh.style.cssText='color:#ff7395;font-size:11px;font-weight:bold';info.append(fresh)}
+ // Los datos de contacto se consultan solo desde el panel administrativo autenticado.
+ // Nunca usar innerHTML con nombre, correo o motivo aportados por visitantes.
+ const contacts=Array.isArray(r.contacts)?r.contacts:[];
+ const contactSection=document.createElement('section');contactSection.className='mmhd-req-contacts';
+ const contactHeading=document.createElement('div');contactHeading.className='mmhd-req-contacts-heading';
+ contactHeading.textContent=contacts.length===1?'Datos del solicitante':contacts.length>1?'Datos de los '+contacts.length+' solicitantes':'Datos de los solicitantes';
+ contactSection.append(contactHeading);
+ function makeContact(c){
+  const entry=document.createElement('div');entry.className='mmhd-req-contact';
+  const name=document.createElement('div');name.className='mmhd-req-contact-name';
+  const nameLabel=document.createElement('b');nameLabel.textContent='Nombre: ';
+  const nameValue=document.createElement('span');nameValue.textContent=String(c.requester_name||'').trim()||'No registrado';name.append(nameLabel,nameValue);
+  const email=document.createElement('div');email.className='mmhd-req-contact-email';
+  const emailLabel=document.createElement('b');emailLabel.textContent='Correo electrónico: ';
+  const emailValue=document.createElement('span');emailValue.textContent=String(c.requester_email||'').trim()||'No registrado';email.append(emailLabel,emailValue);
+  const reason=document.createElement('div');reason.className='mmhd-req-contact-reason';
+  const reasonLabel=document.createElement('b');reasonLabel.textContent='¿Por qué lo solicita?';
+  const reasonValue=document.createElement('p');reasonValue.textContent=String(c.reason||'').trim()||'No indicó un motivo.';reason.append(reasonLabel,reasonValue);
+  entry.append(name,email,reason);
+  const stamp=Date.parse(c.created_at||c.updated_at||'');
+  if(Number.isFinite(stamp)){
+   const date=document.createElement('small');date.className='mmhd-req-contact-date';
+   date.textContent='Enviada: '+new Date(stamp).toLocaleString('es-MX',{dateStyle:'medium',timeStyle:'short'});
+   entry.append(date);
+  }
+  return entry;
+ }
+ if(contacts.length){
+  contacts.slice(0,3).forEach(c=>contactSection.append(makeContact(c)));
+  if(contacts.length>3){
+   const extra=document.createElement('details');extra.className='mmhd-req-contacts-more';
+   const summary=document.createElement('summary');summary.textContent='Ver '+(contacts.length-3)+' solicitante(s) más';extra.append(summary);
+   contacts.slice(3).forEach(c=>extra.append(makeContact(c)));contactSection.append(extra);
+  }
+ }else{
+  const empty=document.createElement('small');empty.className='mmhd-req-contact-empty';
+  empty.textContent='No hay datos de contacto guardados para esta solicitud.';
+  contactSection.append(empty);
+ }
+ info.append(contactSection);row.append(info);
  const actions=document.createElement('div');actions.className='mmhd-req-actions';
  const stateButtons=[['pending','Pendiente'],['progress','En proceso'],['added','✓ Marcar agregada']].map(([value,label])=>{
   const button=document.createElement('button');button.type='button';button.className='mmhd-req-state mmhd-req-state-'+value;
@@ -5989,14 +6045,14 @@ renderCollection();
   button.disabled=active;button.addEventListener('click',()=>setStatus(value));return button;
  });
  async function setStatus(next){if(next===r.status)return;stateButtons.forEach(b=>b.disabled=true);
-  try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;lastSignature=JSON.stringify(items.map(x=>[x.id,x.status,x.votes,x.updated_at,x.poster_path,x.title]));say('Estado actualizado: '+r.title+'.');render()}
+  try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;lastSignature=requestSignature(items);say('Estado actualizado: '+r.title+'.');render()}
   catch(e){say(e.message);stateButtons.forEach((b,i)=>b.disabled=[ 'pending','progress','added'][i]===r.status)}
  }
  const remove=document.createElement('button');remove.type='button';remove.className='mmhd-req-delete';remove.setAttribute('aria-label','Eliminar solicitud de '+r.title);remove.title='Eliminar solicitud';remove.textContent='×';
  remove.addEventListener('click',async()=>{
   if(!window.confirm('¿Eliminar definitivamente la solicitud «'+r.title+'»?\n\nSe borrarán el título y sus registros de solicitudes. Esta acción no se puede deshacer.'))return;
   remove.disabled=true;stateButtons.forEach(b=>b.disabled=true);
-  try{await api('DELETE','/api/requests',{id:r.id});items=items.filter(x=>x.id!==r.id);lastSignature=JSON.stringify(items.map(x=>[x.id,x.status,x.votes,x.updated_at,x.poster_path,x.title]));say('Solicitud eliminada: '+r.title+'.');render()}
+  try{await api('DELETE','/api/requests',{id:r.id});items=items.filter(x=>x.id!==r.id);lastSignature=requestSignature(items);say('Solicitud eliminada: '+r.title+'.');render()}
   catch(e){say('No se pudo eliminar «'+r.title+'»: '+e.message);remove.disabled=false;stateButtons.forEach((b,i)=>b.disabled=['pending','progress','added'][i]===r.status)}
  });
  const add=document.createElement('button');add.type='button';add.className='mmhd-req-add-to-catalog';add.textContent=existing?'✎ Editar en catálogo':'＋ Agregar al catálogo';add.style.cssText='background:#245cc2;color:#fff;border:1px solid #4c82e6;border-radius:7px;padding:9px 11px;cursor:pointer;font-weight:700';add.addEventListener('click',()=>openEditor(r,existing));
@@ -6013,9 +6069,9 @@ renderCollection();
   loading=true;
   if(!silent)say('Consultando solicitudes…');
   try{
-   const data=await api('GET','/api/requests');
+   const data=await api('GET','/api/requests?includeContacts=1');
    const fresh=Array.isArray(data.items)?data.items:[];
-   const signature=JSON.stringify(fresh.map(r=>[r.id,r.status,r.votes,r.updated_at,r.poster_path,r.title]));
+   const signature=requestSignature(fresh);
    items=fresh;
    connected=true;
    if(knownIds===null){knownIds=new Set(fresh.map(r=>String(r.id)));try{localStorage.setItem(knownKey,JSON.stringify([...knownIds]))}catch{}}
