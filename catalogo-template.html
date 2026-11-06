@@ -6918,7 +6918,7 @@ async function mmhdCastSubtitleTracks(movie,generation){
     if(subtitleUrl.protocol!=='https:')throw Error('Los subtítulos requieren HTTPS');
     const endpoint=new URL(isASS?'/api/cast-ass':'/api/cast-subtitles',location.origin);
     endpoint.searchParams.set('url',subtitleUrl.href);
-    if(isASS)endpoint.searchParams.set('cast_format','v8_revalidacion');
+    if(isASS)endpoint.searchParams.set('cast_format','v9_sin_recortes');
     // La primera solicitud prepara la pista en el CDN; la TV usa la URL
     // IDENTICA y recibe el mismo WebVTT, no uno de una sesión SRT anterior.
     const validatedURL=await mmhdCastValidateSubtitle(endpoint,source.name||'');
