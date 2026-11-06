@@ -535,11 +535,11 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 #view-editor .artwork-heading{margin:7px 0}
 #view-editor #linksGrid{width:100%;grid-template-columns:minmax(0,1.6fr) minmax(240px,.74fr);align-items:start}
 #view-editor #generateCard{align-self:start}
-/* MMHD: flujo de edición web. Subtítulos inmediatamente debajo de URLs de video;
+/* MMHD: edición web. Subtítulos dentro de URL de video, antes de Inglés;
    Agregar / Guardar justo debajo de Exportar película / episodio. */
 #view-editor #mmhdLinksStack{display:flex;flex-direction:column;gap:14px;min-width:0;align-self:start}
 #view-editor #mmhdLinksStack > .panel{margin:0;width:100%;min-width:0}
-#view-editor #mmhdSubtitlesCard{padding:16px;background:linear-gradient(160deg,#101d2f,#0d1928);border-color:#344d72}
+#view-editor #mmhdSubtitlesCard{margin:16px 0 18px;padding:16px;background:linear-gradient(160deg,#101d2f,#0d1928);border-color:#344d72}
 #view-editor #mmhdSubtitlesCard strong{margin-bottom:10px!important}
 #view-editor .mmhd-export-save-actions{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
 #view-editor #generateCard .mmhd-export-save-actions button{width:100%;display:block}
@@ -1594,6 +1594,16 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div class="quality-check-line"><input id="m22" placeholder="Se rellena automáticamente" type="url"/><span class="quality-check-badge" id="qualityStatus-m22" data-state="idle" role="status" aria-label="720p sin verificar">Sin verificar</span></div>
 <label for="m18">URL 420p (m18)</label>
 <div class="quality-check-line"><input id="m18" placeholder="Se rellena automáticamente" type="url"/><span class="quality-check-badge" id="qualityStatus-m18" data-state="idle" role="status" aria-label="420p sin verificar">Sin verificar</span></div>
+<section class="panel mmhd-subs-panel" id="mmhdSubtitlesCard" aria-label="Subtítulos por idioma">
+<strong style="display:block;margin-bottom:6px;color:#cfe2ff"><i class="fa-solid fa-closed-captioning"></i> Subtítulos por idioma (opcionales)</strong>
+<label for="subtitlesUrl">Español (Latino) · SRT / VTT</label>
+<input id="subtitlesUrl" type="url" placeholder="https://ejemplo.com/subtitulos/pelicula.srt" autocomplete="off" />
+<label for="subtitlesUrlEn">Inglés · SRT / VTT</label>
+<input id="subtitlesUrlEn" type="url" placeholder="https://ejemplo.com/subtitulos/movie.en.srt" autocomplete="off" />
+<div id="mmhdSubtitleExtras"></div>
+<button class="secondary full" id="btnAddSubtitleLanguage" type="button"><i class="fa-solid fa-plus"></i> Agregar otro idioma de subtítulos</button>
+<small style="display:block;color:#91a4c1;line-height:1.5;margin:6px 0 15px">Enlace HTTPS directo a un archivo .srt o .vtt público. Los subtítulos se mostrarán automáticamente al reproducir; el servidor debe permitir CORS. También disponible por episodio. El reproductor tendrá un menú CC para elegir idioma o desactivar subtítulos.</small>
+</section>
 <div class="mmhd-language-links" style="border:1px solid #385075;border-radius:12px;padding:14px;margin:17px 0 16px;background:#111b2d">
   <strong style="color:#dbeafe;display:block;margin-bottom:7px"><i class="fa-solid fa-language"></i> Video alternativo · Inglés (opcional)</strong>
   <small style="display:block;color:#91a4c1;line-height:1.55;margin-bottom:12px">Sube a Google Photos la misma película en inglés y pega aquí su enlace. Extraeremos las tres calidades. El reproductor mostrará Latino e Inglés en el menú de calidades. Si no agregas este video, todo funciona como antes.</small>
@@ -1633,16 +1643,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   <label for="m18Alt">420p (m18)</label><input id="m18Alt" type="url" placeholder="Se rellena automáticamente" />
 </div>
 </section>
-<section class="panel mmhd-subs-panel" id="mmhdSubtitlesCard" aria-label="Subtítulos por idioma">
-<strong style="display:block;margin-bottom:6px;color:#cfe2ff"><i class="fa-solid fa-closed-captioning"></i> Subtítulos por idioma (opcionales)</strong>
-<label for="subtitlesUrl">Español (Latino) · SRT / VTT</label>
-<input id="subtitlesUrl" type="url" placeholder="https://ejemplo.com/subtitulos/pelicula.srt" autocomplete="off" />
-<label for="subtitlesUrlEn">Inglés · SRT / VTT</label>
-<input id="subtitlesUrlEn" type="url" placeholder="https://ejemplo.com/subtitulos/movie.en.srt" autocomplete="off" />
-<div id="mmhdSubtitleExtras"></div>
-<button class="secondary full" id="btnAddSubtitleLanguage" type="button"><i class="fa-solid fa-plus"></i> Agregar otro idioma de subtítulos</button>
-<small style="display:block;color:#91a4c1;line-height:1.5;margin:6px 0 15px">Enlace HTTPS directo a un archivo .srt o .vtt público. Los subtítulos se mostrarán automáticamente al reproducir; el servidor debe permitir CORS. También disponible por episodio. El reproductor tendrá un menú CC para elegir idioma o desactivar subtítulos.</small>
-</section>
+
 
 </div>
 <section class="panel" id="generateCard">
@@ -3030,14 +3031,14 @@ function arrangeEpisodeWorkspace(forSeries){
   const generate=$('generateCard');
   if(forSeries){
     $('seriesTopRow').append(seasons,links);
-    links.append(generate); // Exportación y Guardar debajo de subtítulos, conservando nodos/listeners.
+    links.append(generate); // Exportación y Guardar al final del formulario, conservando nodos/listeners.
     $('seriesEditorRow').append(details);
     workspace.hidden=false;
     editorView.classList.add('series-layout');
   }else{
     $('editorTopContent').append(seasons);
     seasons.append(details);
-    $('linksGrid').append(links,generate); // Películas: enlaces + subtítulos a la izquierda, exportar + guardar a la derecha.
+    $('linksGrid').append(links,generate); // Películas: enlaces y subtítulos en el bloque izquierdo; exportar + guardar a la derecha.
     workspace.hidden=true;
     editorView.classList.remove('series-layout');
   }
