@@ -535,6 +535,17 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 #view-editor .artwork-heading{margin:7px 0}
 #view-editor #linksGrid{width:100%;grid-template-columns:minmax(0,1.6fr) minmax(240px,.74fr);align-items:start}
 #view-editor #generateCard{align-self:start}
+/* MMHD: flujo de edición web. Subtítulos inmediatamente debajo de URLs de video;
+   Agregar / Guardar justo debajo de Exportar película / episodio. */
+#view-editor #mmhdLinksStack{display:flex;flex-direction:column;gap:14px;min-width:0;align-self:start}
+#view-editor #mmhdLinksStack > .panel{margin:0;width:100%;min-width:0}
+#view-editor #mmhdSubtitlesCard{padding:16px;background:linear-gradient(160deg,#101d2f,#0d1928);border-color:#344d72}
+#view-editor #mmhdSubtitlesCard strong{margin-bottom:10px!important}
+#view-editor .mmhd-export-save-actions{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+#view-editor #generateCard .mmhd-export-save-actions button{width:100%;display:block}
+#view-editor #generateCard #btnCancelEdit[style*="display: none"]{display:none!important}
+#view-editor #seriesTopRow > #mmhdLinksStack{align-self:start}
+
 #view-editor .steps{padding:7px;gap:4px}
 #view-editor .step{min-width:0;padding:7px 8px;font-size:10px;gap:7px}
 #view-editor .step .n{width:20px;height:20px}
@@ -918,7 +929,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   gap:16px;align-items:stretch;
 }
 #view-editor #seriesTopRow > #seriesPanel,
-#view-editor #seriesTopRow > #linksCard{
+#view-editor #seriesTopRow > #mmhdLinksStack{
   min-width:0;width:100%;margin:0;align-self:stretch;
   border-radius:14px;
 }
@@ -936,14 +947,14 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 #view-editor #seriesEditorRow .episode-details-editor textarea{min-height:110px}
 #view-editor.series-layout #editorBottomHolder{display:none}
 /* Fase 11.4.3: exportación individual dentro de los enlaces de cada episodio. */
-#view-editor.series-layout #linksCard #generateCard{
+#view-editor.series-layout #mmhdLinksStack #generateCard{
   display:block;margin-top:18px;padding:16px 0 0;
   border:0;border-top:1px solid var(--line);border-radius:0;
   box-shadow:none;background:transparent;min-width:0;
 }
-#view-editor.series-layout #linksCard #generateCard .panel-title{margin-bottom:12px}
-#view-editor.series-layout #linksCard #generateCard .actions{margin-top:12px}
-#view-editor.series-layout #linksCard #generateCard #btnGenerate{width:100%}
+#view-editor.series-layout #mmhdLinksStack #generateCard .panel-title{margin-bottom:12px}
+#view-editor.series-layout #mmhdLinksStack #generateCard .actions{margin-top:12px}
+#view-editor.series-layout #mmhdLinksStack #generateCard #btnGenerate{width:100%}
 /* Mantener centrado el editor inferior al abrir una película de Mi biblioteca. */
 #view-editor .editor-columns:has(#results:empty):has(#movieCard[style*="display: block"]) ~ #editorBottomHolder #linksGrid{
   max-width:1000px;margin-inline:auto;
@@ -1266,18 +1277,6 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 #mmhd-shared-library{border-color:#2d5575!important}
 @media(max-width:810px){.mmhd-credentials-grid{grid-template-columns:1fr}.mmhd-credentials-grid #mmhd-credentials-requests{grid-column:auto}}
 @media(max-width:490px){.mmhd-settings-tabs{display:grid;grid-template-columns:1fr}.mmhd-settings-tab{justify-content:center}.mmhd-credential-actions>button{flex:1 1 150px}}
-/* Fase 11.7 · Aviso al buscar títulos ya existentes en TMDB */
-#view-editor #results .mmhd-existing-search-result{border:1px solid rgba(0,230,160,.68);background:rgba(0,230,160,.06)}
-#view-editor #results .mmhd-exists-label{display:block;margin-top:6px;padding:4px 6px;color:#85f2c3;font-size:11px;font-weight:700;line-height:1.4;border-radius:6px;background:rgba(0,230,160,.11);white-space:normal}
-</style>
-<style id="mmhd-contact-admin-css">
-.mmhd-req-contacts{margin:12px 0 2px;padding:10px 12px;background:#0a1728;border:1px solid #355473;border-radius:10px;color:#dceafa;font-size:12px}
-.mmhd-req-contacts summary{cursor:pointer;font-weight:750;outline-offset:3px;line-height:1.5}
-.mmhd-req-contact-entry{padding:10px 0;border-bottom:1px solid #304256;overflow-wrap:anywhere}
-.mmhd-req-contact-entry:last-child{border-bottom:0}
-.mmhd-req-contact-entry p{margin:5px 0;color:#c4d6e8}
-.mmhd-req-contact-entry a{color:#a4d9ff;overflow-wrap:anywhere}
-.mmhd-req-contact-entry .mmhd-notify-manual{display:inline-block;margin-top:6px;background:#163d74;border:1px solid #4478be;padding:7px 10px;border-radius:7px;color:white;text-decoration:none;font-weight:700}
 </style>
 </head>
 <body>
@@ -1386,7 +1385,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 </section>
 
 <section aria-labelledby="mmhd-requests-heading" class="admin-view" data-page="requests" hidden id="view-requests">
- <div class="page-heading"><div><div class="eyebrow">COMUNIDAD</div><h2 id="mmhd-requests-heading">Solicitudes de visitantes</h2><p>Solicitudes de visitantes recibidas desde el catálogo, agrupadas por película o serie.</p></div></div>
+ <div class="page-heading"><div><div class="eyebrow">COMUNIDAD</div><h2 id="mmhd-requests-heading">Solicitudes de visitantes</h2><p>Peticiones anónimas recibidas desde el catálogo, agrupadas por película o serie.</p></div></div>
  <div class="panel mmhd-requests-connect-notice">
   <div><strong><i class="fa-solid fa-shield-halved"></i> Acceso administrativo</strong><p class="support-text">La clave para consultar y administrar solicitudes ahora se gestiona junto con las demás credenciales del panel.</p></div>
   <button type="button" class="secondary" data-view="appearance" data-mmhd-settings-open="credentials"><i class="fa-solid fa-key"></i> Administrar credenciales</button>
@@ -1435,7 +1434,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <option value="incomplete">Sin enlaces de video</option>
 </select>
 <select aria-label="Ordenar películas" id="collectionSort">
-<option value="recent">Añadidas o editadas recientemente</option>
+<option value="recent">Añadidas recientemente</option>
 <option value="title">Título (A-Z)</option>
 <option value="year">Año (más nuevo)</option>
 <option value="rating">Calificación TMDB</option>
@@ -1575,6 +1574,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   <div id="seriesEditorRow"></div>
 </div>
 <div id="editorBottomHolder"><div class="grid" id="linksGrid" style="display:none">
+<div id="mmhdLinksStack" class="mmhd-links-stack">
 <section class="panel" id="linksCard">
 <div class="panel-title"><span class="icon"><i class="fa-solid fa-link"></i></span> <span id="linksHeading">URL del vídeo</span></div>
 <label for="primaryLanguage">Idioma del video principal (campo 1)</label>
@@ -1632,7 +1632,8 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   <label for="m22Alt">720p (m22)</label><input id="m22Alt" type="url" placeholder="Se rellena automáticamente" />
   <label for="m18Alt">420p (m18)</label><input id="m18Alt" type="url" placeholder="Se rellena automáticamente" />
 </div>
-<div class="mmhd-subs-panel" style="margin-top:14px;padding:13px;border:1px solid #354b70;border-radius:12px;background:#131d2b">
+</section>
+<section class="panel mmhd-subs-panel" id="mmhdSubtitlesCard" aria-label="Subtítulos por idioma">
 <strong style="display:block;margin-bottom:6px;color:#cfe2ff"><i class="fa-solid fa-closed-captioning"></i> Subtítulos por idioma (opcionales)</strong>
 <label for="subtitlesUrl">Español (Latino) · SRT / VTT</label>
 <input id="subtitlesUrl" type="url" placeholder="https://ejemplo.com/subtitulos/pelicula.srt" autocomplete="off" />
@@ -1641,11 +1642,9 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <div id="mmhdSubtitleExtras"></div>
 <button class="secondary full" id="btnAddSubtitleLanguage" type="button"><i class="fa-solid fa-plus"></i> Agregar otro idioma de subtítulos</button>
 <small style="display:block;color:#91a4c1;line-height:1.5;margin:6px 0 15px">Enlace HTTPS directo a un archivo .srt o .vtt público. Los subtítulos se mostrarán automáticamente al reproducir; el servidor debe permitir CORS. También disponible por episodio. El reproductor tendrá un menú CC para elegir idioma o desactivar subtítulos.</small>
-</div>
-
-<button class="secondary full" id="btnAddMovie"><i class="fa-solid fa-plus"></i> Agregar al catálogo</button>
-<button class="secondary full" id="btnCancelEdit" style="display:none" type="button"><i class="fa-solid fa-xmark"></i> Cancelar edición</button>
 </section>
+
+</div>
 <section class="panel" id="generateCard">
 <div class="panel-title"><span class="icon"><i class="fa-solid fa-box-archive"></i></span> <span id="individualExportTitle">Exportar película</span></div>
 <label for="backdropUrl">Backdrop utilizado</label>
@@ -1654,6 +1653,10 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <button class="primary" id="btnGenerate"><i class="fa-solid fa-box-archive"></i> Generar Reproductor</button>
 </div>
 <div class="status" id="generatedStatus"></div>
+<div class="mmhd-export-save-actions" aria-label="Guardar en el catálogo">
+<button class="secondary full" id="btnAddMovie"><i class="fa-solid fa-plus"></i> Agregar al catálogo</button>
+<button class="secondary full" id="btnCancelEdit" style="display:none" type="button"><i class="fa-solid fa-xmark"></i> Cancelar edición</button>
+</div>
 </section>
 </div>
 </div>
@@ -1766,9 +1769,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <button class="secondary" id="btnSyncSearchTitles" type="button"><i class="fa-solid fa-language"></i> Completar títulos ES/EN (TMDB)</button>
 <button class="secondary" id="btnSyncProvidersMx" type="button"><i class="fa-solid fa-tv"></i> Actualizar plataformas MX y fechas de estreno (TMDB)</button>
 <button class="secondary" id="btnCancelProvidersMx" type="button" hidden><i class="fa-solid fa-ban"></i> Detener actualización de plataformas</button>
-<label class="support-text" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;max-width:100%;cursor:pointer"><input id="mmhdProviderRefreshExistingDates" type="checkbox" style="width:auto;min-width:auto;flex:0 0 auto" /> Corregir también fechas de estreno existentes si son distintas en TMDB (opcional)</label>
 <span class="mmhd-platform-bulk-status" id="mmhdPlatformBulkStatus" role="status" aria-live="polite"></span>
-<div id="mmhdProviderBulkSummary" role="status" aria-live="polite" hidden style="width:100%;border:1px solid #34516c;background:#102136;padding:13px;border-radius:10px;color:#c6e1f5;line-height:1.65;font-size:13px"></div>
 <button class="secondary" id="btnRestoreCollection" type="button"><i class="fa-solid fa-file-import"></i> Importar respaldo</button>
 <div class="mmhd-backup-tools">
   <div class="mmhd-backup-info" id="backupInfo" role="status">Todavía no hay registro de respaldo descargado en este navegador.</div>
@@ -2310,7 +2311,7 @@ function mmhdRenderProviderEditor(){
       <small>TMDB: ${automatic.has(key)?"✓ detectado":"No detectado"} · Catálogo: ${selected?"Visible":"Oculto"}</small></div>`;
   }).join("");
   const last=media.providersCheckedAtMx?new Date(media.providersCheckedAtMx).toLocaleString("es-MX"):"Sin consultar";
-  status.textContent="Región MX · Última consulta guardada con cambios: "+last+". Las consultas masivas sin cambios no modifican el título. Las opciones manuales se guardan al guardar el título.";
+  status.textContent="Región MX · Última consulta TMDB: "+last+". Las opciones manuales se guardan al guardar el título.";
 }
 async function mmhdRefreshSelectedProviders(){
   const media=state.movie,key=credentialValue(),button=$("mmhdPlatformRefresh");
@@ -2332,132 +2333,55 @@ async function mmhdRefreshSelectedProviders(){
     if(state.movie===media)$("mmhdPlatformStatus").textContent="No se pudo consultar TMDB: "+String(err?.message||err)+". Se mantienen los datos anteriores.";
   }finally{button.disabled=false;}
 }
-// Fase TMDB de cambios reales: consultar no es editar. Una marca de tiempo,
-// un orden distinto de plataformas o la normalización de «auto» no deben
-// reescribir cientos de registros ni crear publicaciones pendientes falsas.
 let mmhdProviderBulkCancel=false,mmhdProviderBulkBusy=false;
-function mmhdBulkProviderSet(value){
-  return [...new Set(Array.isArray(value)?value.filter(k=>Object.hasOwn(MMHD_PROVIDERS_MX,k)):[])].sort();
-}
-function mmhdBulkProvidersEqual(a,b){
-  return JSON.stringify(mmhdBulkProviderSet(a))===JSON.stringify(mmhdBulkProviderSet(b));
-}
-function mmhdBulkValidDate(value){return /^\d{4}-\d{2}-\d{2}$/.test(String(value||''));}
-// El lote cambia SOLO los campos detectados y conserva cualquier edición
-// simultánea de links, episodios, subtítulos o preferencias manuales.
-function mmhdApplyActualProviderChanges(pending,stats){
-  if(!pending.length)return true;
-  const byId=new Map(pending.map(change=>[String(change.id),change]));
-  let saved=0,platforms=0,dates=0,conflicts=0;
-  const next=state.collection.map(local=>{
-    const change=byId.get(String(local.id));
-    if(!change)return local;
-    let patch=null;
-    if(change.newProviders && !mmhdBulkProvidersEqual(change.oldProviders,change.newProviders)){
-      if(mmhdBulkProvidersEqual(local.watchProvidersMx,change.oldProviders)){
-        if(!mmhdBulkProvidersEqual(local.watchProvidersMx,change.newProviders)){
-          patch={...(patch||{}),watchProvidersMx:change.newProviders,providersCheckedAtMx:change.checkedAt};
-          platforms++;
-        }
-      }else if(!mmhdBulkProvidersEqual(local.watchProvidersMx,change.newProviders))conflicts++;
-    }
-    if(change.newDate && change.newDate!==change.oldDate){
-      if(String(local.releaseDate||'')===change.oldDate){
-        patch={...(patch||{}),releaseDate:change.newDate};dates++;
-      }else if(String(local.releaseDate||'')!==change.newDate)conflicts++;
-    }
-    if(!patch)return local;
-    saved++;
-    return {...local,...patch};
-  });
-  if(saved){
-    if(!stats.tookSnapshot){snapshotCollection();stats.tookSnapshot=true;}
-    if(!commitCollection(next,{snapshot:false}))return false;
-  }
-  stats.saved+=saved;stats.platforms+=platforms;stats.dates+=dates;stats.conflicts+=conflicts;
-  pending.length=0;
-  return true;
-}
 async function mmhdSyncLibraryProvidersMx(){
-  const key=credentialValue(),btn=$('btnSyncProvidersMx'),cancel=$('btnCancelProvidersMx');
-  const status=$('mmhdPlatformBulkStatus'),summary=$('mmhdProviderBulkSummary');
+  const key=credentialValue(),btn=$("btnSyncProvidersMx"),cancel=$("btnCancelProvidersMx"),status=$("mmhdPlatformBulkStatus");
   if(mmhdProviderBulkBusy)return;
-  if(!key){status.textContent='Agrega primero una credencial de TMDB.';return;}
-  const includeExistingDates=$('mmhdProviderRefreshExistingDates').checked;
-  const total=state.collection.length;
-  if(!total){status.textContent='No hay títulos para consultar.';return;}
-  if(!confirm('Consultar plataformas de '+total+' títulos en TMDB. Solo se guardarán cambios reales.'+
-    (includeExistingDates?'\nTambién se corregirán fechas existentes cuando TMDB tenga una fecha diferente.':'\nSolo se completarán fechas de estreno faltantes.')+
-    '\n\nLas modificaciones quedarán sujetas a aprobación antes de aparecer en la web. ¿Continuar?'))return;
-  mmhdProviderBulkBusy=true;mmhdProviderBulkCancel=false;
-  btn.disabled=true;cancel.hidden=false;summary.hidden=true;
-  $('mmhdProviderRefreshExistingDates').disabled=true;
-  // Foto de las fuentes que se consultarán; los cambios se aplican sobre el
-  // estado VIVO y se comprueban contra su valor inicial antes de cada lote.
-  const sources=state.collection.map(item=>({
-    id:String(item.id),title:String(item.title||'Sin título'),kind:item.kind,
-    tmdbId:mmhdMediaId(item),oldProviders:mmhdBulkProviderSet(item.watchProvidersMx),
-    oldDate:String(item.releaseDate||'')
-  }));
-  const stats={consulted:0,failed:0,unchanged:0,saved:0,platforms:0,dates:0,conflicts:0,tookSnapshot:false};
-  const pending=[];let storageError=false;
-  function progress(){
-    const attempted=stats.consulted+stats.failed;
-    status.textContent=`TMDB MX: ${attempted}/${total} consultados · ${stats.saved} títulos con cambios guardados · ${stats.unchanged} sin cambios · ${stats.failed} errores`;
-  }
-  progress();
-  try{
-    for(const original of sources){
-      if(mmhdProviderBulkCancel)break;
-      status.textContent=`Consultando TMDB (${stats.consulted+stats.failed+1}/${total}): ${original.title}…`;
-      if(!original.tmdbId){stats.failed++;progress();continue;}
-      try{
-        const kind=original.kind==='SERIES'?'tv':'movie';
-        const response=await tmdbGet(`https://api.themoviedb.org/3/${kind}/${encodeURIComponent(original.tmdbId)}/watch/providers`,key);
-        const newProviders=mmhdBulkProviderSet(mmhdProviderKeys(response));
-        let newDate=null;
-        // Por defecto, solo completar fechas faltantes. La corrección de
-        // fechas existentes requiere activar expresamente su casilla.
-        if(includeExistingDates||!mmhdBulkValidDate(original.oldDate)){
-          try{
-            const info=await tmdbGet(`https://api.themoviedb.org/3/${kind}/${encodeURIComponent(original.tmdbId)}?language=es-MX`,key);
-            const candidate=kind==='tv'?info.first_air_date:info.release_date;
-            if(mmhdBulkValidDate(candidate)&&String(candidate)!==original.oldDate)newDate=String(candidate);
-          }catch(err){console.warn('[MMHD] No se pudo consultar la fecha:',original.title,err);}
-        }
-        stats.consulted++;
-        const platformsChanged=!mmhdBulkProvidersEqual(original.oldProviders,newProviders);
-        if(platformsChanged||newDate){
-          pending.push({id:original.id,oldProviders:original.oldProviders,
-            newProviders:platformsChanged?newProviders:null,
-            oldDate:original.oldDate,newDate,
-            checkedAt:new Date().toISOString()});
-        }else stats.unchanged++;
-      }catch(err){stats.failed++;console.warn('[MMHD] Consulta de plataformas TMDB:',original.title,err);}
-      // No escribir 580 objetos por una marca de tiempo; solamente los títulos
-      // con cambios. Aplicar lotes sin sobrescribir cambios de otro administrador.
-      if((stats.consulted+stats.failed)%20===0){
-        if(!mmhdApplyActualProviderChanges(pending,stats)){storageError=true;break;}
+  if(!key){status.textContent="Agrega primero una credencial de TMDB.";return;}
+  mmhdProviderBulkBusy=true;mmhdProviderBulkCancel=false;btn.disabled=true;cancel.hidden=false;
+  const copy=structuredClone(state.collection);
+  let done=0,failed=0,dates=0,updated=0;
+  snapshotCollection();
+  for(const entry of copy){
+    if(mmhdProviderBulkCancel)break;
+    const id=mmhdMediaId(entry);
+    if(!id){failed++;continue;}
+    status.textContent=`TMDB México: ${done+failed+1}/${copy.length} · ${entry.title}`;
+    try{
+      const kind=entry.kind==="SERIES"?"tv":"movie";
+      const data=await tmdbGet(`https://api.themoviedb.org/3/${kind}/${encodeURIComponent(id)}/watch/providers`,key);
+      entry.watchProvidersMx=mmhdProviderKeys(data);
+      entry.providersCheckedAtMx=new Date().toISOString();
+      // Mantener exclusiones/inclusiones manuales incluso si TMDB cambia su lista.
+      entry.providerOverridesMx=mmhdProviderOverrides(entry.providerOverridesMx);
+      updated++;
+      if(kind==="movie"&&!/^\d{4}-\d{2}-\d{2}$/.test(String(entry.releaseDate||""))){
+        try{
+          const info=await tmdbGet(`https://api.themoviedb.org/3/movie/${encodeURIComponent(id)}?language=es-MX`,key);
+          if(/^\d{4}-\d{2}-\d{2}$/.test(String(info.release_date||""))){entry.releaseDate=info.release_date;dates++;}
+        }catch(_){/* La fecha faltante no bloquea los proveedores. */}
       }
-      progress();
+      done++;
+    }catch(e){failed++;console.warn("MMHD providers MX",entry.title,e);}
+    // Guardado por lotes sin sustituir la colección completa hasta finalizar.
+    if((done+failed)%10===0){
+      // Guardar solamente las propiedades consultadas; no tocar enlaces editados mientras tanto.
+      if(!mmhdApplyBulkProviders(copy)) {status.textContent="No se pudieron guardar los datos. Haz respaldo y revisa espacio.";break;}
     }
-    if(!storageError&&pending.length&&!mmhdApplyActualProviderChanges(pending,stats))storageError=true;
-  }finally{
-    mmhdProviderBulkBusy=false;btn.disabled=false;cancel.hidden=true;
-    $('mmhdProviderRefreshExistingDates').disabled=false;
-    const inspected=stats.consulted+stats.failed;
-    const reason=storageError?'⚠ No se pudo guardar el último lote localmente; no se aplicó ese lote. Revisa el espacio y la conexión.':
-      mmhdProviderBulkCancel?'Actualización detenida; los lotes guardados se conservan.':'Consulta finalizada.';
-    status.textContent=reason;
-    summary.hidden=false;
-    summary.textContent=`${reason} ${inspected} de ${total} títulos revisados. ${stats.saved} títulos con cambios reales guardados: `+
-      `${stats.platforms} cambios de plataformas y ${stats.dates} fechas completadas/corregidas. `+
-      `${stats.unchanged} títulos sin cambios · ${stats.failed} consultas fallidas · `+
-      `${stats.conflicts} cambios simultáneos que NO se sobrescribieron. `+
-      'Los cambios locales se sincronizan con Supabase y requieren aprobación para verse en la web. ' +
-      'Esta mejora no elimina los pendientes antiguos: revísalos por separado antes de publicarlos.';
-    if(stats.conflicts)console.warn('[MMHD] TMDB encontró cambios simultáneos; estos campos no se sobrescribieron.');
   }
+  if(updated||done)mmhdApplyBulkProviders(copy);
+  status.textContent=`${done} título(s) consultado(s) · ${dates} fechas completas · ${failed} errores${mmhdProviderBulkCancel?" · detenido por el usuario":""}. Guarda un respaldo para conservar estos cambios.`;
+  mmhdProviderBulkBusy=false;btn.disabled=false;cancel.hidden=true;
+}
+function mmhdApplyBulkProviders(copy){
+  const next=state.collection.map(local=>{
+    const synced=copy.find(x=>String(x.id)===String(local.id));
+    if(!synced?.providersCheckedAtMx||String(local.providersCheckedAtMx||"")===String(synced.providersCheckedAtMx||""))return local;
+    return {...local,watchProvidersMx:synced.watchProvidersMx,providersCheckedAtMx:synced.providersCheckedAtMx,
+      providerOverridesMx:mmhdProviderOverrides(local.providerOverridesMx),
+      releaseDate:local.releaseDate||synced.releaseDate||""};
+  });
+  return commitCollection(next,{snapshot:false});
 }
 $("mmhdPlatformChoices").addEventListener("change",event=>{
   const select=event.target.closest("[data-mmhd-provider]");
@@ -2501,35 +2425,6 @@ async function validateCredential(){
     showKeyStatus("✕ No se pudo validar la credencial: "+m,"err");
     return false;
   }
-}
-
-/* FASE 11.7 — Identificar títulos TMDB ya presentes antes de crear una ficha.
-   Priorizar TMDB ID + tipo. Los nombres son un respaldo conservador cuando
-   el catálogo anterior no guardó el ID; nunca mezclar película con serie. */
-function mmhdExistingTmdbTitle(kind, tmdbId, title='', year=''){
-  const isSeries=kind==='tv'||kind==='SERIES';
-  const candidates=state.collection.filter(row=>isSeries?row.kind==='SERIES':row.kind!=='SERIES');
-  const wanted=Number(tmdbId);
-  if(Number.isSafeInteger(wanted)&&wanted>0){
-    const ids=candidates.filter(row=>Number(row.tmdbId||Math.abs(Number(row.id)))===wanted);
-    if(ids.length===1)return ids[0];
-    if(ids.length>1)return null; // Datos duplicados: no elegir arbitrariamente.
-  }
-  const normal=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es').replace(/[^a-z0-9]+/g,' ').trim();
-  const wantedTitle=normal(title);
-  if(!wantedTitle)return null;
-  const yearText=String(year||'').slice(0,4);
-  const matches=candidates.filter(row=>{
-    const aliases=[row.title,...(Array.isArray(row.searchTitles)?row.searchTitles:[]),...(Array.isArray(row.manualSearchTitles)?row.manualSearchTitles:[])];
-    if(!aliases.some(alias=>normal(alias)===wantedTitle))return false;
-    return !yearText||!row.year||String(row.year).slice(0,4)===yearText;
-  });
-  return matches.length===1?matches[0]:null;
-}
-function mmhdEditExistingTmdb(item){
-  editSavedMovie(item.id); // Carga idiomas, URLs, subtítulos y todos los episodios guardados.
-  showStatus('✓ «'+String(item.title||'Título')+'» ya está en tu catálogo. Abrí sus datos guardados para que puedas editarlos sin duplicarlo.','ok');
-  updateSteps(3);
 }
 
 /* ============================================================
@@ -2915,8 +2810,12 @@ async function goNextPendingAdmin(){
 }
 async function loadSeries(tmdbId){
   arrangeEpisodeWorkspace(false);
-  const existing=mmhdExistingTmdbTitle('tv',tmdbId);
-  if(existing){mmhdEditExistingTmdb(existing);return;}
+  const existing=state.collection.find(item=>item.kind==="SERIES" && Number(item.tmdbId||Math.abs(Number(item.id)))===Number(tmdbId));
+  if(existing){
+    editSavedSeries(existing);
+    showStatus("Esta serie ya está guardada: abrí su edición para conservar los enlaces existentes.","ok");
+    return;
+  }
   const requestId=++movieRequestId;
   ++state.seasonRequestId;state.selectedEpisode=null;state.editingId=null;state.bulkLoading=false;
   clearVideoFields();state.movie=null;
@@ -3023,12 +2922,10 @@ function saveSeriesToCollection(){
     providerOverridesMx:mmhdProviderOverrides(m.providerOverridesMx||old?.providerOverridesMx),
     providersCheckedAtMx:m.providersCheckedAtMx||old?.providersCheckedAtMx||"",
     releaseDate:m.release_date||old?.releaseDate||"",
-    googleUrl:"",m37:"",m22:"",m18:"",addedAt:old?.addedAt||now,updatedAt:now,
-    ...(old?{manualEditedAt:now}:{})};
+    googleUrl:"",m37:"",m22:"",m18:"",addedAt:old?.addedAt||now,updatedAt:now};
   const next=state.collection.slice(),idx=next.findIndex(x=>String(x.id)===String(item.id));
   if(idx>=0)next[idx]=item;else next.push(item);
   if(!commitCollection(next)){showStatus("No se guardó la serie por falta de espacio local. No cierres el editor; ve a Herramientas → Espacio del navegador y vuelve a intentar Guardar cambios.","err");return;}
-  if(old)$('collectionSort').value='recent';
   state.movie.manualSearchTitles=item.manualSearchTitles;
   state.movie.searchTitles=item.searchTitles;
   state.movie.searchTitlesSynced=item.searchTitlesSynced;
@@ -3065,31 +2962,22 @@ async function searchMovies(){
       showStatus("No se encontraron resultados para: "+q,"");
       return;
     }
-    const existingInResults=results.filter(m=>mmhdExistingTmdbTitle(kind,m.id,m.title||m.name,m.release_date||m.first_air_date)).length;
-    $("resultsHint").textContent=results.length+" resultado(s) · "+existingInResults+" ya en tu biblioteca.";
+    $("resultsHint").textContent = results.length+" resultado(s) encontrado(s).";
     $("results").innerHTML = results.map(m=>{
       const poster = m.poster_path ? "https://image.tmdb.org/t/p/w185"+m.poster_path : "";
       const date=m.release_date||m.first_air_date||"";
-      const title=m.title||m.name||"Sin título";
-      const year = date ? date.slice(0,4) : "Sin año";
-      const existing=mmhdExistingTmdbTitle(kind,m.id,title,date);
+       const title=m.title||m.name||"Sin título";
+       const year = date ? date.slice(0,4) : "Sin año";
       return `
-        <div class="result ${existing?'mmhd-existing-search-result':''}" data-id="${Number(m.id)}">
+        <div class="result" data-id="${Number(m.id)}">
           <img src="${escHtml(poster)}" alt="${escHtml(title)}" onerror="this.style.visibility='hidden'">
-          <div class="rbody"><b>${escHtml(title)}</b><span>${escHtml(year)}</span>${existing?'<span class="mmhd-exists-label">✓ Ya está en tu catálogo · Abrir para editar</span>':''}</div>
+          <div class="rbody"><b>${escHtml(title)}</b><span>${escHtml(year)}</span></div>
         </div>`;
     }).join("");
-    document.querySelectorAll("#results .result").forEach(el=>{
-      el.addEventListener("click", ()=>{
-        const selected=results.find(m=>Number(m.id)===Number(el.dataset.id));
-        const existing=selected&&mmhdExistingTmdbTitle(kind,selected.id,selected.title||selected.name,selected.release_date||selected.first_air_date);
-        if(existing){mmhdEditExistingTmdb(existing);return;}
-        kind==="tv" ? loadSeries(Number(el.dataset.id)) : loadMovie(Number(el.dataset.id));
-      });
+    document.querySelectorAll(".result").forEach(el=>{
+      el.addEventListener("click", ()=> kind==="tv" ? loadSeries(Number(el.dataset.id)) : loadMovie(Number(el.dataset.id)));
     });
-    showStatus(existingInResults
-      ? '✓ Encontré '+existingInResults+' título(s) que ya tienes. Están marcados en verde; pulsa uno para cargar sus enlaces, subtítulos y episodios.'
-      : 'Resultados cargados correctamente.', 'ok');
+    showStatus("Resultados cargados correctamente.","ok");
     updateSteps(2);
   }catch(e){ showStatus("✕ "+(e.message||"Error al buscar en TMDB."),"err"); }
 }
@@ -3138,18 +3026,18 @@ function arrangeEpisodeWorkspace(forSeries){
   const workspace=$('seriesWorkspace');
   const seasons=$('seriesPanel');
   const details=$('episodeDetailsEditor');
-  const links=$('linksCard');
+  const links=$('mmhdLinksStack');
   const generate=$('generateCard');
   if(forSeries){
     $('seriesTopRow').append(seasons,links);
-    links.append(generate); // Debajo de los enlaces, sin duplicar controles ni perder listeners.
+    links.append(generate); // Exportación y Guardar debajo de subtítulos, conservando nodos/listeners.
     $('seriesEditorRow').append(details);
     workspace.hidden=false;
     editorView.classList.add('series-layout');
   }else{
     $('editorTopContent').append(seasons);
     seasons.append(details);
-    $('linksGrid').append(links,generate); // Recupera el diseño original de películas.
+    $('linksGrid').append(links,generate); // Películas: enlaces + subtítulos a la izquierda, exportar + guardar a la derecha.
     workspace.hidden=true;
     editorView.classList.remove('series-layout');
   }
@@ -3248,8 +3136,6 @@ async function loadAdditionalArtwork(){
 }
 
 async function loadMovie(id){
-  const saved=mmhdExistingTmdbTitle('movie',id);
-  if(saved){mmhdEditExistingTmdb(saved);return;}
   arrangeEpisodeWorkspace(false);
   const requestId = ++movieRequestId;
   clearVideoFields();
@@ -3806,7 +3692,6 @@ function addMovieToCollection(){
     providersCheckedAtMx:state.movie.providersCheckedAtMx||oldItem?.providersCheckedAtMx||"",
     addedAt: oldItem?.addedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    ...(oldItem?{manualEditedAt:new Date().toISOString()}:{}),
     m37, m22, m18,
     audioAlt:mmhdAudioAltFromFields(),
     primaryLanguage:mmhdSelectedMainLanguage(),
@@ -3824,7 +3709,6 @@ function addMovieToCollection(){
   if (!commitCollection(next)){
     showStatus("No se pudieron guardar los cambios en este navegador. Descarga un respaldo.","err"); return;
   }
-  if(idx>=0)$('collectionSort').value='recent';
   const wasEdit=state.editingId !== null;
   resetSelection();
   showStatus(wasEdit || idx>=0 ? "✓ Cambios guardados correctamente. El buscador está limpio." : "✓ Película añadida al catálogo. Puedes buscar otro título.","ok");
@@ -3865,10 +3749,7 @@ function renderCollection(options={}){
   else if(sort==="rating") items.sort((a,b)=>Number(b.rating||0)-Number(a.rating||0));
   else {
     const catalogPositions=new Map(state.collection.map((item,index)=>[item,index]));
-    // No priorizar updatedAt: TMDB puede tocarlo en cientos de registros.
-    // manualEditedAt solo se actualiza desde Guardar cambios en el editor.
-    const recentTime=item=>Date.parse(item.manualEditedAt||item.addedAt)||0;
-    items.sort((a,b)=>recentTime(b)-recentTime(a)||catalogPositions.get(b)-catalogPositions.get(a));
+    items.sort((a,b)=>(Date.parse(b.addedAt)||0)-(Date.parse(a.addedAt)||0)||catalogPositions.get(b)-catalogPositions.get(a));
   }
   $("collectionInfo").textContent=`Mostrando ${items.length} de ${count} títulos · Edita para recuperar los enlaces guardados.`;
   if (!items.length){list.innerHTML='<div class="empty">No hay películas que coincidan con estos filtros.</div>';return;}
@@ -5711,7 +5592,7 @@ renderCollection();
   function updateRedesignDashboard(){
     const target=document.getElementById('adminRecentList');if(!target)return;
     const recent=[...state.collection].sort((a,b)=>
-      (Date.parse(b.manualEditedAt||b.addedAt)||0)-(Date.parse(a.manualEditedAt||a.addedAt)||0)||state.collection.indexOf(b)-state.collection.indexOf(a)).slice(0,4);
+      (Date.parse(b.addedAt)||0)-(Date.parse(a.addedAt)||0)||state.collection.indexOf(b)-state.collection.indexOf(a)).slice(0,4);
     if(!recent.length){target.innerHTML='<p class="support-text">Aún no hay títulos. Empieza agregando tu primera película o serie.</p>';return;}
     target.replaceChildren();
     recent.forEach(m=>{
@@ -6081,28 +5962,6 @@ renderCollection();
  const say=t=>{status.textContent=t;const mirror=document.getElementById('mmhd-requests-credential-status');if(mirror)mirror.textContent=t;};
  say(key?(savedPersistent?'Clave guardada. Conectando automáticamente…':'Clave disponible para conectar.'): 'Sin conexión. Introduce la clave en Configuración → Credenciales.');
  async function api(method,path,data){const res=await fetch(path,{method,headers:{'content-type':'application/json','x-mmhd-admin-key':key},body:data?JSON.stringify(data):undefined,cache:'no-store'});const payload=await res.json();if(!res.ok)throw Error(payload.error||'Error de conexión');return payload}
- function rowsSignature(rows){return JSON.stringify(rows.map(r=>[r.id,r.status,r.votes,r.updated_at,r.poster_path,r.title,Array.isArray(r.contacts)?r.contacts.map(c=>[c.id,c.updated_at]):null]));}
- function appendPrivateContacts(info,r){
-  if(!Array.isArray(r.contacts)||!r.contacts.length)return;
-  const details=document.createElement('details');details.className='mmhd-req-contacts';
-  const summary=document.createElement('summary');summary.textContent='Datos de contacto ('+r.contacts.length+')';details.append(summary);
-  for(const contact of r.contacts){
-   const entry=document.createElement('div');entry.className='mmhd-req-contact-entry';
-   const person=document.createElement('strong');person.textContent=String(contact.requester_name||'Visitante');entry.append(person);
-   const email=String(contact.requester_email||'').trim();
-   if(email&&/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)){
-    const p=document.createElement('p'),a=document.createElement('a');
-    a.textContent=email;a.href='mailto:'+email;p.append(a);entry.append(p);
-    const notify=document.createElement('a');notify.className='mmhd-notify-manual';notify.textContent='Redactar aviso por correo';
-    notify.href='mailto:'+email+'?subject='+encodeURIComponent('Tu solicitud en Movie Mania HD')+'&body='+encodeURIComponent('Hola, '+String(contact.requester_name||'')+':\n\nEl contenido «'+String(r.title||'')+'» que solicitaste ya está disponible en Movie Mania HD.\n\nhttps://moviemaniahd.vercel.app/\n\n¡Gracias por tu solicitud!');
-    notify.title='Abre la aplicación de correo. El mensaje no se envía automáticamente.';
-    entry.append(notify);
-   }
-   if(contact.reason){const reason=document.createElement('p');reason.textContent='Motivo: '+String(contact.reason);entry.append(reason);}
-   details.append(entry);
-  }
-  info.append(details);
- }
  function renderStats(){pendingEl.textContent=items.filter(x=>x.status==='pending').length;progressEl.textContent=items.filter(x=>x.status==='progress').length;addedEl.textContent=items.filter(x=>x.status==='added').length;stats.hidden=false}
  function render(){list.replaceChildren();renderStats();if(!items.length){list.textContent='Todavía no hay solicitudes.';countEl.textContent='';return;}
  let shown=items.filter(r=>filterEl.value==='all'||(filterEl.value==='existing'?!!catalogMatch(r):r.status===filterEl.value));
@@ -6112,7 +5971,7 @@ renderCollection();
  if(typeof r.poster_path==='string'&&/^\/[a-zA-Z0-9_/-]+\.(jpg|jpeg|png|webp)$/i.test(r.poster_path)){
  const im=document.createElement('img');im.src='https://image.tmdb.org/t/p/w154'+r.poster_path;im.alt='Póster de '+r.title;im.loading='lazy';im.referrerPolicy='no-referrer';im.onerror=()=>{const ph=document.createElement('div');ph.className='mmhd-req-placeholder';ph.textContent='Sin póster';im.replaceWith(ph)};row.append(im)
  }else{const ph=document.createElement('div');ph.className='mmhd-req-placeholder';ph.textContent='Sin póster';row.append(ph)}
- const info=document.createElement('div');info.className='details';const title=document.createElement('strong'),small=document.createElement('small');title.textContent=r.title;small.textContent=(r.media_type==='tv'?'Serie':'Película')+' · '+(r.release_year||'Sin año')+' · '+r.votes+' solicitud(es) · '+new Date(r.updated_at).toLocaleDateString('es-MX');info.append(title,small);const existing=catalogMatch(r);if(existing){const flag=document.createElement('span');flag.textContent='✓ Ya está en tu catálogo';flag.style.cssText='display:inline-block;margin-top:6px;color:#6de6a6;font-size:12px;font-weight:700';info.append(flag);}if(newIds.has(String(r.id))){const fresh=document.createElement('span');fresh.textContent=' · NUEVA';fresh.style.cssText='color:#ff7395;font-size:11px;font-weight:bold';info.append(fresh)}appendPrivateContacts(info,r);row.append(info);
+ const info=document.createElement('div');info.className='details';const title=document.createElement('strong'),small=document.createElement('small');title.textContent=r.title;small.textContent=(r.media_type==='tv'?'Serie':'Película')+' · '+(r.release_year||'Sin año')+' · '+r.votes+' solicitud(es) · '+new Date(r.updated_at).toLocaleDateString('es-MX');info.append(title,small);const existing=catalogMatch(r);if(existing){const flag=document.createElement('span');flag.textContent='✓ Ya está en tu catálogo';flag.style.cssText='display:inline-block;margin-top:6px;color:#6de6a6;font-size:12px;font-weight:700';info.append(flag);}if(newIds.has(String(r.id))){const fresh=document.createElement('span');fresh.textContent=' · NUEVA';fresh.style.cssText='color:#ff7395;font-size:11px;font-weight:bold';info.append(fresh)}row.append(info);
  const actions=document.createElement('div');actions.className='mmhd-req-actions';
  const stateButtons=[['pending','Pendiente'],['progress','En proceso'],['added','✓ Marcar agregada']].map(([value,label])=>{
   const button=document.createElement('button');button.type='button';button.className='mmhd-req-state mmhd-req-state-'+value;
@@ -6121,14 +5980,14 @@ renderCollection();
   button.disabled=active;button.addEventListener('click',()=>setStatus(value));return button;
  });
  async function setStatus(next){if(next===r.status)return;stateButtons.forEach(b=>b.disabled=true);
-  try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;lastSignature=rowsSignature(items);say('Estado actualizado: '+r.title+'.');render()}
+  try{await api('PATCH','/api/requests',{id:r.id,status:next});r.status=next;lastSignature=JSON.stringify(items.map(x=>[x.id,x.status,x.votes,x.updated_at,x.poster_path,x.title]));say('Estado actualizado: '+r.title+'.');render()}
   catch(e){say(e.message);stateButtons.forEach((b,i)=>b.disabled=[ 'pending','progress','added'][i]===r.status)}
  }
  const remove=document.createElement('button');remove.type='button';remove.className='mmhd-req-delete';remove.setAttribute('aria-label','Eliminar solicitud de '+r.title);remove.title='Eliminar solicitud';remove.textContent='×';
  remove.addEventListener('click',async()=>{
   if(!window.confirm('¿Eliminar definitivamente la solicitud «'+r.title+'»?\n\nSe borrarán el título y sus registros de solicitudes. Esta acción no se puede deshacer.'))return;
   remove.disabled=true;stateButtons.forEach(b=>b.disabled=true);
-  try{await api('DELETE','/api/requests',{id:r.id});items=items.filter(x=>x.id!==r.id);lastSignature=rowsSignature(items);say('Solicitud eliminada: '+r.title+'.');render()}
+  try{await api('DELETE','/api/requests',{id:r.id});items=items.filter(x=>x.id!==r.id);lastSignature=JSON.stringify(items.map(x=>[x.id,x.status,x.votes,x.updated_at,x.poster_path,x.title]));say('Solicitud eliminada: '+r.title+'.');render()}
   catch(e){say('No se pudo eliminar «'+r.title+'»: '+e.message);remove.disabled=false;stateButtons.forEach((b,i)=>b.disabled=['pending','progress','added'][i]===r.status)}
  });
  const add=document.createElement('button');add.type='button';add.className='mmhd-req-add-to-catalog';add.textContent=existing?'✎ Editar en catálogo':'＋ Agregar al catálogo';add.style.cssText='background:#245cc2;color:#fff;border:1px solid #4c82e6;border-radius:7px;padding:9px 11px;cursor:pointer;font-weight:700';add.addEventListener('click',()=>openEditor(r,existing));
@@ -6145,9 +6004,9 @@ renderCollection();
   loading=true;
   if(!silent)say('Consultando solicitudes…');
   try{
-   const data=await api('GET',isViewing()?'/api/requests?includeContacts=1':'/api/requests');
+   const data=await api('GET','/api/requests');
    const fresh=Array.isArray(data.items)?data.items:[];
-   const signature=rowsSignature(fresh);
+   const signature=JSON.stringify(fresh.map(r=>[r.id,r.status,r.votes,r.updated_at,r.poster_path,r.title]));
    items=fresh;
    connected=true;
    if(knownIds===null){knownIds=new Set(fresh.map(r=>String(r.id)));try{localStorage.setItem(knownKey,JSON.stringify([...knownIds]))}catch{}}
