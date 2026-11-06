@@ -1544,7 +1544,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <section class="series-panel" hidden="" id="seriesPanel">
 <h3><i class="fa-solid fa-list"></i> Temporadas y episodios</h3>
 <label for="seriesDefaultLanguage">Idioma predeterminado del video principal de la serie</label>
-<select id="seriesDefaultLanguage"><option value="Latino">Latino</option><option value="Inglés">Inglés</option><option value="Coreano">Coreano</option><option value="Japonés">Japonés</option><option value="Español (España)">Español (España)</option><option value="Francés">Francés</option><option value="Portugués (Brasil)">Portugués (Brasil)</option></select>
+<select id="seriesDefaultLanguage"><option value="Latino">Latino</option><option value="Inglés">Inglés</option><option value="Coreano">Coreano</option><option value="Japonés">Japonés</option><option value="Español (España)">Español (España)</option><option value="Francés">Francés</option><option value="Portugués (Brasil)">Portugués (Brasil)</option><option value="Maya">Maya</option></select>
 <small style="display:block;margin:6px 0 12px;color:#acc1d8">Se aplica a los episodios que no tengan un idioma principal definido por separado. Las banderas se obtienen de los videos de sus episodios.</small>
 <label for="seriesSeason">Temporada</label>
 <select id="seriesSeason"></select>
@@ -1578,7 +1578,7 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 <section class="panel" id="linksCard">
 <div class="panel-title"><span class="icon"><i class="fa-solid fa-link"></i></span> <span id="linksHeading">URL del vídeo</span></div>
 <label for="primaryLanguage">Idioma del video principal (campo 1)</label>
-<select id="primaryLanguage"><option value="Latino">Latino</option><option value="Inglés">Inglés</option><option value="Coreano">Coreano</option><option value="Japonés">Japonés</option><option value="Español (España)">Español (España)</option><option value="Francés">Francés</option><option value="Portugués (Brasil)">Portugués (Brasil)</option></select>
+<select id="primaryLanguage"><option value="Latino">Latino</option><option value="Inglés">Inglés</option><option value="Coreano">Coreano</option><option value="Japonés">Japonés</option><option value="Español (España)">Español (España)</option><option value="Francés">Francés</option><option value="Portugués (Brasil)">Portugués (Brasil)</option><option value="Maya">Maya</option></select>
 <small style="display:block;margin-bottom:10px;color:#acc1d8">Selecciona el idioma del video principal, por ejemplo Coreano o Japonés, antes de extraer sus calidades. El video alternativo Inglés es independiente.</small>
 <label for="googleUrl">URL Google Photos · Video principal (idioma seleccionado)</label>
 <input id="googleUrl" placeholder="https://photos.google.com/share/..." type="url"/>
@@ -1632,8 +1632,9 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   <small style="display:block;color:#accbc0;line-height:1.55;margin-bottom:10px">Añade otra versión de la película o episodio; por ejemplo, audio Coreano. Conserva los videos Latino e Inglés existentes. El idioma del audio es independiente de los subtítulos.</small>
   <label for="audioAltLanguage">Idioma de este video</label>
   <select id="audioAltLanguage">
-    <option value="Coreano">Coreano</option><option value="Japonés">Japonés</option><option value="Francés">Francés</option><option value="Portugués (Brasil)">Portugués (Brasil)</option><option value="Alemán">Alemán</option><option value="Italiano">Italiano</option><option value="Hindi">Hindi</option><option value="Mandarín">Mandarín</option><option value="Tailandés">Tailandés</option><option value="Turco">Turco</option><option value="Ruso">Ruso</option><option value="Árabe">Árabe</option>
+    <option value="Coreano">Coreano</option><option value="Japonés">Japonés</option><option value="Francés">Francés</option><option value="Portugués (Brasil)">Portugués (Brasil)</option><option value="Alemán">Alemán</option><option value="Italiano">Italiano</option><option value="Hindi">Hindi</option><option value="Mandarín">Mandarín</option><option value="Tailandés">Tailandés</option><option value="Turco">Turco</option><option value="Ruso">Ruso</option><option value="Árabe">Árabe</option><option value="Maya">Maya</option>
   </select>
+  <div id="mmhdMayaAudioIconPreview" hidden style="border:1px solid #8f7951;background:#211f19;color:#f4e4bf;border-radius:10px;padding:8px;margin:8px 0 12px;align-items:center;gap:10px"><img alt="Icono del idioma Maya" src="data:image/webp;base64,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" width="44" height="44" style="width:44px;height:44px;border-radius:8px;object-fit:contain;background:#fff;border:1px solid #b69a63;vertical-align:middle;margin-right:9px"><span>Icono personalizado de audio Maya</span></div>
   <label for="googleUrlAlt">URL Google Photos · idioma elegido</label>
   <input id="googleUrlAlt" type="url" placeholder="https://photos.app.goo.gl/..." autocomplete="off" />
   <button class="secondary full" id="btnExtractAlt" type="button"><i class="fa-solid fa-wand-magic-sparkles"></i> Extraer calidades del video alternativo</button>
@@ -2130,7 +2131,13 @@ $('btnAddSubtitleLanguage').addEventListener('click',function(){
   mmhdExtraSubtitleRow();
 });
 
-const MMHD_ALT_AUDIO_LANGUAGES=['Coreano','Japonés','Francés','Portugués (Brasil)','Alemán','Italiano','Hindi','Mandarín','Tailandés','Turco','Ruso','Árabe'];
+const MMHD_ALT_AUDIO_LANGUAGES=['Coreano','Japonés','Francés','Portugués (Brasil)','Alemán','Italiano','Hindi','Mandarín','Tailandés','Turco','Ruso','Árabe','Maya'];
+function mmhdUpdateMayaAudioIconPreview(){
+  const preview=$('mmhdMayaAudioIconPreview');
+  if(preview)preview.hidden=$('audioAltLanguage').value!=='Maya';
+}
+$('audioAltLanguage').addEventListener('change',mmhdUpdateMayaAudioIconPreview);
+mmhdUpdateMayaAudioIconPreview();
 function mmhdAudioAltFromFields(){
   const value={language:$('audioAltLanguage').value,googleUrl:$('googleUrlAlt').value.trim(),
     m37:$('m37Alt').value.trim(),m22:$('m22Alt').value.trim(),m18:$('m18Alt').value.trim()};
@@ -2139,6 +2146,7 @@ function mmhdAudioAltFromFields(){
 function mmhdLoadAudioAlt(item){
   const a=item&&item.audioAlt&&typeof item.audioAlt==='object'?item.audioAlt:{};
   $('audioAltLanguage').value=MMHD_ALT_AUDIO_LANGUAGES.includes(a.language)?a.language:'Coreano';
+  mmhdUpdateMayaAudioIconPreview();
   for(const [field,id] of [['googleUrl','googleUrlAlt'],['m37','m37Alt'],['m22','m22Alt'],['m18','m18Alt']])$(id).value=String(a[field]||'');
 }
 function mmhdNormalizedAudioAlt(value){
@@ -2176,7 +2184,7 @@ function validateSubtitlesUrl(){
   }
 }
 
-const MMHD_MAIN_AUDIO_LANGUAGES=['Latino','Inglés','Coreano','Japonés','Español (España)','Francés','Portugués (Brasil)'];
+const MMHD_MAIN_AUDIO_LANGUAGES=['Latino','Inglés','Coreano','Japonés','Español (España)','Francés','Portugués (Brasil)','Maya'];
 function mmhdNormalizeMainAudioLanguage(value, fallback='Latino'){
   return MMHD_MAIN_AUDIO_LANGUAGES.includes(value)?value:fallback;
 }
