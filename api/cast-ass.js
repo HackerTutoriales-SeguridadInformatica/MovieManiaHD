@@ -38,20 +38,39 @@ function vttTime(seconds) {
   const secs = Math.floor(ms / 1000); ms -= secs*1000;
   return String(hrs).padStart(2,'0')+':'+String(mins).padStart(2,'0')+':'+String(secs).padStart(2,'0')+'.'+String(ms).padStart(3,'0');
 }
-// Divide frases excepcionalmente largas sin alterar los tiempos ni las posiciones ASS.
-// Las líneas de letras de canciones ya separadas mediante \N se conservan.
-function wrapCastLine(text, maxChars = 52) {
-  return String(text).split('\n').map(line => {
-    if (line.length <= maxChars || !/\s/.test(line)) return line;
-    const result = [];
-    let current = '';
-    for (const word of line.split(/\s+/)) {
-      if (current && current.length + 1 + word.length > maxChars) {
-        result.push(current); current = word;
-      } else current += (current ? ' ' : '') + word;
+// Chromecast puede ignorar el ajuste automático de líneas dentro de un cue
+// estrecho. Dividir el texto ANTES de enviar WebVTT según el tamaño de su región
+// evita que lo recorte por el borde derecho o que se salga por debajo.
+// Se preservan los saltos explícitos \N del ASS, los textos completos y los tiempos.
+function wrapCastLine(text, maxUnits = 50) {
+  const widthOf = ch => /[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\ufe10-\ufe6f\uff00-\uffef]/u.test(ch) ? 2 : 1;
+  const units = word => Array.from(word).reduce((n, c) => n + widthOf(c), 0);
+  const splitWord = word => {
+    if (units(word) <= maxUnits) return [word];
+    const pieces = []; let chunk = '', count = 0;
+    for (const ch of Array.from(word)) {
+      const w = widthOf(ch);
+      if (chunk && count + w > maxUnits) { pieces.push(chunk); chunk = ''; count = 0; }
+      chunk += ch; count += w;
     }
-    if (current) result.push(current);
-    return result.join('\n');
+    if (chunk) pieces.push(chunk);
+    return pieces;
+  };
+  return String(text).split('\n').map(paragraph => {
+    const lines = []; let current = '', used = 0;
+    for (const original of paragraph.trim().split(/\s+/).filter(Boolean)) {
+      for (const word of splitWord(original)) {
+        const length = units(word), space = current ? 1 : 0;
+        if (current && used + space + length > maxUnits) {
+          lines.push(current); current = word; used = length;
+        } else {
+          current += (current ? ' ' : '') + word;
+          used += space + length;
+        }
+      }
+    }
+    if (current) lines.push(current);
+    return lines.join('\n');
   }).join('\n');
 }
 function fieldObject(str, columns) {
@@ -150,7 +169,7 @@ function convertASS(content) {
           .replace(/\\N/g,'\n').replace(/\\n/g,' ').replace(/\\h/g,' ')
           .replace(/\\([{}])/g,'$1')
           .replace(/\u0000/g,'')
-          .replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').trim();
+          .replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').replace(/\n{2,}/g,'\n').trim();
         if (!text || !/[^\s]/.test(text)) continue;
         // Los letreros de anime también pueden estar dibujados letra por
         // letra o a intervalos de unos fotogramas: no enviarlos como cues
@@ -232,15 +251,23 @@ function convertASS(content) {
     const index = occupied.get(key) || 0;
     occupied.set(key,index+1);
     if (index) {
-      const shifted = clamp(e.y+(e.y<45 ? 6 : e.y>55 ? -6 : 5)*Math.min(3,index),3,92);
-      e.cueSettings = `line:${Math.round(shifted*10)/10}% position:${Math.round(e.x*10)/10}% size:${Math.round(e.size)}% align:${e.align}`;
+      e.y = clamp(e.y+(e.y<45 ? 6 : e.y>55 ? -6 : 5)*Math.min(3,index),3,92);
     }
   }
   let output = 'WEBVTT\n\n', outputBytes = Buffer.byteLength(output,'utf8');
   for (const e of filtered) {
     // Evitar que una letra que contenga HTML sea interpretada como marcado VTT.
-    const safe = wrapCastLine(e.text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const cue = vttTime(e.start)+' --> '+vttTime(e.end)+' '+e.cueSettings+'\n'+safe+'\n\n';
+    // Mitades de pantalla y rótulos con posición propia requieren saltos
+    // más cortos que un diálogo centrado. No eliminar ni abreviar contenido.
+    const maxUnits = Math.max(9, Math.min(52, Math.floor(e.size * 0.62)));
+    const wrapped = wrapCastLine(e.text, maxUnits);
+    const lines = wrapped.split('\n').length;
+    // Si el texto está abajo, reservar espacio vertical para TODOS sus renglones.
+    // Evita que la última línea sea cortada por el borde inferior del video.
+    const safeY = e.y > 55 ? Math.max(3, Math.min(e.y, 94 - 7 * lines)) : e.y;
+    const settings = `line:${Math.round(safeY*10)/10}% position:${Math.round(e.x*10)/10}% size:${Math.round(e.size)}% align:${e.align}`;
+    const safe = wrapped.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const cue = vttTime(e.start)+' --> '+vttTime(e.end)+' '+settings+'\n'+safe+'\n\n';
     outputBytes += Buffer.byteLength(cue,'utf8');
     if (outputBytes > MAX_VTT_BYTES) throw new Error('La pista convertida supera 5 MB.');
     output += cue;
