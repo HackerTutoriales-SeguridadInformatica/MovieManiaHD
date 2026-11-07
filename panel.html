@@ -161,6 +161,12 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
 .result span{display:block;color:var(--muted);font-size:11px;margin-top:5px}
 .result:after{content:"›";font-size:22px;color:#4a6a86;font-weight:300;padding-right:4px;transition:.18s}
 .result:hover:after{color:var(--red);transform:translateX(2px)}
+/* MMHD: reconocer títulos ya existentes en los resultados de TMDB. */
+.result.mmhd-already-saved{border-color:rgba(0,230,160,.48);background:linear-gradient(90deg,#0d2527,#102538)}
+.result.mmhd-already-saved:hover{border-color:#00e6a0;background:linear-gradient(90deg,#123134,#173148)}
+.result .rbody .mmhd-catalog-notice{display:flex;align-items:center;gap:5px;flex-wrap:wrap;color:#8df1cc;font-size:10px;font-weight:750;line-height:1.45;margin-top:7px}
+.result .rbody .mmhd-catalog-notice i{font-size:10px;color:#00e6a0}
+
 .movie-panel{padding:0;position:relative;overflow:hidden;border-radius:var(--radius)}
 .movie-panel:before{
   content:"";position:absolute;inset:0;
@@ -2858,7 +2864,7 @@ async function goNextPendingAdmin(){
 }
 async function loadSeries(tmdbId){
   arrangeEpisodeWorkspace(false);
-  const existing=state.collection.find(item=>item.kind==="SERIES" && Number(item.tmdbId||Math.abs(Number(item.id)))===Number(tmdbId));
+  const existing=mmhdSearchExistingCatalogItem(tmdbId,'tv');
   if(existing){
     editSavedSeries(existing);
     showStatus("Esta serie ya está guardada: abrí su edición para conservar los enlaces existentes.","ok");
@@ -2980,18 +2986,33 @@ function saveSeriesToCollection(){
   resetSelection();
   showStatus(`✓ Serie guardada: ${seriesEpisodeCount(item,true)} de ${seriesEpisodeCount(item)} episodios con enlace. El buscador está listo para otro título.`,"ok");
 }
+/* El buscador y el editor comparten la misma identificación TMDB.
+   Los registros antiguos de películas también pueden carecer de `kind`. */
+function mmhdSearchExistingCatalogItem(tmdbId,searchKind=state.searchKind){
+  const id=Number(tmdbId);
+  if(!Number.isSafeInteger(id)||id<=0)return null;
+  const wantsSeries=searchKind==='tv';
+  return state.collection.find(item=>{
+    if(!item)return false;
+    const series=item.kind==='SERIES'||(item.kind!=='MOVIE'&&Number(item.id)<0);
+    if(series!==wantsSeries)return false;
+    const savedId=Number(item.tmdbId)||Math.abs(Number(item.id));
+    return Number.isSafeInteger(savedId)&&savedId===id;
+  })||null;
+}
 async function searchMovies(){
   arrangeEpisodeWorkspace(false);
   const kind=state.searchKind;
   const requestId=++movieRequestId;
-  const key = credentialValue();
-  const q = search.value.trim();
-  if (!key){ showStatus("Introduce tu credencial de TMDB.","err"); return; }
-  if (!q){ showStatus("Escribe el nombre de una película o serie.","err"); return; }
-  if (!state.validated){ const ok = await validateCredential(); if (!ok) return; }
+  const key=credentialValue();
+  const q=search.value.trim();
+  if(!key){showStatus("Introduce tu credencial de TMDB.","err");return;}
+  if(!q){showStatus("Escribe el nombre de una película o serie.","err");return;}
+  if(!state.validated){const ok=await validateCredential();if(!ok)return;}
 
   showStatus("Buscando en TMDB…");
-  state.movie = null;
+  state.movie=null;
+  state.editingId=null;
   clearVideoFields();
   $("results").innerHTML="";
   $("movieCard").style.display="none";
@@ -2999,35 +3020,46 @@ async function searchMovies(){
   $("emptyState").style.display="none";
 
   try{
-    const data = await tmdbGet(
+    const data=await tmdbGet(
       "https://api.themoviedb.org/3/search/"+(kind==="tv"?"tv":"movie")+"?query="+encodeURIComponent(q)+"&language=es-MX&include_adult=false",
       key
     );
-    if(requestId!==movieRequestId || kind!==state.searchKind)return;
-    const results = Array.isArray(data.results)?data.results:[];
-    if (!results.length){
-      $("resultsHint").textContent = "No se encontraron títulos.";
+    if(requestId!==movieRequestId||kind!==state.searchKind)return;
+    const results=Array.isArray(data.results)?data.results:[];
+    if(!results.length){
+      $("resultsHint").textContent="No se encontraron títulos.";
       showStatus("No se encontraron resultados para: "+q,"");
       return;
     }
-    $("resultsHint").textContent = results.length+" resultado(s) encontrado(s).";
-    $("results").innerHTML = results.map(m=>{
-      const poster = m.poster_path ? "https://image.tmdb.org/t/p/w185"+m.poster_path : "";
+    let alreadyAdded=0;
+    $("results").innerHTML=results.map(m=>{
+      const poster=m.poster_path?"https://image.tmdb.org/t/p/w185"+m.poster_path:"";
       const date=m.release_date||m.first_air_date||"";
-       const title=m.title||m.name||"Sin título";
-       const year = date ? date.slice(0,4) : "Sin año";
+      const title=m.title||m.name||"Sin título";
+      const year=date?date.slice(0,4):"Sin año";
+      const saved=mmhdSearchExistingCatalogItem(m.id,kind);
+      if(saved)alreadyAdded++;
       return `
-        <div class="result" data-id="${Number(m.id)}">
+        <div class="result${saved?' mmhd-already-saved':''}" data-id="${Number(m.id)}" title="${saved?'Ya está en tu catálogo. Clic para editar sus datos guardados.':'Seleccionar de TMDB'}">
           <img src="${escHtml(poster)}" alt="${escHtml(title)}" onerror="this.style.visibility='hidden'">
-          <div class="rbody"><b>${escHtml(title)}</b><span>${escHtml(year)}</span></div>
+          <div class="rbody"><b>${escHtml(title)}</b><span>${escHtml(year)}</span>${saved?'<span class="mmhd-catalog-notice"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Ya está en el catálogo · Selecciona para editar</span>':''}</div>
         </div>`;
     }).join("");
-    document.querySelectorAll(".result").forEach(el=>{
-      el.addEventListener("click", ()=> kind==="tv" ? loadSeries(Number(el.dataset.id)) : loadMovie(Number(el.dataset.id)));
+    $("resultsHint").textContent=results.length+" resultado(s) encontrado(s)"+(alreadyAdded?" · "+alreadyAdded+" ya en la biblioteca":"")+".";
+    $("results").querySelectorAll(".result").forEach(el=>{
+      el.addEventListener("click",()=>{
+        const id=Number(el.dataset.id);
+        const existing=mmhdSearchExistingCatalogItem(id,kind);
+        if(existing){
+          editSavedMovie(existing.id);
+          showStatus("Este título ya está en tu catálogo. Cargué los datos y enlaces guardados; puedes editarlos sin volver a agregarlos.","ok");
+        }else if(kind==="tv")loadSeries(id);
+        else loadMovie(id);
+      });
     });
-    showStatus("Resultados cargados correctamente.","ok");
+    showStatus(alreadyAdded?"Resultados cargados. Los títulos que ya tienes aparecen marcados en verde.":"Resultados cargados correctamente.","ok");
     updateSteps(2);
-  }catch(e){ showStatus("✕ "+(e.message||"Error al buscar en TMDB."),"err"); }
+  }catch(e){showStatus("✕ "+(e.message||"Error al buscar en TMDB."),"err");}
 }
 
 /* ============================================================
@@ -3184,6 +3216,12 @@ async function loadAdditionalArtwork(){
 }
 
 async function loadMovie(id){
+  const existing=mmhdSearchExistingCatalogItem(id,'movie');
+  if(existing){
+    editSavedMovie(existing.id);
+    showStatus("Este título ya está en el catálogo. Abrí su edición con los enlaces existentes.","ok");
+    return;
+  }
   arrangeEpisodeWorkspace(false);
   const requestId = ++movieRequestId;
   clearVideoFields();
