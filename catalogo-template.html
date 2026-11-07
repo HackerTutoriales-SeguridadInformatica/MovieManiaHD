@@ -3561,6 +3561,72 @@ function b64ToUtf8(b64){
   return new TextDecoder("utf-8").decode(bytes);
 }
 
+function buildWatchPartyBridgeScript(movieId){
+  return `
+<script>
+(function(){
+  'use strict';
+  var ID=${JSON.stringify(String(movieId))};
+  var video=null,pending=null,blockedNoticeAt=0;
+  function tell(type,data){
+    try{window.parent.postMessage(Object.assign({type:type,id:ID},data||{}),'*');}catch(_){}
+  }
+  function status(reason){
+    if(!video)return;
+    tell('mmhd-watch-event',{reason:reason||'snapshot',position:Number(video.currentTime)||0,
+      duration:Number(video.duration)||0,paused:video.paused,readyState:video.readyState});
+  }
+  function apply(cmd){
+    if(!cmd||!video)return;
+    if(video.readyState<1){pending=cmd;return;}
+    pending=null;
+    var pos=Number(cmd.position),duration=Number(video.duration);
+    if(Number.isFinite(pos)&&pos>=0){
+      var target=Number.isFinite(duration)&&duration>0?Math.min(pos,Math.max(0,duration-.3)):pos;
+      if(cmd.force || Math.abs((Number(video.currentTime)||0)-target)>1.8){
+        try{video.currentTime=target;}catch(_){}
+      }
+    }
+    if(cmd.paused){
+      try{if(!video.paused)video.pause();}catch(_){}
+    }else if(video.paused){
+      try{
+        var result=video.play();
+        if(result&&typeof result.catch==='function')result.catch(function(){
+          if(Date.now()-blockedNoticeAt>4500){blockedNoticeAt=Date.now();tell('mmhd-watch-blocked');}
+        });
+      }catch(_){tell('mmhd-watch-blocked');}
+    }
+  }
+  function attach(){
+    var candidate=document.querySelector('#myDiv video')||document.querySelector('video');
+    if(!candidate || candidate===video)return;
+    video=candidate;
+    video.addEventListener('play',function(){status('play');});
+    video.addEventListener('pause',function(){status('pause');});
+    video.addEventListener('seeked',function(){status('seeked');});
+    video.addEventListener('loadedmetadata',function(){if(pending)apply(pending);status('metadata');});
+    video.addEventListener('durationchange',function(){if(pending)apply(pending);});
+    video.addEventListener('timeupdate',function(){if(Date.now()-(video.__mmhdWatchLast||0)>2000){video.__mmhdWatchLast=Date.now();status('time');}});
+    tell('mmhd-watch-ready');
+    if(pending)apply(pending);
+    status('attached');
+  }
+  window.addEventListener('message',function(event){
+    if(event.source!==window.parent || !event.data || String(event.data.id)!==ID)return;
+    if(event.data.type==='mmhd-watch-query'){attach();status('snapshot');}
+    if(event.data.type==='mmhd-watch-sync'){
+      pending={position:event.data.position,paused:Boolean(event.data.paused),force:Boolean(event.data.force)};
+      attach();apply(pending);
+    }
+  });
+  attach();
+  setInterval(attach,350);
+})();
+<\/script>
+`;
+}
+
 function buildProgressScript(movieId){
   // El iframe usa blob:, por eso el progreso se guarda en el catálogo padre.
   // El reproductor solo envía/recibe mensajes; no depende de localStorage del blob.
@@ -4973,6 +5039,7 @@ function getPlayerHtml(movie, autoNext=false, retryPreference=null){
   }
   const nextEpisode=movie.parentSeriesId!=null ? getNextSeriesEpisode(movie) : null;
   const scriptTag=buildProgressScript(movie.id)
+    + buildWatchPartyBridgeScript(movie.id)
     + mmhdMakeSubtitleScript(movie.subtitleTracks,movie.subtitlesUrl)
     + mmhdMakeFullscreenLanguageScript()
     + mmhdMakeFullscreenAutoHideScript()
@@ -8437,6 +8504,7 @@ $("playerNextClose").addEventListener("click",()=>{
 });
 $("playerNextGo").addEventListener("click",()=>{
   if(!activePlayerMovie || parentNextDismissed)return;
+  if(window.mmhdWatchParty?.isGuest()) {window.mmhdWatchParty.openPanel();return;}
   advanceEpisode(activePlayerMovie,true);
 });
 let mmhdLastManualRetry=0;
@@ -8497,6 +8565,7 @@ function openPlayer(movie,autoNext=false){
   const url = URL.createObjectURL(blob);
 
   activePlayerMovie=movie;
+  window.mmhdWatchParty?.onPlayerOpen(movie);
   mmhdActiveSubtitleLanguage='off';
   mmhdPendingSubtitleAfterRetry=null;
   parentNextDismissed=false;
@@ -8530,6 +8599,7 @@ function openPlayer(movie,autoNext=false){
 }
 
 function closePlayer(){
+  window.mmhdWatchParty?.onPlayerClose();
   hidePlayerNextBanner();
   iframeEpisodeFullscreen=false;
   lastEpisodeProgress=null;
@@ -9029,7 +9099,7 @@ window.addEventListener("message", (e) => {
   if (data.type === "mmhd-request-restore") {
     frame.contentWindow.postMessage({
       type: "mmhd-restore", id: movieId,
-      currentTime: Number(progressSeconds[movieId]) || 0
+      currentTime: window.mmhdWatchParty?.restoreSeconds(movieId) ?? (Number(progressSeconds[movieId]) || 0)
     }, "*");
     return;
   }
@@ -9092,7 +9162,7 @@ window.addEventListener("message", (e) => {
     return;
   }
   if(data.type==="mmhd-ended" || data.type==="mmhd-skip-next"){
-    advanceEpisode(activePlayerMovie,data.type==="mmhd-skip-next");
+    if(!window.mmhdWatchParty?.isGuest()) advanceEpisode(activePlayerMovie,data.type==="mmhd-skip-next");
   }
 });
 
@@ -9467,5 +9537,9 @@ syncBackToTop();
 <script src="/inicio-episodios.js?v=20261102c" defer></script>
 <script src="/public-sync.js" defer></script>
 <script src="/airplay.js?v=20261101a" defer></script>
+<!-- Ver juntos: experimentación para DOS navegadores. No contiene claves administrativas. -->
+<script src="/ver-juntos-config.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="/ver-juntos.js" defer></script>
 </body>
 </html>
