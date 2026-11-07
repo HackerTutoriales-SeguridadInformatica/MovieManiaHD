@@ -22,6 +22,10 @@
   let pendingHostMissing = false;
   let currentRoomUrl = '';
   let guestBlocked = false;
+  let guestNeedsAudio = false;
+  let chatUnread = 0;
+  let lastChatSent = 0;
+  const seenChat = new Set();
   const timer = window.setInterval(tick, 3500);
 
   const css = document.createElement('style');
@@ -43,6 +47,27 @@
   .mmhd-wp-actions .mmhd-wp-danger{border-color:#a43d49;background:#491922}
   .mmhd-wp-card .mmhd-wp-status{margin-top:10px;color:#a6d7ff;font-weight:700}
   .mmhd-wp-card .mmhd-wp-notice{font-size:12px;color:#f4d6a0}
+  /* Chat de sala: fuera del iframe para mantenerse accesible durante la película. */
+  .mmhd-wp-chat[hidden],.mmhd-wp-chat-launcher[hidden],.mmhd-wp-chat-audio[hidden]{display:none!important}
+  .mmhd-wp-chat-launcher{position:fixed;right:22px;bottom:22px;z-index:300010;background:#1c3459;border:1px solid #74a8ff;border-radius:50%;width:52px;height:52px;box-shadow:0 8px 24px #000b;color:white;cursor:pointer;font-size:22px}
+  .mmhd-wp-chat-launcher span{position:absolute;right:-3px;top:-5px;display:grid;place-items:center;min-width:20px;height:20px;border-radius:12px;background:#e23e63;font:800 11px Inter,sans-serif;padding:0 3px}
+  .mmhd-wp-chat{position:fixed;right:18px;bottom:18px;z-index:300011;width:min(365px,calc(100vw - 24px));height:min(490px,calc(100dvh - 50px));border:1px solid #475b80;background:#0e1728;box-shadow:0 18px 55px #000c;border-radius:15px;display:flex;flex-direction:column;overflow:hidden;color:#fff;font:13px/1.45 Inter,Arial,sans-serif}
+  .mmhd-wp-chat-head{display:flex;gap:9px;align-items:center;background:#1b3052;padding:10px 12px;min-height:60px}
+  .mmhd-wp-chat-head strong{display:block;font-size:14px;line-height:1.3}
+  .mmhd-wp-chat-head small{display:block;color:#bed3f3;font-size:11px}
+  .mmhd-wp-chat-head-title{flex:1;min-width:0}
+  .mmhd-wp-chat-head button{background:#304a70;border:1px solid #5877a4;color:#fff;border-radius:7px;min-width:30px;height:30px;cursor:pointer}
+  .mmhd-wp-chat-messages{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:9px;padding:12px;background:#0b1220}
+  .mmhd-wp-msg{max-width:92%;align-self:flex-start;background:#23354f;border-radius:12px 12px 12px 4px;padding:8px 10px;overflow-wrap:anywhere;white-space:pre-wrap}
+  .mmhd-wp-msg.mine{background:#1e4d84;align-self:flex-end;border-radius:12px 12px 4px 12px}
+  .mmhd-wp-msg .mmhd-wp-who{display:block;font-size:10px;font-weight:800;color:#d7eaff;margin-bottom:4px}
+  .mmhd-wp-msg.system{max-width:100%;align-self:center;background:transparent;color:#9eafc7;font-size:11px;text-align:center;padding:0 5px}
+  .mmhd-wp-chat-audio{margin:0 10px 8px;border:1px solid #7ab3ff;border-radius:8px;background:#1d5a9b;color:white;font:800 12px Inter,Arial,sans-serif;padding:10px;cursor:pointer}
+  .mmhd-wp-chat-form{display:flex;gap:7px;padding:10px;border-top:1px solid #344764;background:#111e33}
+  .mmhd-wp-chat-form input{flex:1;min-width:0;background:#08101e;border:1px solid #516687;color:white;border-radius:8px;padding:9px;font:13px Inter,Arial,sans-serif}
+  .mmhd-wp-chat-form button{padding:9px 12px;border-radius:8px;border:1px solid #689de7;background:#245793;color:#fff;font-weight:800;cursor:pointer}
+  .mmhd-wp-chat-form button:disabled,.mmhd-wp-chat-form input:disabled{opacity:.45;cursor:not-allowed}
+  @media(max-width:600px){.mmhd-wp-chat{right:9px;bottom:76px;width:min(340px,calc(100vw - 18px));height:min(420px,calc(100dvh - 100px))}.mmhd-wp-chat-launcher{right:13px;bottom:80px}}
   @media(max-width:540px){.mmhd-wp-btn{font-size:10px;padding:6px 7px}.mmhd-wp-card{padding:16px}}
   `;
   document.head.appendChild(css);
@@ -68,6 +93,96 @@
     </div>`;
   document.body.appendChild(dialog);
 
+  const chatLauncher=document.createElement('button');
+  chatLauncher.id='mmhdWpChatLauncher';chatLauncher.className='mmhd-wp-chat-launcher';
+  chatLauncher.type='button';chatLauncher.hidden=true;chatLauncher.title='Abrir chat de Ver juntos';
+  chatLauncher.innerHTML='💬 <span id="mmhdWpChatUnread" hidden>0</span>';
+  document.body.appendChild(chatLauncher);
+  const chat=document.createElement('section');
+  chat.id='mmhdWpChat';chat.className='mmhd-wp-chat';chat.hidden=true;
+  chat.setAttribute('aria-label','Chat de Ver juntos');
+  chat.innerHTML=`
+    <div class="mmhd-wp-chat-head">
+      <span aria-hidden="true">💬</span>
+      <div class="mmhd-wp-chat-head-title"><strong>Ver juntos · Chat</strong><small id="mmhdWpChatStatus">Esperando conexión…</small></div>
+      <button type="button" id="mmhdWpChatOptions" title="Opciones de sala" aria-label="Opciones de sala">⚙</button>
+      <button type="button" id="mmhdWpChatMinimize" title="Minimizar chat" aria-label="Minimizar chat">—</button>
+    </div>
+    <div id="mmhdWpChatMessages" class="mmhd-wp-chat-messages" role="log" aria-label="Mensajes del chat" aria-live="polite"></div>
+    <button type="button" class="mmhd-wp-chat-audio" id="mmhdWpChatAudio" hidden>🔊 Activar sonido y reproducción</button>
+    <form id="mmhdWpChatForm" class="mmhd-wp-chat-form">
+      <input id="mmhdWpChatInput" type="text" maxlength="450" autocomplete="off" placeholder="Escribe un mensaje…" aria-label="Tu mensaje" disabled>
+      <button id="mmhdWpChatSend" type="submit" disabled>Enviar</button>
+    </form>`;
+  document.body.appendChild(chat);
+
+  function openChat(){chat.hidden=false;chatLauncher.hidden=true;chatUnread=0;$('mmhdWpChatUnread').hidden=true;}
+  function minimizeChat(){chat.hidden=true;chatLauncher.hidden=!(room||ROOM_RE.test(new URL(location.href).searchParams.get(ROOM_PARAM)||''));}
+  function chatSystem(message){appendChat('system',message);}
+  function appendChat(kind,message){
+    const holder=$('mmhdWpChatMessages');
+    const item=document.createElement('div');item.className='mmhd-wp-msg'+(kind==='mine'?' mine':kind==='system'?' system':'');
+    if(kind!=='system'){
+      const who=document.createElement('span');who.className='mmhd-wp-who';
+      who.textContent=kind==='mine'?(room?.role==='host'?'Tú · Anfitrión':'Tú · Invitado'):(room?.role==='host'?'Invitado':'Anfitrión');
+      item.appendChild(who);
+    }
+    const msg=document.createElement('span');msg.textContent=String(message);item.appendChild(msg);
+    holder.appendChild(item);
+    while(holder.children.length>120)holder.firstChild.remove();
+    holder.scrollTop=holder.scrollHeight;
+    if(chat.hidden&&kind==='other'){
+      chatUnread=Math.min(99,chatUnread+1);$('mmhdWpChatUnread').textContent=String(chatUnread);
+      $('mmhdWpChatUnread').hidden=false;
+    }
+  }
+  function updateChatUI(){
+    const connected=Boolean(room?.connected);
+    $('mmhdWpChatInput').disabled=!connected;
+    $('mmhdWpChatSend').disabled=!connected;
+    $('mmhdWpChatStatus').textContent=connected
+      ?(room.role==='host'?'Sala activa · anfitrión':'Sala activa · invitado')
+      :(room?'Conectando con la sala…':'Sin conexión');
+    $('mmhdWpChatAudio').hidden=!(room?.role==='guest'&&guestNeedsAudio);
+    if(!room&&!ROOM_RE.test(new URL(location.href).searchParams.get(ROOM_PARAM)||''))chatLauncher.hidden=true;
+  }
+  function receiveChat(payload){
+    if(!room?.connected || typeof payload.text!=='string' || payload.text.length>450 || !payload.text.trim())return;
+    if(payload.role===(room.role==='host'?'guest':'host') && typeof payload.id==='string' && payload.id.length<120 && !seenChat.has(payload.id)){
+      seenChat.add(payload.id);if(seenChat.size>300)seenChat.delete(seenChat.values().next().value);
+      appendChat('other',payload.text.trim());
+    }
+  }
+  function sendChat(){
+    const field=$('mmhdWpChatInput');const message=field.value.trim();
+    if(!room?.connected || !message || message.length>450 || Date.now()-lastChatSent<350)return;
+    lastChatSent=Date.now();field.value='';
+    appendChat('mine',message);
+    send({kind:'chat',id:myPeer+':'+Date.now(),text:message});
+  }
+  function enableGuestAudio(){
+    if(!room || room.role!=='guest')return;
+    const frame=$('playerFrame');let video=null;
+    try{video=frame?.contentDocument?.querySelector('#myDiv video')||frame?.contentDocument?.querySelector('video');}catch(_){/* iframe no accesible */}
+    if(video){
+      try{
+        video.muted=false;
+        const p=remote?.paused?null:video.play();
+        if(p?.then)p.then(()=>{guestNeedsAudio=false;guestBlocked=false;updateChatUI();chatSystem('Sonido activado.');})
+          .catch(()=>{guestNeedsAudio=true;updateChatUI();chatSystem('Chrome sigue bloqueando el sonido. Toca Play dentro del video.');});
+        else{guestNeedsAudio=false;guestBlocked=false;updateChatUI();}
+      }catch(_){chatSystem('No se pudo activar el audio desde este navegador; toca Play en el video.');}
+    }else{
+      try{frame?.contentWindow?.postMessage({type:'mmhd-watch-enable-audio',id:String(activeMovie()?.id??'')},'*');}catch(_){}
+      chatSystem('Intenta activar el sonido con Play en el video.');
+    }
+  }
+  chatLauncher.addEventListener('click',openChat);
+  $('mmhdWpChatMinimize').addEventListener('click',minimizeChat);
+  $('mmhdWpChatOptions').addEventListener('click',openPanel);
+  $('mmhdWpChatAudio').addEventListener('click',enableGuestAudio);
+  $('mmhdWpChatForm').addEventListener('submit',e=>{e.preventDefault();sendChat();});
+
   const playButton = document.createElement('button');
   playButton.type = 'button'; playButton.className = 'mmhd-wp-btn';
   playButton.id = 'mmhdWpPlayerBtn'; playButton.textContent = '👥 Ver juntos';
@@ -84,7 +199,7 @@
     b.addEventListener('click',()=>{openPanel();});
   }
 
-  function status(s){$('mmhdWpStatus').textContent=s;}
+  function status(s){$('mmhdWpStatus').textContent=s;updateChatUI();}
   function label(s){$('mmhdWpExplain').textContent=s;}
   function modal(show){dialog.hidden=!show;}
   function setBusy(v){connecting=!!v;$('mmhdWpCreate').disabled=connecting;$('mmhdWpJoin').disabled=connecting;}
@@ -98,7 +213,8 @@
     $('mmhdWpLeave').hidden=!room;
     $('mmhdWpInviteBlock').hidden=!room || room.role!=='host';
     if(room?.role==='host'){$('mmhdWpLink').value=currentRoomUrl;}
-    if(canJoin)label('Has recibido una invitación. Pulsa Entrar a la sala para conectarte al anfitrión.');
+    updateChatUI();
+    if(canJoin)label('Has recibido una invitación. Conectando el chat y la película automáticamente…');
     else if(room?.role==='host')label('Comparte el enlace. Solo tú controlas la reproducción; el invitado puede elegir subtítulos e idioma localmente.');
     else if(room?.role==='guest')label('Conectado como invitado. El anfitrión controla la reproducción; puedes escoger tus propios subtítulos.');
     else label('Abre una película o un episodio y crea una sala para dos navegadores.');
@@ -181,6 +297,7 @@
   }
   async function createOrJoin(role,code){
     if(connecting||room)return;
+    openChat();updateChatUI();
     const settings=window.MMHD_WATCH_PARTY_CONFIG||{};
     const url=String(settings.supabaseUrl||'').trim();
     const key=String(settings.publishableKey||'').trim();
@@ -201,7 +318,8 @@
         auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
       });
       room={role,code,connected:false,channel:null};
-      lastLocal={position:0,paused:true,duration:0};remote=null;seq=0;lastHostSeq=0;
+      lastLocal={position:0,paused:true,duration:0};remote=null;seq=0;lastHostSeq=0;guestBlocked=false;guestNeedsAudio=false;
+      $('mmhdWpChatMessages').replaceChildren();seenChat.clear();updateChatUI();
       const current=room;
       const channel=sb.channel('mmhd-watch-v1-'+code,{
         config:{private:false,broadcast:{ack:false,self:false},presence:{key:myPeer}}
@@ -217,14 +335,17 @@
             catch(err){console.warn('[MMHD Ver juntos] Presence',err);}
             if(role==='host'){
               currentRoomUrl=location.origin+'/?'+ROOM_PARAM+'='+code;
-              status('Sala lista · comparte tu enlace');queryVideo();publish(true);
-            }else{status('Conectado · esperando datos del anfitrión');send({kind:'hello'});}
+              status('Sala lista · comparte tu enlace');chatSystem('Sala creada. Comparte el enlace y usa este chat para conversar.');queryVideo();publish(true);
+            }else{status('Conectado · esperando datos del anfitrión');chatSystem('Te conectaste a la sala. Puedes conversar mientras ven la película.');send({kind:'hello'});}
             refreshUI();
           }
           if(subscription==='CHANNEL_ERROR'||subscription==='TIMED_OUT'||subscription==='CLOSED'){
             room.connected=false;
-            status('Conexión interrumpida. Comprueba que Supabase permita canales públicos.');
+            room=null;
+            status('No se pudo conectar a Supabase. Verifica Realtime y vuelve a intentar.');
             setBusy(false);
+            refreshUI();openPanel();
+            try{await sb?.removeChannel(channel);}catch(_){}
           }
         });
       refreshUI();
@@ -232,6 +353,7 @@
   }
   function receive(payload){
     if(!room || !payload || payload.peer===myPeer)return;
+    if(payload.kind==='chat'){receiveChat(payload);return;}
     if(room.role==='host'){
       if(payload.kind==='hello' && payload.role==='guest'){queryVideo();publish(true);}
       return;
@@ -242,17 +364,19 @@
     const movie=resolve(payload.media);
     if(!movie){status('El título no está disponible en esta versión del catálogo. Actualiza la página.');return;}
     lastHostSeq=order;
+    const firstPlay=!Boolean(payload.paused) && (!remote || remote.paused);
     remote={media:payload.media,position:Math.max(0,Number(payload.position)||0),paused:Boolean(payload.paused)};
     if(!activeMovie()||Number(activeMovie().id)!==Number(movie.id)){
       openPlayer(movie);
       // El receptor del iframe guardará los comandos hasta que cargue <video>.
       window.setTimeout(()=>syncGuest(true),160);
-    }else syncGuest(false);
+    }else syncGuest(firstPlay);
     if(!guestBlocked)status('Conectado · siguiendo al anfitrión');
   }
   async function leave(){
     const old=room;room=null;
-    lastLocal={position:0,paused:true,duration:0};remote=null;lastHostSeq=0;currentRoomUrl='';guestBlocked=false;
+    lastLocal={position:0,paused:true,duration:0};remote=null;lastHostSeq=0;currentRoomUrl='';guestBlocked=false;guestNeedsAudio=false;
+    $('mmhdWpChatMessages').replaceChildren();seenChat.clear();chatUnread=0;chat.hidden=true;chatLauncher.hidden=true;
     setBusy(false);
     if(old?.channel){
       try{if(old.connected)await old.channel.untrack();}catch(_){}
@@ -292,9 +416,17 @@
     }
     if(room.role==='host' && data.type==='mmhd-watch-ready')queryVideo();
     if(room.role==='guest' && data.type==='mmhd-watch-ready')syncGuest(true);
+    if(room.role==='guest' && data.type==='mmhd-watch-muted-start'){
+      const firstWarning=!guestNeedsAudio;
+      guestBlocked=true;guestNeedsAudio=true;status('Video sincronizado en silencio. Pulsa Activar sonido.');
+      openChat();updateChatUI();
+      if(firstWarning)chatSystem('Chrome bloqueó el primer inicio con audio. La película arrancó silenciada; toca «Activar sonido y reproducción».');
+    }
     if(room.role==='guest' && data.type==='mmhd-watch-blocked'){
-      guestBlocked=true;status('Chrome bloqueó el inicio automático: pulsa ▶ en tu reproductor.');
-      openPanel();
+      const firstWarning=!guestNeedsAudio;
+      guestBlocked=true;guestNeedsAudio=true;status('Chrome bloqueó el inicio automático.');
+      openChat();updateChatUI();
+      if(firstWarning)chatSystem('Para iniciar con sonido, toca «Activar sonido y reproducción».');
     }
   });
 
@@ -317,7 +449,10 @@
   dialog.addEventListener('click',event=>{if(event.target===dialog)modal(false);});
   window.addEventListener('pagehide',()=>{if(room?.channel)void room.channel.untrack().catch(()=>{});});
   refreshUI();
-  if(ROOM_RE.test(new URL(location.href).searchParams.get(ROOM_PARAM)||'')){
-    status('Invitación recibida · pulsa Entrar a la sala');openPanel();
+  const invitedCode=new URL(location.href).searchParams.get(ROOM_PARAM);
+  if(ROOM_RE.test(invitedCode||'')){
+    status('Invitación recibida · conectando automáticamente…');
+    openChat();chatSystem('Invitación recibida. Conectando el chat y el reproductor…');
+    void createOrJoin('guest',invitedCode);
   }
 })();
