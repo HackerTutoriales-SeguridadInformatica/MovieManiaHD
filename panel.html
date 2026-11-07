@@ -2979,6 +2979,14 @@ function saveSeriesToCollection(){
   }
   const old=state.collection.find(x=>String(x.id)===String(m.id));
   const now=new Date().toISOString();
+  // Las imágenes de la ficha de la serie cuentan como una nueva actividad del título,
+  // sin modificar las fechas independientes de ninguno de sus episodios.
+  const artworkChanged=!!old&&[
+    [old.poster,state.poster],
+    [old.backdrop,state.backdrop],
+    [old.logo,m.logo||old.logo||""]
+  ].some(([before,after])=>String(before||"")!==String(after||""));
+  const artworkUpdatedAt=artworkChanged?now:String(old?.artworkUpdatedAt||"");
   const item={...(old||{}),id:m.id,tmdbId:m.tmdbId,kind:"SERIES",title:m.title,
     subtitle:state.tagline||"",year:String(m.release_date||"").slice(0,4),
     runtime:m.runtime?m.runtime+" min":"",overview:m.overview||"",rating:Number(m.vote_average)||0,
@@ -2993,7 +3001,8 @@ function saveSeriesToCollection(){
     providerOverridesMx:mmhdProviderOverrides(m.providerOverridesMx||old?.providerOverridesMx),
     providersCheckedAtMx:m.providersCheckedAtMx||old?.providersCheckedAtMx||"",
     releaseDate:m.release_date||old?.releaseDate||"",
-    googleUrl:"",m37:"",m22:"",m18:"",addedAt:old?.addedAt||now,updatedAt:now};
+    googleUrl:"",m37:"",m22:"",m18:"",addedAt:old?.addedAt||now,updatedAt:now,
+    artworkUpdatedAt};
   const next=state.collection.slice(),idx=next.findIndex(x=>String(x.id)===String(item.id));
   if(idx>=0)next[idx]=item;else next.push(item);
   if(!commitCollection(next)){showStatus("No se guardó la serie por falta de espacio local. No cierres el editor; ve a Herramientas → Espacio del navegador y vuelve a intentar Guardar cambios.","err");return;}
@@ -4060,6 +4069,7 @@ async function buildCollectionHtml(){
       year: String(item.year || ""),
       addedAt:String(item.addedAt||""),
       updatedAt:String(item.updatedAt||""),
+      artworkUpdatedAt:String(item.artworkUpdatedAt||""),
       releaseDate:String(item.releaseDate||""),
       watchProvidersMx:Array.isArray(item.watchProvidersMx)?item.watchProvidersMx.filter(k=>MMHD_PROVIDERS_MX[k]):[],
       providerOverridesMx:mmhdProviderOverrides(item.providerOverridesMx),
