@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html lang="es" data-mmhd-intro="off">
 <head>
+<!-- Google Analytics 4 - Movie Mania HD Web -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-D9XQRX0XNE"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-D9XQRX0XNE');
+  // Eventos propios del catálogo; no registramos términos de búsqueda ni enlaces de video.
+  function mmhdTrackAnalytics(eventName, details){
+    if (typeof gtag !== 'function' || !navigator.onLine) return;
+    gtag('event', eventName, details || {});
+  }
+</script>
 
 <script disable-devtool-auto src='https://cdn.jsdelivr.net/npm/disable-devtool'></script>
 
@@ -45,20 +58,7 @@
   try{ if(window.top !== window.self){ window.top.location = window.self.location; } }catch(_){}
 })();
 </script>
-  
-<!-- Google Analytics 4 - Movie Mania HD Web -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-D9XQRX0XNE"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-D9XQRX0XNE');
-  // Eventos propios del catálogo; no registramos términos de búsqueda ni enlaces de video.
-  function mmhdTrackAnalytics(eventName, details){
-    if (typeof gtag !== 'function' || !navigator.onLine) return;
-    gtag('event', eventName, details || {});
-  }
-</script>
+
 <!-- YouTube requiere Referer para iframe: solo se comparte el origen, nunca la URL completa -->
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta charset="UTF-8">
