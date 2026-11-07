@@ -1205,6 +1205,30 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
 .mmhd-req-contacts-more .mmhd-req-contact{margin:7px 0}
 @media(max-width:780px){.mmhd-req-contacts{max-width:100%}.mmhd-req-contact{padding:9px 10px}}
 
+
+/* MMHD Solicitudes: preparar correo de aviso con portada y enlace. */
+.mmhd-req-email-link{color:#96d4ff;text-decoration:underline;text-decoration-color:#426e92;text-underline-offset:3px;overflow-wrap:anywhere}
+.mmhd-req-email-link:hover{color:#fff}
+.mmhd-req-mailbtn{width:max-content;max-width:100%;padding:7px 11px;border:1px solid #3d6a93;border-radius:8px;background:#153754;color:#d6edff;font-weight:750;font-size:11px;min-height:34px}
+.mmhd-req-mailbtn:hover{background:#214d72;color:#fff}
+.mmhd-req-mailbtn:disabled{opacity:.5;cursor:not-allowed}
+.mmhd-mail-dialog{width:min(820px,96vw);max-width:none;max-height:92vh;padding:0;border:1px solid #375572;border-radius:16px;background:#101b2c;color:#f0f7ff;box-shadow:0 24px 75px #000b}
+.mmhd-mail-dialog::backdrop{background:#000c;backdrop-filter:blur(5px)}
+.mmhd-mail-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px;background:#101a29;border-bottom:1px solid #2a415a}
+.mmhd-mail-head strong{display:block;font-size:15px}.mmhd-mail-head small{display:block;color:#a0b3c8;margin-top:5px}
+.mmhd-mail-close{background:#202f45;border:1px solid #40516a;min-width:36px;padding:8px 10px}
+.mmhd-mail-panel{padding:16px 18px;max-height:calc(92vh - 68px);overflow:auto}
+.mmhd-mail-instructions{padding:12px 14px;margin:0 0 14px;font-size:12px;line-height:1.65;border:1px solid #34516c;border-radius:10px;background:#14263a;color:#cbdeef}
+.mmhd-mail-meta{font-size:12px;line-height:1.7;margin-bottom:12px;overflow-wrap:anywhere;color:#c0d7eb}
+.mmhd-mail-meta b{color:#eff7ff}
+.mmhd-mail-preview{padding:12px;border:1px solid #31465e;border-radius:11px;background:#e7e9ed;overflow:auto}
+.mmhd-mail-preview > div{max-width:650px;margin:auto}
+.mmhd-mail-tools{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0 7px}
+.mmhd-mail-tools button{padding:10px 13px;border-radius:9px;font-size:12px;background:#263d5c;border:1px solid #3e6485;color:#f3f8ff}
+.mmhd-mail-tools button.mmhd-mail-copy{background:linear-gradient(145deg,#ff3b66,#ed1748);border-color:#ff3c67}
+.mmhd-mail-feedback{color:#a6c8e8;font-size:11px;line-height:1.5;min-height:22px;margin:6px 0 0}
+@media(max-width:600px){.mmhd-mail-preview{padding:3px}.mmhd-mail-head{padding:12px}.mmhd-mail-panel{padding:12px}.mmhd-mail-tools button{flex:1}}
+
 /* Solicitudes: tarjetas, contador y acción rápida. */
 .mmhd-req-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0}
 .mmhd-req-stat{border:1px solid #314057;background:#101e2f;border-radius:12px;padding:13px 16px;display:flex;flex-direction:column;gap:4px}
@@ -5980,6 +6004,89 @@ renderCollection();
  function catalogMatch(r){const kind=r.media_type==='tv'?'SERIES':'MOVIE';const id=Number(r.tmdb_id||r.tmdbId||r.tmdbid);if(!Number.isFinite(id)||id<=0)return null;return state.collection.find(x=>x.kind===kind&&Number(x.tmdbId||Math.abs(Number(x.id)))===id)||null;}
  function markSeen(){if(!connected)return;knownIds=new Set(items.map(r=>String(r.id)));newIds.clear();try{localStorage.setItem(knownKey,JSON.stringify([...knownIds]))}catch{}updateNotice();}
  function openEditor(r,existing){if(typeof window.MMHDAdminView!=='function')return;window.MMHDAdminView('editor');if(existing){editSavedMovie(existing.id);return;}const tmdbId=Number(r.tmdb_id||r.tmdbId||r.tmdbid);if(!Number.isSafeInteger(tmdbId)||tmdbId<1){changeSearchKind(r.media_type==='tv'?'tv':'movie');document.getElementById('movieSearch').value=r.title||'';document.getElementById('btnSearch').click();return;}changeSearchKind(r.media_type==='tv'?'tv':'movie');if(r.media_type==='tv')loadSeries(tmdbId);else loadMovie(tmdbId);}
+
+ // Correo de cortesía: Gmail no admite HTML por parámetros de URL, así que creamos una
+ // vista previa y permitimos copiar el diseño enriquecido al portapapeles manualmente.
+ function mmhdValidEmail(v){return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(v||'').trim()) && String(v).length<255;}
+ function mmhdHtmlEscape(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+ function mmhdMailSlug(v){const slug=String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&/g,' y ').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,100).replace(/-+$/g,'');return slug||'titulo';}
+ function mmhdMailInfo(r,existing,c){
+  if(!existing)throw Error('Primero agrega este título al catálogo.');
+  const tmdbId=Number(existing.tmdbId||Math.abs(Number(existing.id)));
+  if(!Number.isSafeInteger(tmdbId)||tmdbId<1)throw Error('No encontré un ID TMDB válido para el enlace.');
+  const title=String(existing.title||r.title||'').trim();
+  const type=existing.kind==='SERIES'?'serie':'película';
+  const url='https://moviemaniahd.vercel.app/'+mmhdMailSlug(title)+'-'+tmdbId;
+  const address=String(c.requester_email||'').trim();
+  if(!mmhdValidEmail(address))throw Error('Correo electrónico no válido.');
+  let poster=String(existing.poster||'').trim();
+  if(poster.startsWith('/'))poster='https://image.tmdb.org/t/p/w500'+poster;
+  if(!/^https:\/\//i.test(poster))poster='';
+  if(!poster&&typeof r.poster_path==='string'&&/^\/[A-Za-z0-9_/-]+\.(jpe?g|png|webp)$/i.test(r.poster_path))poster='https://image.tmdb.org/t/p/w500'+r.poster_path;
+  return {title,type,url,address,name:String(c.requester_name||'').trim(),poster,subject:'¡Tu solicitud ya está disponible! · '+title};
+ }
+ function mmhdMailHtml(v){
+  const title=mmhdHtmlEscape(v.title),name=mmhdHtmlEscape(v.name||'');
+  const href=mmhdHtmlEscape(v.url),poster=mmhdHtmlEscape(v.poster);
+  const greeting=name?'¡Hola, '+name+'!':'¡Hola!';
+  const cover=poster?'<img src="'+poster+'" alt="Póster de '+title+'" width="170" style="display:block;width:170px;max-width:100%;height:auto;border:0;border-radius:10px" />':'<div style="width:170px;min-height:210px;background:#26334b;border-radius:10px;text-align:center;color:#d5e3f7;padding:60px 10px;box-sizing:border-box">MOVIE MANIA HD</div>';
+  // CSS inline y tablas, para compatibilidad con Gmail y otros clientes de correo.
+  return '<div style="margin:0;background:#eef0f5;padding:22px 8px;font-family:Arial,Helvetica,sans-serif">'+
+   '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:620px;margin:auto;background:#101827;border-radius:15px;border-collapse:separate;overflow:hidden;color:#f5f7fb">'+
+   '<tr><td style="background:#0b1020;padding:23px 24px;border-top:5px solid #fa315d">'+
+   '<span style="font-size:20px;letter-spacing:1px;font-weight:800;color:#fff">MOVIE MANIA <span style="color:#ff315d">HD</span></span><div style="color:#a1b0c7;font-size:11px;letter-spacing:1.3px;margin-top:4px">SERIES Y PELÍCULAS ONLINE</div></td></tr>'+
+   '<tr><td style="padding:27px 24px 12px"><div style="font-size:22px;font-weight:bold;line-height:1.35;color:#fff">'+greeting+'</div>'+
+   '<p style="color:#d2ddeb;font-size:15px;line-height:1.7;margin:11px 0 5px">¡La '+mmhdHtmlEscape(v.type)+' que solicitaste ya está disponible en nuestro catálogo!</p></td></tr>'+
+   '<tr><td style="padding:12px 24px 20px"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:separate;background:#1d283c;border:1px solid #344560;border-radius:12px"><tr>'+
+   '<td width="190" valign="top" style="padding:14px;width:190px">'+cover+'</td>'+
+   '<td valign="middle" style="padding:18px 15px 18px 2px;vertical-align:middle">'+
+   '<div style="font-size:10px;color:#ff7b99;font-weight:bold;letter-spacing:1.2px;margin-bottom:10px">YA DISPONIBLE</div>'+
+   '<div style="font-size:22px;line-height:1.25;font-weight:bold;color:#fff;margin-bottom:22px">'+title+'</div>'+
+   '<a href="'+href+'" style="display:inline-block;background:#ff315e;border-radius:8px;color:#fff;text-decoration:none;padding:13px 18px;font-size:13px;font-weight:bold">▶ VER AHORA</a>'+
+   '</td></tr></table></td></tr>'+
+   '<tr><td style="padding:0 24px 24px;font-size:12px;line-height:1.7;color:#aebed2">Si el botón no abre la página, puedes utilizar este enlace:<br><a href="'+href+'" style="color:#92ceff;text-decoration:underline;overflow-wrap:anywhere;word-break:break-all">'+href+'</a></td></tr>'+
+   '<tr><td style="border-top:1px solid #2b3b51;background:#0b1020;color:#899db7;text-align:center;font-size:11px;line-height:1.6;padding:18px 20px">Gracias por ayudarnos a mejorar Movie Mania HD.<br>Recibes este aviso porque solicitaste este título.</td></tr></table></div>';
+ }
+ let mmhdMailDialog=null;
+ function mmhdOpenMailPreview(r,existing,c){
+  let v;try{v=mmhdMailInfo(r,existing,c);}catch(err){say(err.message);return;}
+  if(!mmhdMailDialog){
+   mmhdMailDialog=document.createElement('dialog');mmhdMailDialog.className='mmhd-mail-dialog';
+   mmhdMailDialog.innerHTML='<div class="mmhd-mail-head"><div><strong>✉ Correo personalizado</strong><small>Vista previa — el envío requiere tu confirmación desde Gmail</small></div><button type="button" class="mmhd-mail-close" aria-label="Cerrar">✕</button></div><div class="mmhd-mail-panel"><p class="mmhd-mail-instructions">1. Pulsa <b>Copiar correo con diseño</b>. 2. Abre Gmail. 3. Pega el contenido en el mensaje con <b>Ctrl+V</b> (en móvil, Pegar). 4. Revísalo y pulsa Enviar desde Gmail.</p><div class="mmhd-mail-meta"></div><div class="mmhd-mail-preview"><div id="mmhd-mail-rendered"></div></div><div class="mmhd-mail-tools"><button type="button" class="mmhd-mail-copy">📋 Copiar correo con diseño</button><button type="button" class="mmhd-mail-gmail">✉ Abrir Gmail</button><button type="button" class="mmhd-mail-link">🔗 Copiar enlace</button><button type="button" class="mmhd-mail-download">⬇ Descargar HTML</button></div><p class="mmhd-mail-feedback" role="status" aria-live="polite"></p></div>';
+   document.body.append(mmhdMailDialog);
+   mmhdMailDialog.querySelector('.mmhd-mail-close').addEventListener('click',()=>mmhdMailDialog.close());
+   mmhdMailDialog.addEventListener('click',e=>{if(e.target===mmhdMailDialog)mmhdMailDialog.close()});
+  }
+  const html=mmhdMailHtml(v);const preview=mmhdMailDialog.querySelector('#mmhd-mail-rendered');preview.innerHTML=html;
+  mmhdMailDialog.querySelector('.mmhd-mail-meta').textContent='Para: '+v.address+'  |  Asunto: '+v.subject;
+  const feedback=mmhdMailDialog.querySelector('.mmhd-mail-feedback');feedback.textContent='El mensaje no se envía automáticamente.';
+  const plain='¡Hola'+(v.name?', '+v.name:'')+'!\n\nLa '+v.type+' que solicitaste ya está disponible en Movie Mania HD: '+v.title+'\n\n'+v.url+'\n\n¡Gracias por tu solicitud!';
+  const copyFallback=()=>{const sel=window.getSelection(),range=document.createRange();range.selectNodeContents(preview);sel.removeAllRanges();sel.addRange(range);const ok=document.execCommand('copy');sel.removeAllRanges();if(!ok)throw Error('Selecciona la vista previa y cópiala con Ctrl+C.');};
+  mmhdMailDialog.querySelector('.mmhd-mail-copy').onclick=async()=>{
+   try{
+    if(navigator.clipboard&&navigator.clipboard.write&&typeof ClipboardItem!=='undefined'){
+     const item=new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([plain],{type:'text/plain'})});
+     try{await navigator.clipboard.write([item]);}catch(_){copyFallback();}
+    }else copyFallback();
+    feedback.textContent='✓ Diseño copiado. Abre Gmail y pégalo con Ctrl+V en el cuerpo del mensaje.';
+   }catch(e){feedback.textContent='No se pudo copiar automáticamente: '+e.message;}
+  };
+  mmhdMailDialog.querySelector('.mmhd-mail-gmail').onclick=()=>{
+   const href='https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(v.address)+'&su='+encodeURIComponent(v.subject);
+   const popup=window.open(href,'_blank','noopener,noreferrer');
+   if(!popup)feedback.textContent='Si Chrome bloqueó la pestaña, habilita ventanas emergentes y vuelve a pulsar Abrir Gmail.';
+  };
+  mmhdMailDialog.querySelector('.mmhd-mail-link').onclick=async()=>{
+   try{await navigator.clipboard.writeText(v.url);feedback.textContent='✓ Enlace directo copiado: '+v.url;}
+   catch(_){feedback.textContent='Enlace: '+v.url;}
+  };
+  mmhdMailDialog.querySelector('.mmhd-mail-download').onclick=()=>{
+   const blob=new Blob(['<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>'+mmhdHtmlEscape(v.subject)+'</title></head><body>'+html+'</body></html>'],{type:'text/html;charset=utf-8'});
+   const href=URL.createObjectURL(blob);const a=document.createElement('a');a.href=href;a.download='Correo-MovieManiaHD-'+mmhdMailSlug(v.title)+'.html';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),3000);
+  };
+  if(!mmhdMailDialog.open)mmhdMailDialog.showModal();
+ }
+
  filterEl.addEventListener('change',()=>render());sortEl.addEventListener('change',()=>render());
 
  try{const saved=localStorage.getItem(savedKeyName);if(saved){key=saved;savedPersistent=true;remember.checked=true}else{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}}catch{try{key=sessionStorage.getItem('mmhd_requests_admin_key')||''}catch{}}keyEl.value=key;
@@ -6011,11 +6118,22 @@ renderCollection();
   const nameValue=document.createElement('span');nameValue.textContent=String(c.requester_name||'').trim()||'No registrado';name.append(nameLabel,nameValue);
   const email=document.createElement('div');email.className='mmhd-req-contact-email';
   const emailLabel=document.createElement('b');emailLabel.textContent='Correo electrónico: ';
-  const emailValue=document.createElement('span');emailValue.textContent=String(c.requester_email||'').trim()||'No registrado';email.append(emailLabel,emailValue);
+  const address=String(c.requester_email||'').trim();
+  const emailValue=document.createElement(mmhdValidEmail(address)?'a':'span');emailValue.textContent=address||'No registrado';
+  if(mmhdValidEmail(address)){emailValue.href='mailto:'+address;emailValue.className='mmhd-req-email-link';emailValue.title='Escribir a '+address;}
+  email.append(emailLabel,emailValue);
   const reason=document.createElement('div');reason.className='mmhd-req-contact-reason';
   const reasonLabel=document.createElement('b');reasonLabel.textContent='¿Por qué lo solicita?';
   const reasonValue=document.createElement('p');reasonValue.textContent=String(c.reason||'').trim()||'No indicó un motivo.';reason.append(reasonLabel,reasonValue);
   entry.append(name,email,reason);
+  if(mmhdValidEmail(address)){
+   const prepare=document.createElement('button');prepare.type='button';prepare.className='mmhd-req-mailbtn';
+   prepare.textContent='✉ Preparar correo con portada';
+   prepare.title=existing?'Crear correo HTML personalizado para este solicitante':'Primero debes agregar el título al catálogo para obtener su URL definitiva';
+   prepare.disabled=!existing;
+   prepare.addEventListener('click',()=>mmhdOpenMailPreview(r,existing,c));
+   entry.append(prepare);
+  }
   const stamp=Date.parse(c.created_at||c.updated_at||'');
   if(Number.isFinite(stamp)){
    const date=document.createElement('small');date.className='mmhd-req-contact-date';
