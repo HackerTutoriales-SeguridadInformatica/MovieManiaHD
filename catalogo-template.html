@@ -6149,7 +6149,10 @@ function mmhdPlatformVisible(movie,key){
   return Array.isArray(movie.watchProvidersMx)&&movie.watchProvidersMx.includes(key);
 }
 function mmhdMovieRecentDate(movie){
-  return Math.max(0,Date.parse(movie.updatedAt||"")||0,Date.parse(movie.addedAt||"")||0);
+  // Películas y series comparten el mismo carrusel. La portada, póster,
+  // fondo/banner o logo editado en una serie registra actividad propia.
+  return Math.max(0,Date.parse(movie.updatedAt||"")||0,
+    Date.parse(movie.addedAt||"")||0,Date.parse(movie.artworkUpdatedAt||"")||0);
 }
 function mmhdRecentItems(){
   return MOVIES.map((m,i)=>({m,i})).sort((a,b)=>
