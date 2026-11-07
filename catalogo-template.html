@@ -6148,7 +6148,9 @@ function mmhdPlatformVisible(movie,key){
   if(mode==="off")return false;
   return Array.isArray(movie.watchProvidersMx)&&movie.watchProvidersMx.includes(key);
 }
-function mmhdMovieRecentDate(movie){const t=Date.parse(movie.addedAt||"");return Number.isFinite(t)?t:0;}
+function mmhdMovieRecentDate(movie){
+  return Math.max(0,Date.parse(movie.updatedAt||"")||0,Date.parse(movie.addedAt||"")||0);
+}
 function mmhdRecentItems(){
   return MOVIES.map((m,i)=>({m,i})).sort((a,b)=>
     mmhdMovieRecentDate(b.m)-mmhdMovieRecentDate(a.m)||b.i-a.i).slice(0,20).map(x=>x.m);
@@ -6167,10 +6169,10 @@ function mmhdLatestEpisodes(limit=18){
   for(const series of MOVIES.filter(m=>m.kind==="SERIES")){
     for(const season of series.seasons||[])for(const ep of season.episodes||[]){
       if(!isPlayableEpisode(ep))continue;
-      const timestamp=Math.max(0,
-        Date.parse(ep.updatedAt||"")||0,
-        Date.parse(ep.addedAt||"")||0,
-        Date.parse(series.updatedAt||series.addedAt||"")||0);
+      // La fecha de la serie NO aplica a sus demás episodios: únicamente
+      // capítulos que ya cuentan con una fecha propia entran en esta sección.
+      const timestamp=Math.max(0,Date.parse(ep.updatedAt||"")||0,Date.parse(ep.addedAt||"")||0);
+      if(!timestamp)continue;
       result.push({series,season:Number(season.number)||0,episode:ep,time:timestamp});
     }
   }
