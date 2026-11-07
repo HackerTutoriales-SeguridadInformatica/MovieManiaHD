@@ -6019,11 +6019,22 @@ renderCollection();
   const url='https://moviemaniahd.vercel.app/'+mmhdMailSlug(title)+'-'+tmdbId;
   const address=String(c.requester_email||'').trim();
   if(!mmhdValidEmail(address))throw Error('Correo electrónico no válido.');
-  let poster=String(existing.poster||'').trim();
-  if(poster.startsWith('/'))poster='https://image.tmdb.org/t/p/w500'+poster;
-  if(!/^https:\/\//i.test(poster))poster='';
-  if(!poster&&typeof r.poster_path==='string'&&/^\/[A-Za-z0-9_/-]+\.(jpe?g|png|webp)$/i.test(r.poster_path))poster='https://image.tmdb.org/t/p/w500'+r.poster_path;
-  return {title,type,url,address,name:String(c.requester_name||'').trim(),poster,subject:'Movie Mania HD: '+title+' ya está disponible'};
+  // Gmail obtiene las imágenes mediante su propio proxy. Servimos los pósters de TMDB
+  // desde una URL pública de nuestro dominio, sin credenciales ni cookies.
+  let posterSource=String(existing.poster||'').trim();
+  if(!posterSource&&typeof r.poster_path==='string')posterSource=r.poster_path.trim();
+  let posterPath='';
+  if(/^\/[A-Za-z0-9_.-]{8,160}\.(?:jpe?g|png|webp)$/i.test(posterSource))posterPath=posterSource;
+  else{
+   try{
+    const parsed=new URL(posterSource);
+    const match=parsed.protocol==='https:'&&parsed.hostname==='image.tmdb.org'&&parsed.pathname.match(/^\/t\/p\/(?:original|w\d+)\/(\w[\w.-]{7,159}\.(?:jpe?g|png|webp))$/i);
+    if(match)posterPath='/'+match[1];
+   }catch(_){}
+  }
+  const poster=posterPath?'https://moviemaniahd.vercel.app/api/mail-poster?path='+encodeURIComponent(posterPath):(/^https:\/\//i.test(posterSource)?posterSource:'');
+  const originalPoster=posterPath?'https://image.tmdb.org/t/p/w500'+posterPath:(/^https:\/\//i.test(posterSource)?posterSource:'');
+  return {title,type,url,address,name:String(c.requester_name||'').trim(),poster,originalPoster,subject:'Movie Mania HD: '+title+' ya está disponible'};
  }
  function mmhdMailHtml(v){
   const title=mmhdHtmlEscape(v.title),name=mmhdHtmlEscape(v.name||'');
@@ -6061,7 +6072,7 @@ renderCollection();
   let v;try{v=mmhdMailInfo(r,existing,c);}catch(err){say(err.message);return;}
   if(!mmhdMailDialog){
    mmhdMailDialog=document.createElement('dialog');mmhdMailDialog.className='mmhd-mail-dialog';
-   mmhdMailDialog.innerHTML='<div class="mmhd-mail-head"><div><strong>✉ Aviso de solicitud — diseño sencillo</strong><small>Plantilla de prueba para Gmail; el envío siempre es manual</small></div><button type="button" class="mmhd-mail-close" aria-label="Cerrar">✕</button></div><div class="mmhd-mail-panel"><p class="mmhd-mail-instructions">1. Pulsa <b>Copiar correo con diseño</b>. 2. Abre Gmail. 3. Pega el contenido en el mensaje con <b>Ctrl+V</b> (en móvil, Pegar). 4. Revísalo y pulsa Enviar desde Gmail.</p><div class="mmhd-mail-meta"></div><div class="mmhd-mail-preview"><div id="mmhd-mail-rendered"></div></div><div class="mmhd-mail-tools"><button type="button" class="mmhd-mail-copy">📋 Copiar correo con diseño</button><button type="button" class="mmhd-mail-gmail">✉ Abrir Gmail</button><button type="button" class="mmhd-mail-link">🔗 Copiar enlace</button><button type="button" class="mmhd-mail-download">⬇ Descargar HTML</button></div><p class="mmhd-mail-feedback" role="status" aria-live="polite"></p></div>';
+   mmhdMailDialog.innerHTML='<div class="mmhd-mail-head"><div><strong>✉ Aviso de solicitud — diseño sencillo</strong><small>Plantilla de prueba para Gmail; el envío siempre es manual</small></div><button type="button" class="mmhd-mail-close" aria-label="Cerrar">✕</button></div><div class="mmhd-mail-panel"><p class="mmhd-mail-instructions">1. Pulsa <b>Copiar correo con diseño</b>. 2. Abre Gmail. 3. Pega el contenido en el mensaje con <b>Ctrl+V</b> (en móvil, Pegar). 4. Revísalo y pulsa Enviar desde Gmail.</p><div class="mmhd-mail-meta"></div><div class="mmhd-mail-preview"><div id="mmhd-mail-rendered"></div></div><div class="mmhd-mail-tools"><button type="button" class="mmhd-mail-copy">📋 Copiar correo con diseño</button><button type="button" class="mmhd-mail-image-copy">🖼 Copiar portada como imagen</button><button type="button" class="mmhd-mail-gmail">✉ Abrir Gmail</button><button type="button" class="mmhd-mail-link">🔗 Copiar enlace</button><button type="button" class="mmhd-mail-download">⬇ Descargar HTML</button></div><p class="mmhd-mail-feedback" role="status" aria-live="polite"></p></div>';
    document.body.append(mmhdMailDialog);
    mmhdMailDialog.querySelector('.mmhd-mail-close').addEventListener('click',()=>mmhdMailDialog.close());
    mmhdMailDialog.addEventListener('click',e=>{if(e.target===mmhdMailDialog)mmhdMailDialog.close()});
@@ -6069,6 +6080,11 @@ renderCollection();
   const html=mmhdMailHtml(v);const preview=mmhdMailDialog.querySelector('#mmhd-mail-rendered');preview.innerHTML=html;
   mmhdMailDialog.querySelector('.mmhd-mail-meta').textContent='Para: '+v.address+'  |  Asunto: '+v.subject;
   const feedback=mmhdMailDialog.querySelector('.mmhd-mail-feedback');feedback.textContent='No se envía automáticamente. Haz primero una prueba con tu propia cuenta.';
+  const mailImg=preview.querySelector('img');
+  if(mailImg){
+   mailImg.addEventListener('error',()=>{feedback.textContent='⚠ La portada no cargó. Comprueba que api/mail-poster.js esté publicado en Vercel. Puedes usar Copiar portada como imagen cuando esté disponible.';},{once:true});
+   if(mailImg.complete&&!mailImg.naturalWidth)feedback.textContent='⚠ No se pudo cargar la portada. Comprueba api/mail-poster.js en Vercel.';
+  }
   const plain='Hola'+(v.name?', '+v.name:'')+':\n\nTe escribimos porque solicitaste la '+v.type+' '+v.title+' en Movie Mania HD. Ya puedes encontrarla en nuestro catálogo.\n\nVer ahora: '+v.url+'\n\nGracias por tu solicitud.\nEquipo de Movie Mania HD\n\nSi prefieres no recibir más notificaciones, responde a este correo indicándolo.';
   const copyFallback=()=>{const sel=window.getSelection(),range=document.createRange();range.selectNodeContents(preview);sel.removeAllRanges();sel.addRange(range);const ok=document.execCommand('copy');sel.removeAllRanges();if(!ok)throw Error('Selecciona la vista previa y cópiala con Ctrl+C.');};
   mmhdMailDialog.querySelector('.mmhd-mail-copy').onclick=async()=>{
@@ -6079,6 +6095,40 @@ renderCollection();
     }else copyFallback();
     feedback.textContent='✓ Diseño copiado. Abre Gmail y pégalo con Ctrl+V en el cuerpo del mensaje.';
    }catch(e){feedback.textContent='No se pudo copiar automáticamente: '+e.message;}
+  };
+  // Respaldo: copiar los píxeles de la portada como PNG. Al pegarlos en Gmail, el
+  // mensaje incorpora una imagen propia en vez de depender de una URL externa.
+  mmhdMailDialog.querySelector('.mmhd-mail-image-copy').onclick=async()=>{
+   if(!v.poster){feedback.textContent='No hay portada disponible para copiar.';return;}
+   try{
+    let imageBlob=null,lastError=null;
+    // El navegador puede usar la portada original si la API aún no está disponible.
+    for(const source of [...new Set([v.poster,v.originalPoster].filter(Boolean))]){
+     try{
+      const response=await fetch(source,{mode:'cors',cache:'no-cache'});
+      if(!response.ok)throw Error('La portada respondió HTTP '+response.status);
+      const blob=await response.blob();
+      if(!/^image\/(?:jpeg|png|webp)$/i.test(blob.type))throw Error('Formato de imagen no admitido: '+blob.type);
+      imageBlob=blob;break;
+     }catch(err){lastError=err;}
+    }
+    if(!imageBlob)throw lastError||Error('No se pudo descargar la portada.');
+    const bitmap=await createImageBitmap(imageBlob);
+    const canvas=document.createElement('canvas');
+    const scale=Math.min(1,500/bitmap.width);
+    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
+    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+    canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
+    bitmap.close?.();
+    const png=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('No se pudo convertir la imagen.')),'image/png'));
+    if(navigator.clipboard?.write && typeof ClipboardItem!=='undefined'){
+     await navigator.clipboard.write([new ClipboardItem({'image/png':png})]);
+     feedback.textContent='✓ Portada copiada como imagen. En el borrador de Gmail, borra la portada que no cargó y pega esta imagen (Ctrl+V) en su lugar.';
+    }else{
+     const a=document.createElement('a');a.href=URL.createObjectURL(png);a.download='Portada-MovieManiaHD-'+mmhdMailSlug(v.title)+'.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+     feedback.textContent='Tu navegador no permite copiar imágenes. Descargué la portada; insértala como foto en el cuerpo de Gmail.';
+    }
+   }catch(err){feedback.textContent='No se pudo copiar la portada: '+(err?.message||String(err))+' — Comprueba api/mail-poster.js.';}
   };
   mmhdMailDialog.querySelector('.mmhd-mail-gmail').onclick=()=>{
    const href='https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(v.address)+'&su='+encodeURIComponent(v.subject);
