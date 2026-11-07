@@ -2716,15 +2716,32 @@ function activeAdminEpisode(){
 }
 function storeAdminEpisodeFields(){
   const ep=activeAdminEpisode();if(!ep)return;
-  const previousLinks=["m37","m22","m18","m37En","m22En","m18En"].map(id=>String(ep[id]||""));
+  // El instante de publicación pertenece al capítulo, no a la serie completa.
+  // Solo un enlace realmente añadido, sustituido o retirado lo mueve en «Nuevos episodios».
+  const episodeLinkSignature=item=>{
+    const keys=["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","airplayUrl","airplayUrlEn"];
+    const links=keys.map(key=>String(item[key]||"").trim());
+    for(const key of ["googleUrl","m37","m22","m18"])links.push(String(item.audioAlt?.[key]||"").trim());
+    // Ordenar las pistas evita marcar como modificado un mero cambio de orden.
+    const tracks=mmhdNormalizeSubtitleTracks(item.subtitleTracks,item.subtitlesUrl)
+      .map(track=>[String(track.language||"").trim().toLowerCase(),String(track.url||"").trim()])
+      .sort((a,b)=>a[0].localeCompare(b[0]));
+    return JSON.stringify([links,tracks]);
+  };
+  const priorSignature=episodeLinkSignature(ep);
   for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl","airplayUrl","airplayUrlEn"])ep[id]=$(id).value.trim();
   ep.audioAlt=mmhdAudioAltFromFields();
   const seriesDefault=mmhdNormalizeMainAudioLanguage(state.movie?.seriesDefaultLanguage);
   ep.primaryLanguage=mmhdSelectedMainLanguage()===seriesDefault?'':mmhdSelectedMainLanguage();
   ep.subtitleTracks=mmhdPanelSubtitleTracks();
   const playable=mmhdHasVideoConfigured(ep);
-  if(playable&&!ep.addedAt)ep.addedAt=new Date().toISOString();
-  if(playable&&["m37","m22","m18","m37En","m22En","m18En"].some((id,i)=>String(ep[id]||"")!==previousLinks[i]))ep.updatedAt=new Date().toISOString();
+  const isNewPlayable=playable&&!ep.addedAt;
+  const linksChanged=priorSignature!==episodeLinkSignature(ep);
+  if(isNewPlayable||playable&&linksChanged){
+    const now=new Date().toISOString();
+    if(isNewPlayable)ep.addedAt=now;
+    ep.updatedAt=now;
+  }
   if(!$('episodeDetailsEditor').hidden){
     ep.name=$('episodeEditName').value.trim() || `Episodio ${ep.number}`;
     ep.overview=$('episodeEditOverview').value.trim();
@@ -3835,7 +3852,8 @@ function renderCollection(options={}){
   else if(sort==="rating") items.sort((a,b)=>Number(b.rating||0)-Number(a.rating||0));
   else {
     const catalogPositions=new Map(state.collection.map((item,index)=>[item,index]));
-    items.sort((a,b)=>(Date.parse(b.addedAt)||0)-(Date.parse(a.addedAt)||0)||catalogPositions.get(b)-catalogPositions.get(a));
+    const activity=item=>Math.max(Date.parse(item.updatedAt||"")||0,Date.parse(item.addedAt||"")||0);
+    items.sort((a,b)=>activity(b)-activity(a)||catalogPositions.get(b)-catalogPositions.get(a));
   }
   $("collectionInfo").textContent=`Mostrando ${items.length} de ${count} títulos · Edita para recuperar los enlaces guardados.`;
   if (!items.length){list.innerHTML='<div class="empty">No hay películas que coincidan con estos filtros.</div>';return;}
