@@ -3567,7 +3567,7 @@ function buildWatchPartyBridgeScript(movieId){
 (function(){
   'use strict';
   var ID=${JSON.stringify(String(movieId))};
-  var video=null,pending=null,blockedNoticeAt=0;
+  var video=null,pending=null,desired=null,blockedNoticeAt=0;
   function tell(type,data){
     try{window.parent.postMessage(Object.assign({type:type,id:ID},data||{}),'*');}catch(_){}
   }
@@ -3576,9 +3576,31 @@ function buildWatchPartyBridgeScript(movieId){
     tell('mmhd-watch-event',{reason:reason||'snapshot',position:Number(video.currentTime)||0,
       duration:Number(video.duration)||0,paused:video.paused,readyState:video.readyState});
   }
+  function reportBlocked(type){
+    if(Date.now()-blockedNoticeAt<4500)return;
+    blockedNoticeAt=Date.now();tell(type||'mmhd-watch-blocked');
+  }
+  function attemptPlay(){
+    if(!video || !video.paused)return;
+    try{
+      var result=video.play();
+      if(result && typeof result.catch==='function')result.catch(function(err){
+        if(err && err.name==='NotAllowedError' && !video.muted){
+          try{
+            video.muted=true;
+            var muted=video.play();
+            if(muted && typeof muted.then==='function')muted.then(function(){reportBlocked('mmhd-watch-muted-start');})
+              .catch(function(){reportBlocked('mmhd-watch-blocked');});
+            else reportBlocked('mmhd-watch-muted-start');
+          }catch(_){reportBlocked('mmhd-watch-blocked');}
+        }else{reportBlocked('mmhd-watch-blocked');}
+      });
+    }catch(_){reportBlocked('mmhd-watch-blocked');}
+  }
   function apply(cmd){
-    if(!cmd||!video)return;
-    if(video.readyState<1){pending=cmd;return;}
+    if(!cmd)return;
+    desired=cmd;
+    if(!video || video.readyState<1){pending=cmd;return;}
     pending=null;
     var pos=Number(cmd.position),duration=Number(video.duration);
     if(Number.isFinite(pos)&&pos>=0){
@@ -3590,12 +3612,7 @@ function buildWatchPartyBridgeScript(movieId){
     if(cmd.paused){
       try{if(!video.paused)video.pause();}catch(_){}
     }else if(video.paused){
-      try{
-        var result=video.play();
-        if(result&&typeof result.catch==='function')result.catch(function(){
-          if(Date.now()-blockedNoticeAt>4500){blockedNoticeAt=Date.now();tell('mmhd-watch-blocked');}
-        });
-      }catch(_){tell('mmhd-watch-blocked');}
+      attemptPlay();
     }
   }
   function attach(){
@@ -3607,6 +3624,7 @@ function buildWatchPartyBridgeScript(movieId){
     video.addEventListener('seeked',function(){status('seeked');});
     video.addEventListener('loadedmetadata',function(){if(pending)apply(pending);status('metadata');});
     video.addEventListener('durationchange',function(){if(pending)apply(pending);});
+    video.addEventListener('canplay',function(){if(desired && !desired.paused && video.paused)apply(desired);});
     video.addEventListener('timeupdate',function(){if(Date.now()-(video.__mmhdWatchLast||0)>2000){video.__mmhdWatchLast=Date.now();status('time');}});
     tell('mmhd-watch-ready');
     if(pending)apply(pending);
@@ -3615,6 +3633,9 @@ function buildWatchPartyBridgeScript(movieId){
   window.addEventListener('message',function(event){
     if(event.source!==window.parent || !event.data || String(event.data.id)!==ID)return;
     if(event.data.type==='mmhd-watch-query'){attach();status('snapshot');}
+    if(event.data.type==='mmhd-watch-enable-audio'){
+      attach();if(video){try{video.muted=false;if(desired&&!desired.paused)attemptPlay();}catch(_){}}
+    }
     if(event.data.type==='mmhd-watch-sync'){
       pending={position:event.data.position,paused:Boolean(event.data.paused),force:Boolean(event.data.force)};
       attach();apply(pending);
