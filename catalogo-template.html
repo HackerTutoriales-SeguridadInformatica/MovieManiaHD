@@ -3561,169 +3561,6 @@ function b64ToUtf8(b64){
   return new TextDecoder("utf-8").decode(bytes);
 }
 
-function buildWatchPartyBridgeScript(movieId){
-  return `
-<script>
-(function(){
-  'use strict';
-  var ID=${JSON.stringify(String(movieId))};
-  var video=null,pending=null,desired=null,desiredAt=0,blockedNoticeAt=0,hostPlayPending=false;
-  var gate=false,guestLock=false,partyEnabled=false,chatOpacity=.96,lastFwStart=0,lastHtmlTry=0,hostPlaySince=0,lastGuestFwTry=0,guestInitAt=0;
-  var fsChat=null,fsMessages=null,fsInput=null,fsPanel=null,fsRoot=null;
-  function tell(type,extra){try{window.parent.postMessage(Object.assign({type:type,id:ID},extra||{}),'*');}catch(_){}}
-  function status(reason){if(!video)return;tell('mmhd-watch-event',{reason:reason||'snapshot',position:Number(video.currentTime)||0,duration:Number(video.duration)||0,paused:video.paused,readyState:video.readyState});}
-  function reportBlocked(type){if(Date.now()-blockedNoticeAt<4500)return;blockedNoticeAt=Date.now();tell(type||'mmhd-watch-blocked');}
-  function hasMediaSource(v){
-    return !!(v&&(v.currentSrc||v.getAttribute('src')||v.querySelector('source[src]')));
-  }
-  // FWDEV's first poster-click initializes the HTML5 source. Calling video.play()
-  // on an empty element will not do this. Use the documented FWDEV player API.
-  function startHost(){
-    gate=false;
-    if(!hostPlayPending){hostPlayPending=true;hostPlaySince=Date.now();lastFwStart=0;lastHtmlTry=0;}
-    if(Date.now()-hostPlaySince>10000){
-      hostPlayPending=false;
-      reportBlocked('mmhd-watch-blocked');
-      return;
-    }
-    attach();
-    var nativePlayer=window.player1;
-    if(nativePlayer&&typeof nativePlayer.play==='function'&&Date.now()-lastFwStart>950){
-      lastFwStart=Date.now();
-      try{nativePlayer.play();}catch(_){}
-    }
-    // FWDEV may create its <video> synchronously during player1.play().
-    // Attach immediately so we do not miss the very first playback state.
-    attach();
-    if(video&&!video.paused&&video.readyState>=2){hostPlayPending=false;status('playing');return;}
-    if(hasMediaSource(video)&&video.paused&&Date.now()-lastHtmlTry>950){
-      lastHtmlTry=Date.now();attemptPlay(false);
-    }
-  }
-  // Exposed within the blob iframe. The parent calls this synchronously from
-  // the green button to preserve its user activation for Chrome's play policy.
-  window.MMHD_WATCH_BRIDGE={startHost:startHost};
-  function bootstrapGuest(){
-    if(!guestLock||gate||!desired||desired.paused)return;
-    if(!guestInitAt)guestInitAt=Date.now();
-    if(Date.now()-guestInitAt>10000)return;
-    var nativePlayer=window.player1;
-    if(nativePlayer&&typeof nativePlayer.play==='function'&&Date.now()-lastGuestFwTry>1200){
-      lastGuestFwTry=Date.now();
-      try{nativePlayer.play();}catch(_){}
-    }
-    attach();
-    if(hasMediaSource(video)&&video.paused)attemptPlay(true);
-  }
-  function attemptPlay(muteFallback){
-    if(!video||!video.paused)return;
-    try{var promise=video.play();if(promise&&typeof promise.catch==='function')promise.catch(function(err){
-      if(muteFallback && err && err.name==='NotAllowedError' && !video.muted){
-        try{video.muted=true;var muted=video.play();if(muted&&typeof muted.then==='function')muted.then(function(){reportBlocked('mmhd-watch-muted-start');}).catch(function(){reportBlocked('mmhd-watch-blocked');});
-          else reportBlocked('mmhd-watch-muted-start');}catch(_){reportBlocked('mmhd-watch-blocked');}
-      }else{reportBlocked('mmhd-watch-blocked');}
-    });}catch(_){reportBlocked('mmhd-watch-blocked');}
-  }
-  function currentTarget(){
-    if(!desired)return 0;
-    var target=Number(desired.position)||0;
-    if(!desired.paused)target+=Math.max(0,(performance.now()-desiredAt)/1000);
-    var d=Number(video&&video.duration);
-    if(Number.isFinite(d)&&d>0)target=Math.min(target,Math.max(0,d-.25));
-    return Math.max(0,target);
-  }
-  function seekAndRate(force){
-    if(!video||!desired||video.readyState<1)return;
-    var target=currentTarget(),current=Number(video.currentTime)||0,drift=target-current;
-    if(force || Math.abs(drift)>2.0){try{video.currentTime=target;}catch(_){};}
-    if(guestLock && !desired.paused && !force && Math.abs(drift)>.5 && Math.abs(drift)<=2){
-      try{video.playbackRate=drift>0?1.045:.955;}catch(_){}
-    }else{try{if(video.playbackRate!==1)video.playbackRate=1;}catch(_){}}
-  }
-  function apply(cmd){
-    if(!cmd)return;
-    desired=cmd;desiredAt=performance.now();
-    if(!video || video.readyState<1){pending=cmd;bootstrapGuest();return;}
-    pending=null;seekAndRate(!!cmd.force);
-    if(cmd.paused){try{if(!video.paused)video.pause();}catch(_){};}
-    else if(video.paused&&!gate)attemptPlay(true);
-  }
-  function appendFsMessage(kind,text){
-    if(!fsMessages)return;
-    var msg=document.createElement('div');msg.textContent=(kind==='mine'?'Tú: ':kind==='system'?'': 'Otra persona: ')+String(text||'').slice(0,450);
-    msg.style.cssText='padding:5px 8px;margin:4px 0;border-radius:8px;background:'+(kind==='mine'?'#20578c':kind==='system'?'transparent':'#2b4261')+';white-space:pre-wrap;overflow-wrap:anywhere';
-    fsMessages.appendChild(msg);while(fsMessages.children.length>55)fsMessages.firstChild.remove();fsMessages.scrollTop=fsMessages.scrollHeight;
-  }
-  function ensureFsChat(){
-    if(fsChat)return;
-    var style=document.createElement('style');
-    style.textContent='#mmhdWpFsChat{position:fixed;right:12px;bottom:16px;z-index:2147483647;color:white;font:13px/1.35 Arial,sans-serif;pointer-events:auto}#mmhdWpFsChat button,#mmhdWpFsChat input{font:inherit}#mmhdWpFsPanel{width:min(320px,70vw);height:min(360px,68vh);display:none;flex-direction:column;background:rgba(12,22,40,.96);border:1px solid #6b90bb;border-radius:10px;box-shadow:0 10px 30px #000b;overflow:hidden}#mmhdWpFsPanel .mmhd-fs-title{padding:9px;background:#1a3354;display:flex;justify-content:space-between;align-items:center}#mmhdWpFsText{padding:9px;overflow:auto;min-height:0;flex:1}#mmhdWpFsForm{display:flex;padding:6px;gap:5px;background:#172b45}#mmhdWpFsForm input{min-width:0;flex:1;padding:8px;background:#071322;color:white;border:1px solid #6a83a5;border-radius:6px}#mmhdWpFsChat button{background:#235891;border:1px solid #6594ca;border-radius:7px;color:white;padding:7px 9px;cursor:pointer}';
-    document.head.appendChild(style);
-    fsChat=document.createElement('div');fsChat.id='mmhdWpFsChat';
-    fsChat.innerHTML='<button type="button" id="mmhdWpFsLauncher">💬 Chat</button><section id="mmhdWpFsPanel"><div class="mmhd-fs-title"><strong>💬 Ver juntos</strong><button type="button" id="mmhdWpFsClose">—</button></div><div id="mmhdWpFsText" role="log"></div><form id="mmhdWpFsForm"><input type="text" maxlength="450" id="mmhdWpFsInput" placeholder="Mensaje…"><button type="submit">Enviar</button></form><button type="button" id="mmhdWpFsUnmute">🔊 Activar sonido</button></section>';
-    fsPanel=fsChat.querySelector('#mmhdWpFsPanel');fsMessages=fsChat.querySelector('#mmhdWpFsText');fsInput=fsChat.querySelector('#mmhdWpFsInput');
-    fsChat.querySelector('#mmhdWpFsLauncher').addEventListener('click',function(){fsPanel.style.display='flex';fsChat.querySelector('#mmhdWpFsLauncher').style.display='none';});
-    fsChat.querySelector('#mmhdWpFsClose').addEventListener('click',function(){fsPanel.style.display='none';fsChat.querySelector('#mmhdWpFsLauncher').style.display='inline-block';});
-    fsChat.querySelector('#mmhdWpFsForm').addEventListener('submit',function(e){e.preventDefault();var t=fsInput.value.trim();if(!t)return;tell('mmhd-watch-fs-chat-send',{text:t.slice(0,450)});fsInput.value='';});
-    fsChat.querySelector('#mmhdWpFsUnmute').addEventListener('click',function(){tell('mmhd-watch-fs-chat-unmute');});
-    document.body.appendChild(fsChat);
-    fsChat.hidden=true;
-  }
-  function updateFsChat(){
-    ensureFsChat();
-    var root=document.fullscreenElement||document.webkitFullscreenElement;
-    // Safari iOS puede usar fullscreen nativo de video: allí no se permiten overlays HTML.
-    if(!partyEnabled||!root||root.tagName==='VIDEO'){fsChat.hidden=true;return;}
-    if(fsChat.parentElement!==root)root.appendChild(fsChat);
-    fsChat.hidden=false;
-    fsPanel.style.backgroundColor='rgba(12,22,40,'+chatOpacity+')';
-  }
-  document.addEventListener('fullscreenchange',updateFsChat);
-  document.addEventListener('webkitfullscreenchange',updateFsChat);
-  function attach(){
-    var candidate=document.querySelector('#myDiv video')||document.querySelector('video');
-    if(!candidate||candidate===video)return;
-    video=candidate;
-    video.addEventListener('play',function(){if(gate){try{video.pause();}catch(_){};}status('play');});
-    video.addEventListener('playing',function(){hostPlayPending=false;status('playing');});
-    video.addEventListener('pause',function(){status('pause');});
-    video.addEventListener('ended',function(){status('ended');});
-    video.addEventListener('seeked',function(){status('seeked');});
-    video.addEventListener('loadedmetadata',function(){if(pending)apply(pending);status('metadata');});
-    video.addEventListener('durationchange',function(){if(pending)apply(pending);});
-    video.addEventListener('canplay',function(){if(desired&&!desired.paused&&video.paused&&!gate)apply(desired);if(hostPlayPending&&!gate)startHost();});
-    video.addEventListener('loadstart',function(){if(hostPlayPending&&!gate)startHost();});
-    video.addEventListener('timeupdate',function(){if(Date.now()-(video.__mmhdWatchLast||0)>1900){video.__mmhdWatchLast=Date.now();status('time');}});
-    tell('mmhd-watch-ready');if(pending)apply(pending);if(hostPlayPending&&!gate)startHost();status('attached');
-  }
-  window.addEventListener('message',function(event){
-    if(event.source!==window.parent||!event.data||String(event.data.id)!==ID)return;
-    var cmd=event.data;
-    if(cmd.type==='mmhd-watch-party-mode'){partyEnabled=Boolean(cmd.enabled);updateFsChat();}
-    if(cmd.type==='mmhd-watch-query'){attach();status('snapshot');}
-    if(cmd.type==='mmhd-watch-gate'){gate=Boolean(cmd.enabled);attach();if(gate&&video&&!video.paused)try{video.pause();}catch(_){};}
-    if(cmd.type==='mmhd-watch-guest-lock'){guestLock=Boolean(cmd.enabled);}
-    if(cmd.type==='mmhd-watch-host-play'){startHost();}
-    if(cmd.type==='mmhd-watch-enable-audio'){attach();if(video){try{video.muted=false;if(desired&&!desired.paused)attemptPlay(false);}catch(_){}}}
-    if(cmd.type==='mmhd-watch-sync'){
-      var next={position:Number(cmd.position)||0,paused:Boolean(cmd.paused),force:Boolean(cmd.force)};
-      if(next.paused)guestInitAt=0;
-      pending=next;attach();apply(next);
-    }
-    if(cmd.type==='mmhd-watch-chat-display'){appendFsMessage(cmd.kind,cmd.text);}
-    if(cmd.type==='mmhd-watch-chat-opacity'){chatOpacity=Math.max(.4,Math.min(1,Number(cmd.opacity)||.96));if(fsPanel)fsPanel.style.backgroundColor='rgba(12,22,40,'+chatOpacity+')';}
-  });
-  attach();setInterval(function(){
-    attach();
-    if(hostPlayPending&&!gate)startHost();
-    if(guestLock&&desired&&!desired.paused&&!gate&&(!video||video.readyState<1))bootstrapGuest();
-  },450);
-  setInterval(function(){if(guestLock&&desired&&video&&!video.paused)seekAndRate(false);},4000);
-})();
-<\/script>
-`;
-}
-
 function buildProgressScript(movieId){
   // El iframe usa blob:, por eso el progreso se guarda en el catálogo padre.
   // El reproductor solo envía/recibe mensajes; no depende de localStorage del blob.
@@ -5136,7 +4973,6 @@ function getPlayerHtml(movie, autoNext=false, retryPreference=null){
   }
   const nextEpisode=movie.parentSeriesId!=null ? getNextSeriesEpisode(movie) : null;
   const scriptTag=buildProgressScript(movie.id)
-    + buildWatchPartyBridgeScript(movie.id)
     + mmhdMakeSubtitleScript(movie.subtitleTracks,movie.subtitlesUrl)
     + mmhdMakeFullscreenLanguageScript()
     + mmhdMakeFullscreenAutoHideScript()
@@ -8601,7 +8437,6 @@ $("playerNextClose").addEventListener("click",()=>{
 });
 $("playerNextGo").addEventListener("click",()=>{
   if(!activePlayerMovie || parentNextDismissed)return;
-  if(window.mmhdWatchParty?.isGuest()) {window.mmhdWatchParty.openPanel();return;}
   advanceEpisode(activePlayerMovie,true);
 });
 let mmhdLastManualRetry=0;
@@ -8662,7 +8497,6 @@ function openPlayer(movie,autoNext=false){
   const url = URL.createObjectURL(blob);
 
   activePlayerMovie=movie;
-  window.mmhdWatchParty?.onPlayerOpen(movie);
   mmhdActiveSubtitleLanguage='off';
   mmhdPendingSubtitleAfterRetry=null;
   parentNextDismissed=false;
@@ -8696,7 +8530,6 @@ function openPlayer(movie,autoNext=false){
 }
 
 function closePlayer(){
-  window.mmhdWatchParty?.onPlayerClose();
   hidePlayerNextBanner();
   iframeEpisodeFullscreen=false;
   lastEpisodeProgress=null;
@@ -9196,7 +9029,7 @@ window.addEventListener("message", (e) => {
   if (data.type === "mmhd-request-restore") {
     frame.contentWindow.postMessage({
       type: "mmhd-restore", id: movieId,
-      currentTime: window.mmhdWatchParty?.restoreSeconds(movieId) ?? (Number(progressSeconds[movieId]) || 0)
+      currentTime: Number(progressSeconds[movieId]) || 0
     }, "*");
     return;
   }
@@ -9259,7 +9092,7 @@ window.addEventListener("message", (e) => {
     return;
   }
   if(data.type==="mmhd-ended" || data.type==="mmhd-skip-next"){
-    if(!window.mmhdWatchParty?.isGuest()) advanceEpisode(activePlayerMovie,data.type==="mmhd-skip-next");
+    advanceEpisode(activePlayerMovie,data.type==="mmhd-skip-next");
   }
 });
 
@@ -9633,10 +9466,5 @@ syncBackToTop();
 </script>
 <script src="/inicio-episodios.js?v=20261102c" defer></script>
 <script src="/public-sync.js" defer></script>
-<script src="/airplay.js?v=20261101a" defer></script>
-<!-- Ver juntos: experimentación para DOS navegadores. No contiene claves administrativas. -->
-<script src="/ver-juntos-config.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-<script src="/ver-juntos.js" defer></script>
 </body>
 </html>
