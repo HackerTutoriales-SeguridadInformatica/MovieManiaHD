@@ -53,11 +53,30 @@ module.exports = async function handler(req,res) {
    if(p.action==='list'){const data=await read('rpc/mmhd_public_status','POST',{});return res.status(200).json(data);}
    return res.status(400).json({error:'Acción desconocida'});
   }
-  const published=await read('mmhd_public_titles?select=id,enabled&limit=5000');
-  const ids=published.filter(x=>x.enabled).map(x=>String(x.id));
-  const config=await read('mmhd_public_meta?select=revision&id=eq.1');
-  const version=String(config[0]?.revision||0);
-  if(req.query?.head==='1')return res.status(200).json({version});
+  // La comprobación pública debe ser MUY ligera: consultar solo la revisión.
+  // Antes se descargaban todos los mmhd_public_titles en CADA ?head=1.
+  const currentRevision=async()=>{
+   const rows=await read('mmhd_public_meta?select=revision&id=eq.1');
+   if(!rows.length)return null;
+   return String(rows[0].revision ?? 0);
+  };
+  const version=await currentRevision();
+  if(version===null)return res.status(503).json({error:'Revisión pública no disponible'});
+  if(req.query?.head==='1'){
+   // Respuesta idéntica para todos los visitantes: Vercel comparte la caché.
+   // El cliente vuelve a comprobar al recuperar el foco y periódicamente.
+   res.setHeader('Cache-Control','public, max-age=0, s-maxage=45');
+   return res.status(200).json({version});
+  }
+  const requestedVersion=req.query?.revision;
+  // Una URL con revisión sirve como clave de caché, evitando volver a transferir
+  // a través de Supabase los mismos snapshots para cada visita.
+  if(requestedVersion!==undefined && (typeof requestedVersion!=='string' || requestedVersion!==version)){
+   return res.status(409).json({error:'La revisión pública cambió; vuelve a comprobarla'});
+  }
+  // Solo leer los IDs realmente aprobados. No publicar fichas no autorizadas.
+  const published=await read('mmhd_public_titles?select=id&enabled=eq.true&limit=5000');
+  const ids=published.map(x=>String(x.id));
   const chunks=[];for(let i=0;i<ids.length;i+=80)chunks.push(ids.slice(i,i+80));
   const pages=await Promise.all(chunks.map(chunk=>read('mmhd_public_snapshots?select=id,item&id=in.('+chunk.map(x=>'"'+x.replace(/"/g,'')+'"').join(',')+')')));
   const rows=pages.flat();
@@ -65,6 +84,15 @@ module.exports = async function handler(req,res) {
   if(received.size!==ids.length || ids.some(id=>!received.has(id))) {
    console.error('MMHD snapshots incompletos',received.size,ids.length);
    return res.status(503).json({error:'Versiones públicas incompletas; se conserva el catálogo estático'});
+  }
+  // Impedir cachear bajo una revisión vieja una actualización a medio publicar.
+  if(await currentRevision()!==version){
+   return res.status(409).json({error:'La publicación cambió durante la lectura; reintenta'});
+  }
+  // Caché larga solo para contenido identificado por revisión. Una nueva
+  // publicación utiliza una URL diferente, por lo que no queda bloqueada.
+  if(requestedVersion!==undefined){
+   res.setHeader('Cache-Control','public, max-age=0, s-maxage=900');
   }
   return res.status(200).json({version,approvedIds:ids,items:rows.map(row=>row.item)});
  }catch(e){console.error('MMHD public library',e.message);return res.status(502).json({error:'No se pudo consultar el catálogo público'});}
