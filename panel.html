@@ -1663,15 +1663,6 @@ button:focus-visible,.rail-link:focus-visible{outline:2px solid #ff6f92;outline-
   <label for="m18En">Inglés · 420p (m18)</label>
   <input id="m18En" placeholder="Se rellena automáticamente" type="url" />
 </div>
-<div class="mmhd-language-links" style="border:1px solid #4978aa;border-radius:12px;padding:14px;margin:17px 0;background:#0b2030">
-  <strong style="color:#c8e8ff;display:block;margin-bottom:8px"><i class="fa-solid fa-tv"></i> Fuente exclusiva para AirPlay (opcional)</strong>
-  <small style="display:block;color:#a5c0d6;line-height:1.5;margin-bottom:10px">Pega una URL HTTPS DIRECTA a un video MP4 H.264/AAC o a una lista HLS .m3u8 alojada fuera de Google Photos. Se configura por película o episodio. No sustituye los enlaces m37/m22/m18 ni modifica Chromecast. Solo se usa tras aprobar la edición en Publicaciones.</small>
-  <label for="airplayUrl">AirPlay · video principal</label>
-  <input id="airplayUrl" type="url" placeholder="https://videos.tudominio.com/pelicula.mp4" autocomplete="off" />
-  <label for="airplayUrlEn">AirPlay · versión Inglés (opcional)</label>
-  <input id="airplayUrlEn" type="url" placeholder="https://videos.tudominio.com/pelicula-en.mp4" autocomplete="off" />
-  <small style="display:block;color:#91a4c1;margin-top:8px">Primero prueba esa URL en el iPad y Roku con el archivo probar-fuente-airplay.html del paquete. No pegues enlaces de Google Photos ni URL de páginas con reproductor incrustado.</small>
-</div>
 <div class="mmhd-audio-alt-links" style="border:1px solid #426258;border-radius:12px;padding:14px;margin:17px 0 16px;background:#10221e">
   <strong style="color:#dcfff2;display:block;margin-bottom:7px"><i class="fa-solid fa-language"></i> Otro video alternativo · idioma seleccionable (opcional)</strong>
   <small style="display:block;color:#accbc0;line-height:1.55;margin-bottom:10px">Añade otra versión de la película o episodio; por ejemplo, audio Coreano. Conserva los videos Latino e Inglés existentes. El idioma del audio es independiente de los subtítulos.</small>
@@ -2207,7 +2198,7 @@ function clearVideoFields(){
   altExtractRequestId++;
   mmhdLoadAudioAlt(null);
   $('primaryLanguage').value='Latino';
-  for (const id of ["googleUrl", "m37", "m22", "m18", "googleUrlEn", "m37En", "m22En", "m18En", "subtitlesUrl", "subtitlesUrlEn", "airplayUrl", "airplayUrlEn"]) $(id).value = "";
+  for (const id of ["googleUrl", "m37", "m22", "m18", "googleUrlEn", "m37En", "m22En", "m18En", "subtitlesUrl", "subtitlesUrlEn"]) $(id).value = "";
   mmhdClearSubtitleFields();
   resetQualityChecks();
   $("extractStatus").className = "status";
@@ -2719,7 +2710,7 @@ function storeAdminEpisodeFields(){
   // El instante de publicación pertenece al capítulo, no a la serie completa.
   // Solo un enlace realmente añadido, sustituido o retirado lo mueve en «Nuevos episodios».
   const episodeLinkSignature=item=>{
-    const keys=["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","airplayUrl","airplayUrlEn"];
+    const keys=["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En"];
     const links=keys.map(key=>String(item[key]||"").trim());
     for(const key of ["googleUrl","m37","m22","m18"])links.push(String(item.audioAlt?.[key]||"").trim());
     // Ordenar las pistas evita marcar como modificado un mero cambio de orden.
@@ -2729,7 +2720,7 @@ function storeAdminEpisodeFields(){
     return JSON.stringify([links,tracks]);
   };
   const priorSignature=episodeLinkSignature(ep);
-  for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl","airplayUrl","airplayUrlEn"])ep[id]=$(id).value.trim();
+  for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl"])ep[id]=$(id).value.trim();
   ep.audioAlt=mmhdAudioAltFromFields();
   const seriesDefault=mmhdNormalizeMainAudioLanguage(state.movie?.seriesDefaultLanguage);
   ep.primaryLanguage=mmhdSelectedMainLanguage()===seriesDefault?'':mmhdSelectedMainLanguage();
@@ -2802,7 +2793,7 @@ function chooseAdminEpisode(number){
   if(!ep)return;
   state.selectedEpisode={season,episode:number};
   clearVideoFields();
-  for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl","airplayUrl","airplayUrlEn"])$(id).value=ep[id]||"";
+  for(const id of ["googleUrl","m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl"])$(id).value=ep[id]||"";
   $('primaryLanguage').value=ep.primaryLanguage||state.movie.seriesDefaultLanguage||'Latino';
   mmhdLoadSubtitleFields(ep);
   mmhdLoadAudioAlt(ep);
@@ -2954,25 +2945,10 @@ function editSavedSeries(item){
   showStatus("Editando serie. Los enlaces de cada capítulo permanecen independientes.","ok");
   $("movieCard").scrollIntoView({behavior:"smooth",block:"start"});
 }
-function mmhdValidateAirplayUrl(value,where){
-  if(!value)return;
-  let url;
-  try{url=new URL(value);}catch(_){throw Error(where+": URL de AirPlay no válida.");}
-  if(url.protocol!=="https:" || !/\.(mp4|m3u8)$/i.test(url.pathname) ||
-     /(^|\.)((?:googleusercontent|googlevideo|googlephotos)\.com|photos\.google\.com|photos\.app\.goo\.gl)$/i.test(url.hostname))
-    throw Error(where+": usa una URL HTTPS directa terminada en .mp4 o .m3u8 (no Google Photos).");
-}
 function saveSeriesToCollection(){
   if(state.movie?.kind==='SERIES')state.movie.seriesDefaultLanguage=mmhdNormalizeMainAudioLanguage($('seriesDefaultLanguage').value);
   storeAdminEpisodeFields();
   const m=state.movie;if(!m || m.kind!=="SERIES")return;
-  try{
-    for(const season of m.seasons||[])for(const ep of season.episodes||[]){
-      const where=`T${season.number}E${ep.number}`;
-      mmhdValidateAirplayUrl(ep.airplayUrl,where+" (principal)");
-      mmhdValidateAirplayUrl(ep.airplayUrlEn,where+" (Inglés)");
-    }
-  }catch(e){showStatus(e.message,"err");return;}
   const active=activeAdminEpisode();
   if(active && mmhdHasVideoConfigured(active)){
     try{validateVideoLinks();}catch(err){showStatus("Episodio actual: "+err.message,"err");return;}
@@ -3209,7 +3185,7 @@ function editSavedMovie(id){
   state.posterOptions=buildArtworkOptions("poster",state.poster,[]);
   state.backdropOptions=buildArtworkOptions("backdrop",state.backdrop,[]);
   $("googleUrl").value=item.googleUrl||"";
-  for (const id of ["m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl","airplayUrl","airplayUrlEn"]) $(id).value=item[id]||"";
+  for (const id of ["m37","m22","m18","googleUrlEn","m37En","m22En","m18En","subtitlesUrl"]) $(id).value=item[id]||"";
   mmhdLoadSubtitleFields(item);
   mmhdLoadAudioAlt(item);
   $('primaryLanguage').value=mmhdNormalizeMainAudioLanguage(item.primaryLanguage);
@@ -3772,8 +3748,6 @@ function addMovieToCollection(){
   const m18 = $("m18").value.trim();
   try {
     validateVideoLinks();
-    mmhdValidateAirplayUrl($("airplayUrl").value.trim(),"Video principal AirPlay");
-    mmhdValidateAirplayUrl($("airplayUrlEn").value.trim(),"Video Inglés AirPlay");
   } catch(e) { showStatus(e.message,"err"); return; }
 
   const oldItem=state.collection.find(x=>String(x.id)===String(state.movie.id));
@@ -3810,9 +3784,7 @@ function addMovieToCollection(){
     googleUrlEn:$("googleUrlEn").value.trim(),
     m37En:$("m37En").value.trim(),m22En:$("m22En").value.trim(),m18En:$("m18En").value.trim(),
     subtitlesUrl:$("subtitlesUrl").value.trim(),
-    subtitleTracks:mmhdPanelSubtitleTracks(),
-    airplayUrl:$("airplayUrl").value.trim(),
-    airplayUrlEn:$("airplayUrlEn").value.trim()
+    subtitleTracks:mmhdPanelSubtitleTracks()
   };
   const idx = state.collection.findIndex(x=>String(x.id)===String(item.id));
   const next=state.collection.slice();
@@ -4114,10 +4086,7 @@ async function buildCollectionHtml(){
       m18En: String(item.m18En || ""),
       audioAlt:mmhdNormalizedAudioAlt(item.audioAlt),
       subtitlesUrl: String(item.subtitlesUrl || ""),
-      subtitleTracks:mmhdNormalizeSubtitleTracks(item.subtitleTracks,item.subtitlesUrl),
-      // Fuente aprobada para AirPlay: no reemplaza Google Photos ni Chromecast.
-      airplayUrl:String(item.airplayUrl||""),
-      airplayUrlEn:String(item.airplayUrlEn||"")
+      subtitleTracks:mmhdNormalizeSubtitleTracks(item.subtitleTracks,item.subtitlesUrl)
     }));
 
     // Una sola plantilla compartida; cada película conserva sus enlaces en MOVIES.
@@ -4584,7 +4553,7 @@ async function mmhdPrepareRestore(file){
    Mantiene la biblioteca local, añade títulos nuevos y actualiza títulos
    existentes con prioridad del respaldo para URLs, metadatos clave y
    diagnósticos. No borra episodios ausentes del archivo. */
-const MMHD_BACKUP_LINK_FIELDS=['primaryLanguage','seriesDefaultLanguage','googleUrl','m37','m22','m18','googleUrlEn','m37En','m22En','m18En','audioAlt','subtitlesUrl','subtitleTracks','airplayUrl','airplayUrlEn'];
+const MMHD_BACKUP_LINK_FIELDS=['primaryLanguage','seriesDefaultLanguage','googleUrl','m37','m22','m18','googleUrlEn','m37En','m22En','m18En','audioAlt','subtitlesUrl','subtitleTracks'];
 const MMHD_BACKUP_META_FIELDS=[
   'title','searchTitles','manualSearchTitles','subtitle','year','runtime',
   'poster','backdrop','logo','cast','rating','genres','cert','overview',
