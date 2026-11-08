@@ -5038,10 +5038,13 @@ renderCollection();
      setTimeout(()=>{if(connected)void loadExtras(true)},80);
    }
  });
- let extraWorking=false,lastExtraFetch=0,presenceWorking=false,presenceNames={},presenceMe=null;
+ let extraWorking=false,lastExtraFetch=0,lastExtraSection='',presenceWorking=false,presenceNames={},presenceMe=null;
+ let heartbeatWorking=false,lastHeartbeatAt=0,lastPresenceSignature='';
+ let lastPresenceRows=[],lastPresenceSelf=null,adminsLoading=false;
  const safe=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const showDate=(s)=>{try{return new Date(s).toLocaleString('es-MX');}catch(_){return String(s||'')}};
  function drawPresence(rows,me,labels){
+   lastPresenceRows=rows||[];lastPresenceSelf=me;presenceMe=me;
    const live=(rows||[]).filter(x=>Date.now()-new Date(x.last_seen).getTime()<60000);
    const label=id=>labels[id]||String(id||'Desconocido').slice(0,8);
    presenceEl.textContent=live.length?live.length+' conectado'+(live.length===1?'':'s'):'Sin administradores activos';
@@ -5066,12 +5069,19 @@ renderCollection();
    const settingsVisible=!document.getElementById('view-appearance')?.hidden && !document.getElementById('mmhd-settings-pane-credentials')?.hidden;
    // Historial / respaldos pueden contener fichas y episodios completos.
    // No volver a descargarlos mientras el administrador trabaja en otra sección.
-   if(!connected||extraWorking||document.visibilityState==='hidden'||(!force&&(!historyVisible&&!settingsVisible||Date.now()-lastExtraFetch<120000)))return;
+   if(!connected||extraWorking||document.visibilityState==='hidden'||(!historyVisible&&!settingsVisible))return;
+   const section=historyVisible?'history':'backups';
+   // Incluso si se pulsa refrescar, no descargar la actividad de una sección oculta.
+   if(!force&&section===lastExtraSection&&Date.now()-lastExtraFetch<300000)return;
    extraWorking=true;
    try{
-     const d=await request('GET','/api/library?extra=1');lastExtraFetch=Date.now();
-     const names=d.admins||{};presenceNames=names;presenceMe=d.me;const label=id=>names[id]||String(id||'Desconocido').slice(0,8);
-     drawPresence(d.presence,d.me,names);
+     const d=await request('GET','/api/library?extra=1&section='+section+(section==='history'&&Object.keys(presenceNames).length?'&names=0':''));
+     if(!connected)return;
+     lastExtraFetch=Date.now();lastExtraSection=section;
+     const names=section==='history'?(d.admins||presenceNames):presenceNames;
+     if(section==='history'){presenceNames={...presenceNames,...names};presenceMe=d.me;}
+     const label=id=>names[id]||String(id||'Desconocido').slice(0,8);
+     if(section==='history'){
      const history=d.history||[];
      historyEl.replaceChildren();
      if(!history.length)historyEl.textContent='No hay ediciones registradas desde la instalación del historial.';
@@ -5098,6 +5108,8 @@ renderCollection();
          }catch(e){msg('No se pudo deshacer: '+e.message,true)}finally{busy=false;void loadExtras(true)}
        });line.append(desc,button);historyEl.append(line);
      });
+     }
+     if(section==='backups'){
      const backs=d.backups||[];
      backupsEl.replaceChildren();
      if(!backs.length)backupsEl.textContent='Todavía no se ha creado ningún respaldo.';
@@ -5116,7 +5128,19 @@ renderCollection();
          }catch(e){msg('Restauración detenida: '+e.message+'. Si alguien guardó cambios, sincroniza antes de intentarlo.',true)}finally{busy=false;void loadExtras(true)}
        });line.append(desc,btn);backupsEl.append(line);
      });
-   }catch(e){historyEl.textContent='No se pudo consultar actividad: '+e.message;}finally{extraWorking=false}
+     }
+   }catch(e){(section==='history'?historyEl:backupsEl).textContent='No se pudo consultar actividad: '+e.message;}finally{extraWorking=false}
+ }
+ async function loadAdminNames(){
+   if(!connected||adminsLoading||document.visibilityState==='hidden')return;
+   adminsLoading=true;
+   try{
+     const d=await request('GET','/api/library?extra=1&section=admins');
+     if(!connected)return;
+     presenceNames={...presenceNames,...(d.admins||{})};presenceMe=d.me||presenceMe;
+     if(lastPresenceSelf)drawPresence(lastPresenceRows,lastPresenceSelf,presenceNames);
+   }catch(_){/* El panel sigue funcionando con IDs abreviados si falla. */}
+   finally{adminsLoading=false}
  }
  async function refreshPresence(){
    if(!connected||presenceWorking||document.visibilityState==='hidden')return;
@@ -5127,10 +5151,20 @@ renderCollection();
    }catch(_){/* keep previous status on temporary network issues */}
    finally{presenceWorking=false}
  }
- async function heartbeat(){if(!connected||document.visibilityState==='hidden')return;
+ async function heartbeat(){if(!connected||heartbeatWorking||document.visibilityState==='hidden')return;
    const editorVisible=!document.getElementById('view-editor')?.hidden;
    const current=editorVisible&&state.editingId!=null?state.collection.find(x=>String(x.id)===String(state.editingId)):null;
-   try{await request('POST','/api/library',{action:'presence',itemId:current?String(current.id):null,title:current?String(current.title||''):null});}catch(_){/* conexión ocasionalmente interrumpida */}
+   const itemId=current?String(current.id):null,title=current?String(current.title||''):null;
+   const signature=JSON.stringify([itemId,title]);
+   // Navegar entre botones no debe generar varias peticiones con la misma presencia.
+   if(signature===lastPresenceSignature&&Date.now()-lastHeartbeatAt<30000)return;
+   heartbeatWorking=true;
+   try{
+     const d=await request('POST','/api/library',{action:'presence',itemId,title,includePresence:true});
+     lastHeartbeatAt=Date.now();lastPresenceSignature=signature;
+     if(connected&&Array.isArray(d.presence))drawPresence(d.presence,d.me,presenceNames);
+   }catch(_){/* La conexión se recupera en el siguiente pulso. */}
+   finally{heartbeatWorking=false}
  }
  q('mmhd-cloud-backup').addEventListener('click',async()=>{if(!connected||busy)return;busy=true;
    try{const r=await request('POST','/api/library',{action:'backup'});msg('✓ Respaldo creado: '+r.count+' títulos.');lastExtraFetch=0;}
@@ -5140,14 +5174,14 @@ renderCollection();
  // Esperar al siguiente microturno permite que la navegación cambie el atributo hidden.
  document.addEventListener('click',event=>{
    if(event.target.closest('[data-view], [data-create], [data-edit-id], [data-recent-edit], [data-audit-series], #btnCancelEdit, #btnClear')){
-     setTimeout(()=>{if(connected){void heartbeat().then(()=>refreshPresence());}},80);
+     setTimeout(()=>{if(connected)void heartbeat();},80);
    }
  });
- // Presencia sin consultas excesivas: anunciar cada 15 s y consultar cada 10 s.
- setInterval(()=>{void heartbeat()},15000);
- setInterval(()=>{void refreshPresence()},10000);
- setInterval(()=>{void loadExtras()},120000);
- document.addEventListener('visibilitychange',()=>{if(connected&&document.visibilityState==='visible'){void heartbeat();void refreshPresence();void loadExtras()}});
+ // Un solo pulso publica la actividad y devuelve la presencia de los administradores.
+ // El servidor considera conectado a quien se haya anunciado en los últimos 60 s.
+ setInterval(()=>{void heartbeat()},35000);
+ setInterval(()=>{void loadExtras()},300000);
+ document.addEventListener('visibilitychange',()=>{if(connected&&document.visibilityState==='visible'){void heartbeat();void poll();void loadExtras()}});
 
  // Controles de publicación pública (solo administradores autenticados).
  const publicSelect=q('mmhd-public-select'),publicInfo=q('mmhd-public-message');
@@ -5518,6 +5552,42 @@ renderCollection();
    }
    if(paint(rows,data.revision))historyCursor=Number(data.cursor||0);
  }
+ // Después de guardar, recuperar solo las fichas afectadas desde el cursor de
+ // historial. Si falta algún evento, conservar la ruta antigua de recuperación completa.
+ async function reconcileAfterApply(changed, sent){
+   const updates=new Map();const wanted=new Set(changed);let cursor=historyCursor,lastRev=revision;
+   let complete=false,eventCount=0;
+   for(let page=0;page<20;page++){
+     const d=await request('GET','/api/library?delta=1&since='+cursor);
+     for(const row of d.items||[])updates.set(String(row.id),{version:Number(row.version),json:JSON.stringify(row.item)});
+     for(const id of d.deleted||[])updates.set(String(id),null);
+     eventCount+=(d.items||[]).length+(d.deleted||[]).length;
+     lastRev=Number(d.revision);
+     const next=Number(d.cursor??cursor);
+     if(!Number.isSafeInteger(next)||next<cursor||(d.hasMore&&next===cursor))return false;
+     cursor=next;
+     if(!d.hasMore){complete=true;break;}
+   }
+   // La auditoría podría estar desactivada o incompleta en una instalación antigua.
+   if(!complete||!eventCount||[...wanted].some(id=>!updates.has(id))||!Number.isFinite(lastRev))return false;
+   const current=snapshot(),merged=new Map(current),allNew=new Map(base),conflicts=[];
+   for(const [id,row] of updates){
+     const previous=base.get(id)?.json,remote=row?.json,now=current.get(id);
+     if(wanted.has(id)){
+       // Si el usuario editó de nuevo mientras guardábamos, no pisar su cambio.
+       if(now===sent.get(id)){if(remote===undefined)merged.delete(id);else merged.set(id,remote);}
+     }else if(now===previous||now===remote){
+       if(remote===undefined)merged.delete(id);else merged.set(id,remote);
+     }else if(previous!==remote){conflicts.push(id)}
+     if(row)allNew.set(id,row);else allNew.delete(id);
+   }
+   if(conflicts.length){const err=new Error('Edición simultánea detectada');err.conflicts=conflicts;throw err;}
+   applying=true;
+   try{state.collection=[...merged.values()].map(JSON.parse);if(!saveCollection())throw Error('No se pudo guardar la copia local');renderCollection();}
+   finally{applying=false}
+   base=allNew;revision=lastRev;historyCursor=cursor;
+   return true;
+ }
  async function flush(){
    if(!connected||busy||conflicted||document.visibilityState==='hidden')return;
    busy=true;let didSucceed=false;
@@ -5527,30 +5597,31 @@ renderCollection();
      const changes=changed.map(id=>({id,expectedVersion:base.get(id)?.version??null,item:local.has(id)?JSON.parse(local.get(id)):null}));
      const result=await request('POST','/api/library',{action:'apply',changes});
      if(!result.ok)throw Error('No se pudieron guardar los cambios');
-     // Se reciben los estados oficiales. Aplicar solo las diferencias reales
-     // sin convertir una copia vieja de otro título en una edición del usuario.
-     const data=await request('GET','/api/library');
-     const rows=data.items||[], updated=rowMap(rows), newest=snapshot();
-     const merged=new Map(newest), all=new Set([...base.keys(),...updated.keys()]);
-     const postConflicts=[];
-     for(const id of all){
-       const old=base.get(id)?.json, remote=updated.get(id)?.json;
-       const current=newest.get(id),sent=local.get(id);
-       if(changed.includes(id)){
-         if(current===sent){if(remote===undefined)merged.delete(id);else merged.set(id,remote);}
-       }else if(current===old||current===remote){
-         if(remote===undefined)merged.delete(id);else merged.set(id,remote);
-       }else if(old!==remote){postConflicts.push(id)}
+     // La confirmación solo descarga los títulos cambiados (incluidos los
+     // posibles cambios concurrentes). La recuperación completa sigue disponible.
+     if(!await reconcileAfterApply(changed,local)){
+       const data=await request('GET','/api/library');
+       const rows=data.items||[],updated=rowMap(rows),newest=snapshot();
+       const merged=new Map(newest),all=new Set([...base.keys(),...updated.keys()]);
+       const postConflicts=[];
+       for(const id of all){
+         const old=base.get(id)?.json,remote=updated.get(id)?.json;
+         const current=newest.get(id),sent=local.get(id);
+         if(changed.includes(id)){
+           if(current===sent){if(remote===undefined)merged.delete(id);else merged.set(id,remote);}
+         }else if(current===old||current===remote){
+           if(remote===undefined)merged.delete(id);else merged.set(id,remote);
+         }else if(old!==remote){postConflicts.push(id)}
+       }
+       if(postConflicts.length){
+         const err=new Error('Ediciones simultáneas pendientes');err.conflicts=postConflicts;throw err;
+       }
+       applying=true;
+       try{state.collection=[...merged.values()].map(JSON.parse);if(!saveCollection())throw Error('No se pudo guardar localmente');renderCollection();}
+       finally{applying=false}
+       base=updated;revision=data.revision;historyCursor=Number(data.cursor||historyCursor);
      }
-     if(postConflicts.length){
-       conflicted=true;
-       msg('Hay ediciones simultáneas pendientes en '+postConflicts.join(', ')+'. Se conservaron los cambios locales; revisa antes de continuar.',true);
-       return;
-     }
-     applying=true;
-     try{state.collection=[...merged.values()].map(JSON.parse);if(!saveCollection())throw Error('No se pudo guardar localmente');renderCollection();}finally{applying=false}
-     base=updated;revision=data.revision;historyCursor=Number(data.cursor||historyCursor);
-     didSucceed=true;msg('✓ Cambios guardados y compartidos. '+rows.length+' títulos · versión '+revision);
+     didSucceed=true;msg('✓ Cambios guardados y compartidos. '+base.size+' títulos · versión '+revision);
    }catch(e){conflicted=Array.isArray(e.conflicts)&&e.conflicts.length>0;
      msg(conflicted?'Edición simultánea detectada: '+e.conflicts.join(', ')+'. No se sobrescribió el trabajo de tu compañero. Descarga un respaldo y reconecta para resolver.':'No se pudo sincronizar: '+e.message+'. Tu copia local se conserva.',true);
    }finally{busy=false;if(didSucceed&&connected&&!conflicted&&mapChanged(snapshot(),base).length)setTimeout(flush,700)}
@@ -5558,12 +5629,19 @@ renderCollection();
  let debounce=null;
  function queue(){if(!connected||applying||conflicted)return;clearTimeout(debounce);debounce=setTimeout(flush,500)}
  window.MMHDLibraryShared={onLocalSaved:queue};
- async function poll(){if(!connected||busy||conflicted||document.visibilityState==='hidden')return;
+ let pollWorking=false;
+ async function poll(){if(!connected||pollWorking||busy||conflicted||document.visibilityState==='hidden')return;
+   pollWorking=true;
    try{if(mapChanged(snapshot(),base).length){await flush();return;}
      const h=await request('GET','/api/library?head=1');if(h.revision!==revision){if(await incrementalRefresh())msg('✓ Cambios recibidos sin descargar la biblioteca completa · versión '+revision);}
    }catch(e){msg('Conexión interrumpida: '+e.message+'. Los cambios locales permanecen disponibles.',true)}
+   finally{pollWorking=false}
  }
- function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Configuración → Credenciales para ver administradores activos';topPresence.querySelector('.mmhd-presence-inline')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Configuración → Credenciales para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);void refreshPresence();void loadPublicList();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,10000)}
+ function schedulePoll(delay){clearTimeout(timer);if(connected)timer=setTimeout(async()=>{
+   await poll();
+   if(connected)schedulePoll(!document.getElementById('view-editor')?.hidden?30000:75000);
+ },delay)}
+ function connectedUI(on){extra.style.display=on?'block':'none';connected=on;lastHeartbeatAt=0;lastPresenceSignature='';topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Configuración → Credenciales para ver administradores activos';topPresence.querySelector('.mmhd-presence-inline')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Configuración → Credenciales para consultar el historial.';} if(on){void heartbeat();void loadExtras();void loadAdminNames();void loadPublicList();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearTimeout(timer);if(on)schedulePoll(!document.getElementById('view-editor')?.hidden?30000:75000)}
  async function logout(){connectedUI(false);forgetSession();token=null;refreshToken=null;q('mmhd-cloud-pass').value='';base.clear();revision=0;historyCursor=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
  remember.addEventListener('change',()=>{if(connected)saveSession();else if(!remember.checked)forgetSession()});
  async function resumeSavedSession(){
