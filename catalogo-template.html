@@ -3567,7 +3567,7 @@ function buildWatchPartyBridgeScript(movieId){
 (function(){
   'use strict';
   var ID=${JSON.stringify(String(movieId))};
-  var video=null,pending=null,desired=null,desiredAt=0,blockedNoticeAt=0;
+  var video=null,pending=null,desired=null,desiredAt=0,blockedNoticeAt=0,hostPlayPending=false;
   var gate=false,guestLock=false,partyEnabled=false,chatOpacity=.96;
   var fsChat=null,fsMessages=null,fsInput=null,fsPanel=null,fsRoot=null;
   function tell(type,extra){try{window.parent.postMessage(Object.assign({type:type,id:ID},extra||{}),'*');}catch(_){}}
@@ -3648,9 +3648,9 @@ function buildWatchPartyBridgeScript(movieId){
     video.addEventListener('seeked',function(){status('seeked');});
     video.addEventListener('loadedmetadata',function(){if(pending)apply(pending);status('metadata');});
     video.addEventListener('durationchange',function(){if(pending)apply(pending);});
-    video.addEventListener('canplay',function(){if(desired&&!desired.paused&&video.paused&&!gate)apply(desired);});
+    video.addEventListener('canplay',function(){if(desired&&!desired.paused&&video.paused&&!gate)apply(desired);if(hostPlayPending&&!gate){hostPlayPending=false;attemptPlay(false);}});
     video.addEventListener('timeupdate',function(){if(Date.now()-(video.__mmhdWatchLast||0)>1900){video.__mmhdWatchLast=Date.now();status('time');}});
-    tell('mmhd-watch-ready');if(pending)apply(pending);status('attached');
+    tell('mmhd-watch-ready');if(pending)apply(pending);if(hostPlayPending&&!gate)attemptPlay(false);status('attached');
   }
   window.addEventListener('message',function(event){
     if(event.source!==window.parent||!event.data||String(event.data.id)!==ID)return;
@@ -3659,7 +3659,7 @@ function buildWatchPartyBridgeScript(movieId){
     if(cmd.type==='mmhd-watch-query'){attach();status('snapshot');}
     if(cmd.type==='mmhd-watch-gate'){gate=Boolean(cmd.enabled);attach();if(gate&&video&&!video.paused)try{video.pause();}catch(_){};}
     if(cmd.type==='mmhd-watch-guest-lock'){guestLock=Boolean(cmd.enabled);}
-    if(cmd.type==='mmhd-watch-host-play'){attach();if(!gate)attemptPlay(false);}
+    if(cmd.type==='mmhd-watch-host-play'){hostPlayPending=true;attach();if(video&&!gate){hostPlayPending=false;attemptPlay(false);}}
     if(cmd.type==='mmhd-watch-enable-audio'){attach();if(video){try{video.muted=false;if(desired&&!desired.paused)attemptPlay(false);}catch(_){}}}
     if(cmd.type==='mmhd-watch-sync'){pending={position:Number(cmd.position)||0,paused:Boolean(cmd.paused),force:Boolean(cmd.force)};attach();apply(pending);}
     if(cmd.type==='mmhd-watch-chat-display'){appendFsMessage(cmd.kind,cmd.text);}

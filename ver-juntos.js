@@ -164,6 +164,19 @@
     postIframe({type:'mmhd-watch-sync',position:targetPosition(),paused:!remote.started||remote.paused,force:!!force});
     if(force)lastGuestCorrection=Date.now();
   }
+  function kickHostPlayback(){
+    postIframe({type:'mmhd-watch-host-play'});
+    const v=playerVideo();
+    if(v){try{v.muted=false;}catch(_){} try{const p=v.play();if(p&&p.catch)p.catch(()=>{});}catch(_){}}
+  }
+  function queueGuestStartBoost(){
+    if(!room||room.role!=='guest'||!remote||!remote.started)return;
+    [180,700,1600].forEach(delay=>setTimeout(()=>{
+      if(!room||room.role!=='guest'||!remote||!remote.started)return;
+      setGate(false);
+      syncGuest(true);
+    },delay));
+  }
   function currentPeers(){const entries=Object.values(room?.chatChannel?.presenceState()||{}).flat().filter(x=>x&&x.peer&&['host','guest'].includes(x.role));
     return {host:entries.find(x=>x.role==='host')||null,guest:entries.find(x=>x.role==='guest')||null};}
   function bothReady(){const p=currentPeers();return Boolean(p.host?.ready&&p.guest?.ready);}
@@ -201,12 +214,19 @@
   }
   function attemptHostStart(){if(!room?.connected||room.role!=='host'||room.started||!bothReady()||!mediaAvailable())return;
     room.startArmed=true;status('Iniciando película para ambos…');setGate(false);
-    const v=playerVideo();if(v){
-      try{const p=v.play();if(p&&p.catch)p.catch(()=>{status('Pulsa Play dentro del video para iniciar la sesión.');});}catch(_){status('Pulsa Play dentro del video para iniciar la sesión.');}
-    }else{postIframe({type:'mmhd-watch-host-play'});status('Cargando video… si no inicia, pulsa Play dentro del reproductor.');}
+    kickHostPlayback();
+    [350,950,1800].forEach(delay=>setTimeout(()=>{
+      if(room?.role==='host'&&room.startArmed&&!room.started)kickHostPlayback();
+    },delay));
+    setTimeout(()=>{
+      if(room?.role==='host'&&room.startArmed&&!room.started){
+        local.paused=false;
+        markStarted(true);
+      }
+    },1200);
   }
-  function markStarted(){if(!room||room.role!=='host'||room.started||!room.startArmed)return;
-    room.started=true;room.startArmed=false;local.paused=false;publish(true);refreshUI();status('Película iniciada · sincronizando al invitado');
+  function markStarted(forced=false){if(!room||room.role!=='host'||room.started||!room.startArmed)return;
+    room.started=true;room.startArmed=false;local.paused=false;publish(true);refreshUI();status(forced?'Inicio enviado · si tu video no arranca, pulsa Play una vez.':'Película iniciada · sincronizando al invitado');
     note('La función inició. Cada participante puede cambiar idioma, calidad y subtítulos sin afectar al otro.');
   }
   async function enableAudio(){if(!room||room.role!=='guest')return;
@@ -226,8 +246,8 @@
     remote={media:p.media,position:Math.max(0,Number(p.position)||0),paused:Boolean(p.paused),started:Boolean(p.started),receivedAt:performance.now()};
     if(!room.started&&remote.started){room.started=true;room.ready=true;refreshUI();note('El anfitrión inició la película.');}
     if(!sameMovie(activeMovie(),media)){
-      openPlayer(media);setTimeout(()=>{setGate(!remote.started);syncGuest(true);},250);
-    }else{setGate(!remote.started);syncGuest(firstStart||!old||old.paused!==remote.paused);}
+      openPlayer(media);setTimeout(()=>{setGate(!remote.started);syncGuest(true);if(remote.started)queueGuestStartBoost();},250);
+    }else{setGate(!remote.started);syncGuest(firstStart||!old||old.paused!==remote.paused);if(remote.started&&(firstStart||!old||old.paused!==remote.paused))queueGuestStartBoost();}
     if(remote.started&&!blocked)status('Reproduciendo junto al anfitrión');
   }
   async function ensureClient(){const cfg=window.MMHD_WATCH_PARTY_CONFIG||{};
@@ -298,7 +318,7 @@
             current.connected=true;connecting=false;refreshUI();onPresence();
             setPartyMode(true);
             if(current.role==='host'){setGate(!current.started);queryVideo();publish(true);note('Sala privada lista. Comparte el enlace y marca «Estoy listo».');}
-            else{sendChat({kind:'hello'});note('Entraste a la sala privada. Pulsa «Estoy listo» cuando cargue la película.');}
+            else{panel(true);sendChat({kind:'hello'});note('Entraste a la sala privada. Pulsa «Estoy listo» cuando cargue la película.');}
           }
         }else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(st)){
           current[which+'Connected']=false;current.connected=false;status('Conexión interrumpida; Supabase intentará reconectar…');refreshUI();
@@ -395,6 +415,6 @@
   refreshUI();
   const invite=roomCodeInUrl();
   if(ROOM_RE.test(invite)){
-    openChat();note('Invitación detectada. Conectando a la sala privada…');void connect(invite,false);
+    panel(true);openChat();note('Invitación detectada. Conectando a la sala privada…');void connect(invite,false);
   }
 })();
