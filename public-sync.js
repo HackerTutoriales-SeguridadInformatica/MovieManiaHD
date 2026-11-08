@@ -2,7 +2,8 @@
 (() => {
   'use strict';
   const API = '/api/public-library';
-  const INTERVAL = 20000;
+  // Evitar comprobaciones continuas por pestaña. La API utiliza caché CDN.
+  const INTERVAL = 60000 + Math.floor(Math.random()*15000);
   let revision = null, checking = false, pending = null;
   const clone = value => JSON.parse(JSON.stringify(value));
   const id = item => String(item.id);
@@ -87,7 +88,7 @@
     }
   }
   async function getJson(uri) {
-    const response = await fetch(uri,{cache:'no-store',headers:{Accept:'application/json'}});
+    const response = await fetch(uri,{cache:'default',headers:{Accept:'application/json'}});
     if (!response.ok) throw new Error('Respuesta '+response.status);
     return response.json();
   }
@@ -98,7 +99,7 @@
     try {
       const head=await getJson(API+'?head=1');
       if (!head || typeof head.version !== 'string' || head.version === revision) return;
-      const payload=await getJson(API);
+      const payload=await getJson(API+'?revision='+encodeURIComponent(head.version));
       const update=prepare(payload);
       if (!update || update.version !== head.version) {
         console.warn('[MMHD] Datos públicos incompletos; se mantiene el catálogo incrustado.');

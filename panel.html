@@ -5032,7 +5032,12 @@ renderCollection();
  const topPresence=document.getElementById('mmhd-connected-header');
  const historyRefresh=document.getElementById('mmhd-history-refresh');
  historyRefresh.addEventListener('click',()=>{lastExtraFetch=0;void loadExtras(true)});
- document.addEventListener('click',e=>{if(e.target.closest('[data-view="history"]'))queueMicrotask(()=>{lastExtraFetch=0;void loadExtras(true)})});
+ document.addEventListener('click',e=>{
+   if(e.target.closest('[data-view="history"], [data-view="appearance"], [data-mmhd-settings-tab="credentials"]')){
+     // Esperar a que el controlador de navegación muestre la sección elegida.
+     setTimeout(()=>{if(connected)void loadExtras(true)},80);
+   }
+ });
  let extraWorking=false,lastExtraFetch=0,presenceWorking=false,presenceNames={},presenceMe=null;
  const safe=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const showDate=(s)=>{try{return new Date(s).toLocaleString('es-MX');}catch(_){return String(s||'')}};
@@ -5057,7 +5062,11 @@ renderCollection();
    topPresence.append(details);
  }
  async function loadExtras(force=false){
-   if(!connected||extraWorking||document.visibilityState==='hidden'||(!force&&Date.now()-lastExtraFetch<10000))return;
+   const historyVisible=!document.getElementById('view-history')?.hidden;
+   const settingsVisible=!document.getElementById('view-appearance')?.hidden && !document.getElementById('mmhd-settings-pane-credentials')?.hidden;
+   // Historial / respaldos pueden contener fichas y episodios completos.
+   // No volver a descargarlos mientras el administrador trabaja en otra sección.
+   if(!connected||extraWorking||document.visibilityState==='hidden'||(!force&&(!historyVisible&&!settingsVisible||Date.now()-lastExtraFetch<120000)))return;
    extraWorking=true;
    try{
      const d=await request('GET','/api/library?extra=1');lastExtraFetch=Date.now();
@@ -5134,11 +5143,11 @@ renderCollection();
      setTimeout(()=>{if(connected){void heartbeat().then(()=>refreshPresence());}},80);
    }
  });
- // El envío regular permanece cada 4 segundos; la lectura ligera de presencia es cada 2 segundos.
- setInterval(()=>{void heartbeat()},4000);
- setInterval(()=>{void refreshPresence()},2000);
- setInterval(()=>{void loadExtras()},15000);
- document.addEventListener('visibilitychange',()=>{if(connected&&document.visibilityState==='visible'){void heartbeat();void refreshPresence();void loadExtras(true)}});
+ // Presencia sin consultas excesivas: anunciar cada 15 s y consultar cada 10 s.
+ setInterval(()=>{void heartbeat()},15000);
+ setInterval(()=>{void refreshPresence()},10000);
+ setInterval(()=>{void loadExtras()},120000);
+ document.addEventListener('visibilitychange',()=>{if(connected&&document.visibilityState==='visible'){void heartbeat();void refreshPresence();void loadExtras()}});
 
  // Controles de publicación pública (solo administradores autenticados).
  const publicSelect=q('mmhd-public-select'),publicInfo=q('mmhd-public-message');
@@ -5554,7 +5563,7 @@ renderCollection();
      const h=await request('GET','/api/library?head=1');if(h.revision!==revision){if(await incrementalRefresh())msg('✓ Cambios recibidos sin descargar la biblioteca completa · versión '+revision);}
    }catch(e){msg('Conexión interrumpida: '+e.message+'. Los cambios locales permanecen disponibles.',true)}
  }
- function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Configuración → Credenciales para ver administradores activos';topPresence.querySelector('.mmhd-presence-inline')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Configuración → Credenciales para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);void refreshPresence();void loadPublicList();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,3000)}
+ function connectedUI(on){extra.style.display=on?'block':'none';connected=on;topPresence.classList.toggle('mmhd-connected-active',on);if(!on){presenceEl.textContent='Sin conexión compartida';topPresence.title='Inicia sesión en Configuración → Credenciales para ver administradores activos';topPresence.querySelector('.mmhd-presence-inline')?.remove();historyEl.textContent='Conecta tu biblioteca compartida desde Configuración → Credenciales para consultar el historial.';} if(on){void heartbeat();void loadExtras(true);void refreshPresence();void loadPublicList();}q('mmhd-cloud-login').disabled=on;q('mmhd-cloud-logout').disabled=!on;q('mmhd-cloud-refresh').disabled=!on;q('mmhd-cloud-seed').disabled=!on||base.size>0;clearInterval(timer);if(on)timer=setInterval(poll,10000)}
  async function logout(){connectedUI(false);forgetSession();token=null;refreshToken=null;q('mmhd-cloud-pass').value='';base.clear();revision=0;historyCursor=0;config=null;conflicted=false;msg('Desconectado. La biblioteca local se conserva.');}
  remember.addEventListener('change',()=>{if(connected)saveSession();else if(!remember.checked)forgetSession()});
  async function resumeSavedSession(){
