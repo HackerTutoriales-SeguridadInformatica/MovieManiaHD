@@ -44,10 +44,11 @@ module.exports=async function handler(req,res){
        const found=new Set(items.map(x=>String(x.id)));
        return res.status(200).json({revision,items,deleted:ids.filter(x=>!found.has(x)),cursor:nextCursor,hasMore:events.length>500});
      }
-     const beginCursorRows=await query('mmhd_library_history?select=id&order=id.desc&limit=1');
-     const beginCursor=Number(beginCursorRows[0]?.id||0);
      if(req.query?.extra==='1'){
-       const rawHistory=await query('mmhd_library_history?select=id,item_id,operation,actor,changed_at,before_item,after_item&order=id.desc&limit=60');
+       // Solo descargar la sección que realmente está viendo el administrador.
+       // El historial contiene antes/después completos y puede ser grande.
+       const section=['history','backups','admins'].includes(req.query?.section)?req.query.section:'all';
+       const rawHistory=(section==='backups'||section==='admins')?[]:await query('mmhd_library_history?select=id,item_id,operation,actor,changed_at,before_item,after_item&order=id.desc&limit=60');
        // Only return compact descriptions: never expose full historical playback URLs in the activity feed.
        const fieldLabels={title:'Título',subtitle:'Subtítulo',overview:'Sinopsis',description:'Descripción',synopsis:'Sinopsis',plot:'Sinopsis',year:'Año',releaseDate:'Fecha de estreno',release_date:'Fecha de estreno',poster:'Póster',backdrop:'Fondo',logo:'Logo',genres:'Géneros',genre:'Género',runtime:'Duración',rating:'Calificación',cert:'Clasificación',platforms:'Plataformas',platform:'Plataforma',featured:'Destacados',season:'Temporada',seasons:'Temporadas',episodes:'Episodios',chapters:'Episodios',subtitleTracks:'Subtítulos',subtitlesUrl:'Subtítulos',audioTracks:'Audios',primaryLanguage:'Idioma principal',language:'Idioma',languages:'Idiomas',m18:'Enlace 360p',m22:'Enlace 720p',m37:'Enlace 1080p',m18En:'Enlace Inglés 360p',m22En:'Enlace Inglés 720p',m37En:'Enlace Inglés 1080p'};
        function changedFields(before,after){
@@ -66,13 +67,17 @@ module.exports=async function handler(req,res){
          const poster=typeof item.poster==='string'&&(/^https:\/\/image\.tmdb\.org\/t\/p\//.test(item.poster)||/^\/[a-zA-Z0-9_-]+\.(?:jpg|jpeg|png|webp)$/.test(item.poster))?item.poster:null;
          return {...entry,title:String(item.title||item.name||entry.item_id).slice(0,180),year:String(item.year||'').slice(0,8),poster,fields:changedFields(before_item,after_item)};
        });
-       const backups=await query('mmhd_library_backups?select=id,revision,reason,item_count,created_at&order=id.desc&limit=20');
-       const presence=await query('mmhd_library_presence?select=user_id,current_item_id,current_title,last_seen&last_seen=gte.'+encodeURIComponent(new Date(Date.now()-60000).toISOString()));
-       const admins=await query('mmhd_library_admins?select=user_id');
-       const emailMap={};for(const a of admins){const ar=await fetch(url+'/auth/v1/admin/users/'+encodeURIComponent(a.user_id),{headers,signal:AbortSignal.timeout(9000)});if(ar.ok){const u=await ar.json();emailMap[a.user_id]=u.email||a.user_id.slice(0,8);}}
-       return res.status(200).json({revision,history,backups,presence,admins:emailMap,me:user.id});
+       const backups=(section==='history'||section==='admins')?[]:await query('mmhd_library_backups?select=id,revision,reason,item_count,created_at&order=id.desc&limit=20');
+       const presence=section==='all'?await query('mmhd_library_presence?select=user_id,current_item_id,current_title,last_seen&last_seen=gte.'+encodeURIComponent(new Date(Date.now()-60000).toISOString())):[];
+       const emailMap={};
+       if(section!=='backups'&&req.query?.names!=='0'){
+         const admins=await query('mmhd_library_admins?select=user_id');
+         for(const a of admins){const ar=await fetch(url+'/auth/v1/admin/users/'+encodeURIComponent(a.user_id),{headers,signal:AbortSignal.timeout(9000)});if(ar.ok){const u=await ar.json();emailMap[a.user_id]=u.email||a.user_id.slice(0,8);}}
+       }
+       return res.status(200).json({revision,section,history,backups,presence,admins:emailMap,me:user.id});
      }
-
+     const beginCursorRows=await query('mmhd_library_history?select=id&order=id.desc&limit=1');
+     const beginCursor=Number(beginCursorRows[0]?.id||0);
      const rows=[];for(let offset=0;offset<5000;offset+=1000){const page=await query('mmhd_library_items?select=id,item,version&order=id.asc&limit=1000&offset='+offset);rows.push(...page);if(page.length<1000)break;}
      return res.status(200).json({revision,items:rows,cursor:beginCursor});
    }
@@ -98,6 +103,12 @@ module.exports=async function handler(req,res){
    }
    if(payload.action==='presence'){
      const r=await query('rpc/mmhd_library_heartbeat','POST',{p_actor:user.id,p_item_id:typeof payload.itemId==='string'?payload.itemId:null,p_title:typeof payload.title==='string'?payload.title:null});
+     // Una sola llamada del navegador actualiza y consulta presencia. Conserva el
+     // resultado original para clientes antiguos que no piden includePresence.
+     if(payload.includePresence===true){
+       const presence=await query('mmhd_library_presence?select=user_id,current_item_id,current_title,last_seen&last_seen=gte.'+encodeURIComponent(new Date(Date.now()-60000).toISOString()));
+       return res.status(200).json({ok:true,result:r,presence,me:user.id});
+     }
      return res.status(200).json(r);
    }
    if(payload.action==='seed'){
