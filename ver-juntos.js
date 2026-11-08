@@ -164,10 +164,18 @@
     postIframe({type:'mmhd-watch-sync',position:targetPosition(),paused:!remote.started||remote.paused,force:!!force});
     if(force)lastGuestCorrection=Date.now();
   }
+  // Called synchronously from the green button: keep the browser's user activation
+  // and let FWDEVPlayer initialize its own media source before requesting HTML5 play.
   function kickHostPlayback(){
+    const frame=$('playerFrame');
+    try{
+      const bridge=frame?.contentWindow?.MMHD_WATCH_BRIDGE;
+      if(bridge?.startHost){bridge.startHost();return true;}
+    }catch(_){}
+    // Fallback for an iframe we cannot access (the browser may require one manual tap).
+    setGate(false);
     postIframe({type:'mmhd-watch-host-play'});
-    const v=playerVideo();
-    if(v){try{v.muted=false;}catch(_){} try{const p=v.play();if(p&&p.catch)p.catch(()=>{});}catch(_){}}
+    return false;
   }
   function queueGuestStartBoost(){
     if(!room||room.role!=='guest'||!remote||!remote.started)return;
@@ -213,20 +221,22 @@
     onPresence();
   }
   function attemptHostStart(){if(!room?.connected||room.role!=='host'||room.started||!bothReady()||!mediaAvailable())return;
-    room.startArmed=true;status('Iniciando película para ambos…');setGate(false);
+    room.startArmed=true;
+    const currentRoom=room;
+    status('Preparando reproducción con FWDEVPlayer…');
+    // The first invocation happens inside the trusted button click; don't defer it.
     kickHostPlayback();
-    [350,950,1800].forEach(delay=>setTimeout(()=>{
-      if(room?.role==='host'&&room.startArmed&&!room.started)kickHostPlayback();
+    [900,2100,3600].forEach(delay=>setTimeout(()=>{
+      if(room===currentRoom&&room.startArmed&&!room.started)kickHostPlayback();
     },delay));
     setTimeout(()=>{
-      if(room?.role==='host'&&room.startArmed&&!room.started){
-        local.paused=false;
-        markStarted(true);
-      }
-    },1200);
+      if(room!==currentRoom||!room.startArmed||room.started)return;
+      status('El reproductor no confirmó el inicio. Pulsa «Iniciar para ambos» otra vez o Play una vez dentro del video.');
+      note('El reproductor aún no comenzó. No se ha enviado un inicio falso al invitado.');
+    },8500);
   }
-  function markStarted(forced=false){if(!room||room.role!=='host'||room.started||!room.startArmed)return;
-    room.started=true;room.startArmed=false;local.paused=false;publish(true);refreshUI();status(forced?'Inicio enviado · si tu video no arranca, pulsa Play una vez.':'Película iniciada · sincronizando al invitado');
+  function markStarted(){if(!room||room.role!=='host'||room.started||!room.startArmed)return;
+    room.started=true;room.startArmed=false;local.paused=false;publish(true);refreshUI();panel(false);status('Película iniciada · sincronizando al invitado');
     note('La función inició. Cada participante puede cambiar idioma, calidad y subtítulos sin afectar al otro.');
   }
   async function enableAudio(){if(!room||room.role!=='guest')return;
@@ -244,7 +254,7 @@
     latestSeq=order;
     const old=remote,firstStart=Boolean(p.started)&&(!old||!old.started);
     remote={media:p.media,position:Math.max(0,Number(p.position)||0),paused:Boolean(p.paused),started:Boolean(p.started),receivedAt:performance.now()};
-    if(!room.started&&remote.started){room.started=true;room.ready=true;refreshUI();note('El anfitrión inició la película.');}
+    if(!room.started&&remote.started){room.started=true;room.ready=true;refreshUI();panel(false);note('El anfitrión inició la película.');}
     if(!sameMovie(activeMovie(),media)){
       openPlayer(media);setTimeout(()=>{setGate(!remote.started);syncGuest(true);if(remote.started)queueGuestStartBoost();},250);
     }else{setGate(!remote.started);syncGuest(firstStart||!old||old.paused!==remote.paused);if(remote.started&&(firstStart||!old||old.paused!==remote.paused))queueGuestStartBoost();}
@@ -363,8 +373,10 @@
       if(d.type==='mmhd-watch-ready'){setPartyMode(true);setGate(!room.started);queryVideo();}
       if(d.type==='mmhd-watch-event'){
         const why=String(d.reason||'');local={position:Math.max(0,Number(d.position)||0),duration:Number(d.duration)||0,paused:Boolean(d.paused)};
-        if(why==='play'&&!room.started){if(room.startArmed&&bothReady())markStarted();else setGate(true);}
-        if(room.started&&['play','pause','seeked','ended'].includes(why))publish(true);
+        if(why==='play'&&!room.started&&!room.startArmed)setGate(true);
+        // 'play' fires while buffering and is NOT proof that the film started.
+        if(!room.started&&room.startArmed&&bothReady()&&(why==='playing'||(why==='time'&&!d.paused&&Number(d.readyState)>=2)))markStarted();
+        if(room.started&&['playing','play','pause','seeked','ended'].includes(why))publish(true);
         else if(room.started&&why==='time')publish(false);
       }
       if(d.type==='mmhd-watch-blocked')status('Para iniciar, pulsa Play dentro del reproductor.');

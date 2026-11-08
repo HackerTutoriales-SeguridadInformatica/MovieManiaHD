@@ -3568,11 +3568,53 @@ function buildWatchPartyBridgeScript(movieId){
   'use strict';
   var ID=${JSON.stringify(String(movieId))};
   var video=null,pending=null,desired=null,desiredAt=0,blockedNoticeAt=0,hostPlayPending=false;
-  var gate=false,guestLock=false,partyEnabled=false,chatOpacity=.96;
+  var gate=false,guestLock=false,partyEnabled=false,chatOpacity=.96,lastFwStart=0,lastHtmlTry=0,hostPlaySince=0,lastGuestFwTry=0,guestInitAt=0;
   var fsChat=null,fsMessages=null,fsInput=null,fsPanel=null,fsRoot=null;
   function tell(type,extra){try{window.parent.postMessage(Object.assign({type:type,id:ID},extra||{}),'*');}catch(_){}}
   function status(reason){if(!video)return;tell('mmhd-watch-event',{reason:reason||'snapshot',position:Number(video.currentTime)||0,duration:Number(video.duration)||0,paused:video.paused,readyState:video.readyState});}
   function reportBlocked(type){if(Date.now()-blockedNoticeAt<4500)return;blockedNoticeAt=Date.now();tell(type||'mmhd-watch-blocked');}
+  function hasMediaSource(v){
+    return !!(v&&(v.currentSrc||v.getAttribute('src')||v.querySelector('source[src]')));
+  }
+  // FWDEV's first poster-click initializes the HTML5 source. Calling video.play()
+  // on an empty element will not do this. Use the documented FWDEV player API.
+  function startHost(){
+    gate=false;
+    if(!hostPlayPending){hostPlayPending=true;hostPlaySince=Date.now();lastFwStart=0;lastHtmlTry=0;}
+    if(Date.now()-hostPlaySince>10000){
+      hostPlayPending=false;
+      reportBlocked('mmhd-watch-blocked');
+      return;
+    }
+    attach();
+    var nativePlayer=window.player1;
+    if(nativePlayer&&typeof nativePlayer.play==='function'&&Date.now()-lastFwStart>950){
+      lastFwStart=Date.now();
+      try{nativePlayer.play();}catch(_){}
+    }
+    // FWDEV may create its <video> synchronously during player1.play().
+    // Attach immediately so we do not miss the very first playback state.
+    attach();
+    if(video&&!video.paused&&video.readyState>=2){hostPlayPending=false;status('playing');return;}
+    if(hasMediaSource(video)&&video.paused&&Date.now()-lastHtmlTry>950){
+      lastHtmlTry=Date.now();attemptPlay(false);
+    }
+  }
+  // Exposed within the blob iframe. The parent calls this synchronously from
+  // the green button to preserve its user activation for Chrome's play policy.
+  window.MMHD_WATCH_BRIDGE={startHost:startHost};
+  function bootstrapGuest(){
+    if(!guestLock||gate||!desired||desired.paused)return;
+    if(!guestInitAt)guestInitAt=Date.now();
+    if(Date.now()-guestInitAt>10000)return;
+    var nativePlayer=window.player1;
+    if(nativePlayer&&typeof nativePlayer.play==='function'&&Date.now()-lastGuestFwTry>1200){
+      lastGuestFwTry=Date.now();
+      try{nativePlayer.play();}catch(_){}
+    }
+    attach();
+    if(hasMediaSource(video)&&video.paused)attemptPlay(true);
+  }
   function attemptPlay(muteFallback){
     if(!video||!video.paused)return;
     try{var promise=video.play();if(promise&&typeof promise.catch==='function')promise.catch(function(err){
@@ -3601,7 +3643,7 @@ function buildWatchPartyBridgeScript(movieId){
   function apply(cmd){
     if(!cmd)return;
     desired=cmd;desiredAt=performance.now();
-    if(!video || video.readyState<1){pending=cmd;return;}
+    if(!video || video.readyState<1){pending=cmd;bootstrapGuest();return;}
     pending=null;seekAndRate(!!cmd.force);
     if(cmd.paused){try{if(!video.paused)video.pause();}catch(_){};}
     else if(video.paused&&!gate)attemptPlay(true);
@@ -3643,14 +3685,16 @@ function buildWatchPartyBridgeScript(movieId){
     if(!candidate||candidate===video)return;
     video=candidate;
     video.addEventListener('play',function(){if(gate){try{video.pause();}catch(_){};}status('play');});
+    video.addEventListener('playing',function(){hostPlayPending=false;status('playing');});
     video.addEventListener('pause',function(){status('pause');});
     video.addEventListener('ended',function(){status('ended');});
     video.addEventListener('seeked',function(){status('seeked');});
     video.addEventListener('loadedmetadata',function(){if(pending)apply(pending);status('metadata');});
     video.addEventListener('durationchange',function(){if(pending)apply(pending);});
-    video.addEventListener('canplay',function(){if(desired&&!desired.paused&&video.paused&&!gate)apply(desired);if(hostPlayPending&&!gate){hostPlayPending=false;attemptPlay(false);}});
+    video.addEventListener('canplay',function(){if(desired&&!desired.paused&&video.paused&&!gate)apply(desired);if(hostPlayPending&&!gate)startHost();});
+    video.addEventListener('loadstart',function(){if(hostPlayPending&&!gate)startHost();});
     video.addEventListener('timeupdate',function(){if(Date.now()-(video.__mmhdWatchLast||0)>1900){video.__mmhdWatchLast=Date.now();status('time');}});
-    tell('mmhd-watch-ready');if(pending)apply(pending);if(hostPlayPending&&!gate)attemptPlay(false);status('attached');
+    tell('mmhd-watch-ready');if(pending)apply(pending);if(hostPlayPending&&!gate)startHost();status('attached');
   }
   window.addEventListener('message',function(event){
     if(event.source!==window.parent||!event.data||String(event.data.id)!==ID)return;
@@ -3659,13 +3703,21 @@ function buildWatchPartyBridgeScript(movieId){
     if(cmd.type==='mmhd-watch-query'){attach();status('snapshot');}
     if(cmd.type==='mmhd-watch-gate'){gate=Boolean(cmd.enabled);attach();if(gate&&video&&!video.paused)try{video.pause();}catch(_){};}
     if(cmd.type==='mmhd-watch-guest-lock'){guestLock=Boolean(cmd.enabled);}
-    if(cmd.type==='mmhd-watch-host-play'){hostPlayPending=true;attach();if(video&&!gate){hostPlayPending=false;attemptPlay(false);}}
+    if(cmd.type==='mmhd-watch-host-play'){startHost();}
     if(cmd.type==='mmhd-watch-enable-audio'){attach();if(video){try{video.muted=false;if(desired&&!desired.paused)attemptPlay(false);}catch(_){}}}
-    if(cmd.type==='mmhd-watch-sync'){pending={position:Number(cmd.position)||0,paused:Boolean(cmd.paused),force:Boolean(cmd.force)};attach();apply(pending);}
+    if(cmd.type==='mmhd-watch-sync'){
+      var next={position:Number(cmd.position)||0,paused:Boolean(cmd.paused),force:Boolean(cmd.force)};
+      if(next.paused)guestInitAt=0;
+      pending=next;attach();apply(next);
+    }
     if(cmd.type==='mmhd-watch-chat-display'){appendFsMessage(cmd.kind,cmd.text);}
     if(cmd.type==='mmhd-watch-chat-opacity'){chatOpacity=Math.max(.4,Math.min(1,Number(cmd.opacity)||.96));if(fsPanel)fsPanel.style.backgroundColor='rgba(12,22,40,'+chatOpacity+')';}
   });
-  attach();setInterval(attach,450);
+  attach();setInterval(function(){
+    attach();
+    if(hostPlayPending&&!gate)startHost();
+    if(guestLock&&desired&&!desired.paused&&!gate&&(!video||video.readyState<1))bootstrapGuest();
+  },450);
   setInterval(function(){if(guestLock&&desired&&video&&!video.paused)seekAndRate(false);},4000);
 })();
 <\/script>
