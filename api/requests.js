@@ -2,9 +2,9 @@ const crypto=require('crypto');
 function fail(res,status,message){return res.status(status).json({error:message})}
 function constantEquals(a,b){const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&crypto.timingSafeEqual(x,y)}
 async function supabase(path,{method='GET',body,prefer}={}){
- const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+ const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
  if(!url||!key)throw Error('Configuración de base de datos pendiente');
- const response=await fetch(url.replace(/\/$/,'')+'/rest/v1/'+path,{method,headers:{apikey:key,Authorization:'Bearer '+key,'content-type':'application/json',...(prefer?{Prefer:prefer}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(9000)});
+ const response=await fetch(url.replace(/\/$/,'')+'/rest/v1/'+path,{method,headers:{apikey:key,'content-type':'application/json',...(!key.startsWith('sb_secret_')?{Authorization:'Bearer '+key}:{}),...(prefer?{Prefer:prefer}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(9000)});
  const text=await response.text();let data;try{data=text?JSON.parse(text):null}catch{data=null}
  if(!response.ok)throw Error('Base de datos: '+response.status);
  return data;

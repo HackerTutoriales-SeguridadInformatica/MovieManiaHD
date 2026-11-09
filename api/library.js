@@ -2,12 +2,14 @@ module.exports=async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  if(!['GET','POST'].includes(req.method))return res.status(405).json({error:'Método no permitido'});
  const url=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
- const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
- const anon=process.env.SUPABASE_ANON_KEY;
+ // La clave nueva (sb_secret_) solo viaja en apikey; la antigua (JWT) conserva Bearer.
+ const key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
+ const anon=process.env.SUPABASE_PUBLISHABLE_KEY||process.env.SUPABASE_ANON_KEY;
  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)||!key||!anon)return res.status(503).json({error:'Configuración Supabase incompleta'});
  const bearer=/^Bearer (.+)$/i.exec(req.headers.authorization||'');
  if(!bearer)return res.status(401).json({error:'Inicia sesión como administrador'});
- const headers={'apikey':key,'Authorization':'Bearer '+key,'Content-Type':'application/json'};
+ const headers={'apikey':key,'Content-Type':'application/json',
+  ...(!key.startsWith('sb_secret_')?{'Authorization':'Bearer '+key}:{})};
  try{
    const userResponse=await fetch(url+'/auth/v1/user',{headers:{apikey:anon,Authorization:'Bearer '+bearer[1]},signal:AbortSignal.timeout(9000)});
    if(!userResponse.ok)return res.status(401).json({error:'Sesión caducada. Vuelve a entrar'});

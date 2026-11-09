@@ -3,9 +3,12 @@ module.exports = async function handler(req,res) {
  res.setHeader('Cache-Control','no-store');
  if(!['GET','POST'].includes(req.method))return res.status(405).json({error:'Método no permitido'});
  const url=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
- const key=process.env.SUPABASE_SERVICE_ROLE_KEY,anon=process.env.SUPABASE_ANON_KEY;
+ const key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
+ const anon=process.env.SUPABASE_PUBLISHABLE_KEY||process.env.SUPABASE_ANON_KEY;
  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)||!key||!anon)return res.status(503).json({error:'Supabase no configurado'});
- const headers={apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'};
+ // No enviar sb_secret_ como Bearer: no es un JWT. Mantener la vía legacy.
+ const headers={apikey:key,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates',
+  ...(!key.startsWith('sb_secret_')?{Authorization:'Bearer '+key}:{})};
  const read=async(path,method='GET',body)=>{
   const r=await fetch(url+'/rest/v1/'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(16000)});
   const d=await r.json().catch(()=>null);if(!r.ok)throw Error(d?.message||d?.error||'Supabase '+r.status);return d;
