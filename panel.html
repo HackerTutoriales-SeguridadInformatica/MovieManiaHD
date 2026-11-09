@@ -4134,8 +4134,22 @@ async function previewCollection(){
       /<!-- Protección de inspección solicitada para Movie Mania HD V3 -->[\s\S]*?<!-- Fin de protección de inspección -->/i,
       "<!-- Protección anti-DevTools omitida exclusivamente en la vista previa administrativa -->"
     );
+    // Los perfiles usan localStorage/sessionStorage. El iframe de vista previa
+    // tiene origen aislado (sandbox sin allow-same-origin), por lo que no puede
+    // guardar la selección de perfil. Excluir el gestor de perfiles SOLO del
+    // HTML temporal de vista previa; la web pública conserva todos los perfiles.
+    const previewWithoutProfileUI=previewOnlyHtml
+      .replace(
+        /<script\b[^>]*>\s*\/\*\s*MMHD\s*·\s*Gestión visual de perfiles locales\.[\s\S]*?<\/script\s*>/i,
+        '<!-- Selector de perfiles omitido exclusivamente en vista previa -->'
+      )
+      .replace(/<\/head>/i,
+        '<style id="mmhd-preview-hide-profiles">' +
+        '#mmhdProfileOverlay,#mmhdProfileDesktop,#mmhdProfileMobile{display:none!important}' +
+        '</style></head>'
+      );
     // Las fuentes e iconos externos son opcionales en la vista previa y no deben bloquear la ejecución del catálogo.
-    const previewHtml=previewOnlyHtml.replace(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi, tag=>
+    const previewHtml=previewWithoutProfileUI.replace(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi, tag=>
       /\bmedia=/.test(tag) ? tag : tag.replace(/>$/, " media=\"print\" onload=\"this.media='all'\">")
     );
     // Crear un iframe limpio en cada apertura. Reutilizar un iframe cuyo srcdoc
