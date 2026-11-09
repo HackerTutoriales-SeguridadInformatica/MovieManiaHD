@@ -4127,8 +4127,15 @@ async function previewCollection(){
   $("collectionStatus").textContent="Preparando vista previa…";
   try{
     const {html,count}=await buildCollectionHtml();
+    // La protección anti-DevTools del catálogo público fuerza una redirección a
+    // Google al detectar un iframe de vista previa. Excluirla ÚNICAMENTE del
+    // documento temporal srcdoc: el index.html exportado conserva la protección.
+    const previewOnlyHtml=html.replace(
+      /<!-- Protección de inspección solicitada para Movie Mania HD V3 -->[\s\S]*?<!-- Fin de protección de inspección -->/i,
+      "<!-- Protección anti-DevTools omitida exclusivamente en la vista previa administrativa -->"
+    );
     // Las fuentes e iconos externos son opcionales en la vista previa y no deben bloquear la ejecución del catálogo.
-    const previewHtml=html.replace(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi, tag=>
+    const previewHtml=previewOnlyHtml.replace(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi, tag=>
       /\bmedia=/.test(tag) ? tag : tag.replace(/>$/, " media=\"print\" onload=\"this.media='all'\">")
     );
     // Crear un iframe limpio en cada apertura. Reutilizar un iframe cuyo srcdoc
