@@ -4768,10 +4768,13 @@ function mmhdRestorePreview(){
 function mmhdFinishRestore(){
   const data=mmhdPendingRestore;if(!data)return;
   const mode='sync-links';
+  // En una instalación nueva y vacía, recuperar también los ajustes del catálogo
+  // del JSON. No sobrescribirlos al fusionar respaldos en bibliotecas existentes.
+  const wasEmptyBeforeRestore=state.collection.length===0;
   const plan=mmhdPlanRestore(data,mode),n=plan.stats;
   if((n.changedFields||n.changedMetaFields)&&!confirm(`Se actualizarán ${n.changedFields} campos de enlace y ${n.changedMetaFields} metadatos en ${n.updatedTitles} títulos (${n.updatedEpisodes} episodios actualizados, ${n.addedEpisodes} capítulos y ${n.addedSeasons} temporadas nuevos). ${n.blankedFields?`ATENCIÓN: ${n.blankedFields} URLs se dejarán vacías según el respaldo. `:''}También se actualizarán diagnósticos coincidentes. ¿Confirmar la sincronización?`))return;
   if(!commitCollection(plan.collection)){alert('No se pudo guardar la biblioteca. Revisa el almacenamiento disponible.');return;}
-  if(mode==='replace'&&data.version>=3&&data.catalogSettings){
+  if((mode==='replace'||wasEmptyBeforeRestore)&&data.version>=3&&data.catalogSettings){
     const s=normalizeCatalogSettings(data.catalogSettings);
     try{localStorage.setItem(CATALOG_SETTINGS_KEY,JSON.stringify(s));state.catalogSettings=s;fillCatalogSettings();}catch{}
   }
