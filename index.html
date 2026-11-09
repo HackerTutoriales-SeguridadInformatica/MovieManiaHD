@@ -2826,7 +2826,9 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 .mmhd-profiles-subtitle{color:#acbbd5;font-size:14px;margin:0 0 27px}
 .mmhd-profiles-grid{display:flex;justify-content:center;flex-wrap:wrap;gap:18px;max-width:750px;margin:18px auto 25px}
 .mmhd-profile-card{width:130px;background:transparent;border:0;color:#dae3f2;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;font:inherit;min-width:0}
-.mmhd-profile-icon{width:106px;height:106px;border-radius:17px;background:linear-gradient(140deg,#253452,#0f1b30);border:2px solid #374a66;display:flex;align-items:center;justify-content:center;font-size:53px;transition:transform .2s,border-color .2s}
+.mmhd-profile-icon{width:106px;height:106px;border-radius:19px;background:linear-gradient(140deg,#253452,#0f1b30);border:2px solid #374a66;display:flex;align-items:center;justify-content:center;font-size:53px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,.24);transition:transform .2s,border-color .2s,box-shadow .2s}
+.mmhd-profile-icon svg{display:block;width:100%;height:100%;flex-shrink:0}
+.mmhd-profile-card:hover .mmhd-profile-icon{box-shadow:0 13px 33px rgba(230,45,99,.2)}
 .mmhd-profile-card:hover .mmhd-profile-icon,.mmhd-profile-card:focus-visible .mmhd-profile-icon{transform:translateY(-4px);border-color:#ff366a}
 .mmhd-profile-card-name{font-weight:750;max-width:125px;overflow-wrap:anywhere;font-size:14px}
 .mmhd-profile-add .mmhd-profile-icon{border:2px dashed #6681a6;color:#a6bedc;font-size:50px;background:#142037}
@@ -2838,7 +2840,10 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
 .mmhd-profile-form label{display:block;margin-bottom:8px;font-weight:700}
 .mmhd-profile-form input{box-sizing:border-box;width:100%;background:#070e1d;border:1px solid #4a6080;border-radius:9px;padding:12px;color:white;font:inherit;margin-bottom:12px}
 .mmhd-avatar-picker{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 20px}
-.mmhd-avatar-picker button{font-size:25px;width:49px;height:49px;padding:0;border-radius:10px;border:2px solid #3c4f73;background:#1e2b43;cursor:pointer}
+.mmhd-avatar-picker button{font-size:25px;width:54px;height:54px;padding:0;border-radius:13px;border:2px solid #3c4f73;background:#1e2b43;cursor:pointer;overflow:hidden;transition:transform .17s,border-color .17s}
+.mmhd-avatar-picker button svg{display:block;width:100%;height:100%}
+.mmhd-avatar-picker button:hover{transform:translateY(-3px);border-color:#c4b5fd}
+.mmhd-avatar-picker button:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .mmhd-avatar-picker button[aria-pressed="true"]{border-color:#ff356e;background:#39263e}
 .mmhd-profile-edit-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:5px}
 .mmhd-profile-edit-actions button{padding:6px 8px;font-size:12px}
@@ -2849,12 +2854,14 @@ html[data-mmhd-view="catalog"] #appScreen #mmhdHomeRows {display:none!important}
   background:transparent;color:#929aaa;cursor:pointer;text-align:center;border-radius:12px;
   font-family:inherit;font-size:9px;font-weight:600;line-height:1.2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
   letter-spacing:.2px;overflow:hidden}
-#mmhdProfileDesktop .mmhd-current-avatar{display:block;font-size:21px;line-height:1.15;flex-shrink:0}
+#mmhdProfileDesktop .mmhd-current-avatar{display:flex;align-items:center;justify-content:center;font-size:21px;line-height:1.15;flex-shrink:0;width:28px;height:28px;border-radius:9px;overflow:hidden}
+#mmhdProfileDesktop .mmhd-current-avatar svg{width:100%;height:100%;display:block}
 #mmhdProfileDesktop .mmhd-current-name{display:block;box-sizing:border-box;width:100%;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;line-height:1.2}
 #mmhdProfileDesktop>span:last-child{display:none}
 #mmhdProfileDesktop:hover,#mmhdProfileDesktop:focus-visible{border-color:#314464;color:#e4ecfa;background:#151b32}
-#mmhdProfileMobile{position:fixed;right:13px;top:13px;z-index:1700;border:1px solid #455672;border-radius:14px;background:#101929ee;color:white;width:44px;height:44px;font-size:24px;cursor:pointer;display:none}
+#mmhdProfileMobile{position:fixed;right:13px;top:13px;z-index:1700;border:1px solid #455672;border-radius:14px;background:#101929ee;color:white;width:44px;height:44px;font-size:24px;cursor:pointer;display:none;padding:4px;overflow:hidden}
+#mmhdProfileMobile svg{width:100%;height:100%;display:block;border-radius:10px}
 /* Al abrir el reproductor, no debe tapar Idioma, Calidad, CC ni Cerrar. */
 body.mmhd-player-active #mmhdProfileMobile{display:none!important}
 @media(max-width:600px){#mmhdProfileMobile{display:block}#mmhdProfileDesktop{display:none}.mmhd-profile-icon{width:85px;height:85px;font-size:43px}.mmhd-profile-card{width:105px}.mmhd-profiles-grid{gap:10px}}
@@ -9575,6 +9582,81 @@ syncBackToTop();
 </script>
 
 <script>
+/* MMHD · Retratos vectoriales originales para perfiles (sin peticiones externas).
+   Mantienen los identificadores emoji originales para no alterar perfiles guardados. */
+const MMHD_AVATAR_ART = Object.freeze({
+ '🎬':{label:'Nova',bg:'#394bc5',shine:'#7e8cf0',skin:'#eac09d',shirt:'#211c60',hair:'#24162e',style:0},
+ '🍿':{label:'Mía',bg:'#e1548f',shine:'#ff9ec2',skin:'#e8b28f',shirt:'#81325f',hair:'#472335',style:1},
+ '🎮':{label:'Kai',bg:'#3362a0',shine:'#72adf1',skin:'#9a6650',shirt:'#122c50',hair:'#161927',style:2},
+ '🌙':{label:'Luna',bg:'#7761b9',shine:'#bbabf2',skin:'#c99478',shirt:'#45336f',hair:'#d5d6e3',style:3},
+ '🦊':{label:'Leo',bg:'#e66b4e',shine:'#ffbd88',skin:'#efbf8d',shirt:'#6d233f',hair:'#702c2a',style:4},
+ '🐱':{label:'Kira',bg:'#b35dd4',shine:'#e0a7ff',skin:'#f0c4aa',shirt:'#67307c',hair:'#383052',style:5},
+ '🚀':{label:'Axel',bg:'#218d98',shine:'#7fdcce',skin:'#b98160',shirt:'#204a6a',hair:'#123c49',style:6},
+ '🌸':{label:'Sakura',bg:'#e574a2',shine:'#ffd1e6',skin:'#e8ab8e',shirt:'#783e88',hair:'#442337',style:7},
+ '⭐':{label:'Sol',bg:'#d9a13f',shine:'#ffe099',skin:'#855f50',shirt:'#78502a',hair:'#342327',style:8},
+ '🐻':{label:'Noa',bg:'#5b8d75',shine:'#a9dbc1',skin:'#d59a71',shirt:'#315457',hair:'#61412c',style:9}
+});
+function mmhdAvatarVector(code){
+ const a=MMHD_AVATAR_ART[code];
+ if(!a)return null;
+ // Sólo se interpolan colores y fragmentos de SVG del catálogo estático superior.
+ const hairBack=[
+  '<path d="M29 78Q20 39 36 29Q61 7 84 29Q98 48 89 81L78 83L74 37L39 38L38 83Z"/>',
+  '<path d="M26 87Q21 43 39 27Q57 17 77 28Q97 44 93 86L82 86L79 35L37 35L35 87Z"/>',
+  '<path d="M28 63Q21 25 60 22Q103 20 91 69Z"/>',
+  '<path d="M30 83Q24 39 38 24Q58 13 83 28Q96 47 89 87L80 86L77 32L41 34L40 84Z"/>',
+  '<path d="M26 65Q17 28 61 22Q99 26 95 69Z"/>',
+  '<path d="M22 91Q15 33 40 25Q64 14 84 28Q103 42 96 92L83 93L79 36L39 37L35 93Z"/>',
+  '<path d="M28 65Q28 22 57 22Q91 22 94 66Z"/>',
+  '<circle cx="38" cy="28" r="15"/><path d="M27 77Q18 33 39 23Q70 10 88 38L90 77L77 42L37 43L38 80Z"/>',
+  '<path d="M25 75Q17 24 61 21Q100 21 96 78Z"/>',
+  '<path d="M25 84Q19 36 37 27Q59 13 81 29Q98 44 94 85L82 86L78 37L40 38L37 84Z"/>'
+ ][a.style];
+ const hairFront=[
+  '<path d="M33 48Q31 24 57 25Q82 21 87 42Q70 30 60 45Q42 52 33 48Z"/>',
+  '<path d="M33 55Q31 28 54 26Q83 27 86 48Q75 40 65 44Q51 56 33 55Z"/>',
+  '<path d="M34 44L35 32L44 36L50 24L62 34L75 22L85 34L86 49Q67 35 56 46Q43 53 34 44Z"/>',
+  '<path d="M32 45Q29 29 49 24Q71 21 88 38L85 51Q65 33 56 46Q40 51 32 45Z"/>',
+  '<path d="M31 53L31 37L40 42L45 24L56 36L68 22L78 39L88 32L89 50Q65 33 52 51Z"/>',
+  '<path d="M30 48Q27 29 48 24Q69 20 87 43L87 57Q77 51 73 41Q59 53 30 48Z"/>',
+  '<path d="M33 45Q31 29 52 26Q77 21 88 42L87 49Q72 38 57 45Q42 49 33 45Z"/>',
+  '<path d="M31 48Q27 25 48 27Q69 21 86 41L87 52Q71 35 61 45Q42 54 31 48Z"/>',
+  '<path d="M28 49Q20 25 42 27Q48 14 60 24Q75 13 84 29Q101 35 89 54Q70 41 60 48Q44 59 28 49Z"/>',
+  '<path d="M30 55Q28 25 61 25Q86 25 88 54L75 52L74 43L63 54L52 44L43 56Z"/>'
+ ][a.style];
+ const accessories=a.style===2
+  ?'<path d="M26 55Q23 36 34 34M94 55Q96 36 86 34" fill="none" stroke="#101827" stroke-width="7" stroke-linecap="round"/><rect x="20" y="50" width="13" height="27" rx="6" fill="#1b294d"/><rect x="87" y="50" width="13" height="27" rx="6" fill="#1b294d"/>'
+  :a.style===3
+  ?'<path d="M38 59h18m8 0h18" stroke="#4d3469" stroke-width="2"/><circle cx="46" cy="59" r="9" fill="none" stroke="#4d3469" stroke-width="3"/><circle cx="73" cy="59" r="9" fill="none" stroke="#4d3469" stroke-width="3"/>'
+  :a.style===7
+  ?'<circle cx="88" cy="45" r="5" fill="#ffdfec"/><circle cx="88" cy="45" r="2" fill="#f071a0"/>'
+  :a.style===8
+  ?'<circle cx="85" cy="67" r="2.5" fill="#ffd88c"/><circle cx="35" cy="67" r="2.5" fill="#ffd88c"/>'
+  :'';
+ const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">'
+ +'<rect width="120" height="120" rx="19" fill="'+a.bg+'"/>'
+ +'<circle cx="101" cy="13" r="44" fill="'+a.shine+'" opacity=".35"/>'
+ +'<circle cx="23" cy="109" r="44" fill="#000" opacity=".10"/>'
+ +'<path d="M-4 120Q9 95 29 91Q43 88 60 91Q81 87 95 94Q111 99 124 120Z" fill="'+a.shirt+'"/>'
+ +'<path d="M51 86L51 99Q60 108 70 99L70 86" fill="'+a.skin+'"/>'
+ +'<g fill="'+a.hair+'">'+hairBack+'</g>'
+ +'<ellipse cx="33" cy="65" rx="6" ry="10" fill="'+a.skin+'"/>'
+ +'<ellipse cx="87" cy="65" rx="6" ry="10" fill="'+a.skin+'"/>'
+ +'<ellipse cx="60" cy="61" rx="29" ry="35" fill="'+a.skin+'"/>'
+ +'<g fill="'+a.hair+'">'+hairFront+'</g>'
+ +'<path d="M43 59Q49 56 54 59M67 59Q73 56 78 59" stroke="'+a.hair+'" stroke-width="2.4" stroke-linecap="round" fill="none"/>'
+ +'<circle cx="49" cy="64" r="2.4" fill="#222335"/><circle cx="72" cy="64" r="2.4" fill="#222335"/>'
+ +'<path d="M60 66L58 75Q60 77 63 75" fill="none" stroke="#a86860" stroke-opacity=".5" stroke-width="1.5" stroke-linecap="round"/>'
+ +'<path d="M52 82Q60 88 68 82" fill="none" stroke="#924d56" stroke-width="2.5" stroke-linecap="round"/>'
+ +accessories+'</svg>';
+ const node=document.createElement('span');node.className='mmhd-avatar-art';node.innerHTML=svg;
+ return node.firstElementChild;
+}
+function mmhdPaintAvatar(target,value){
+ const svg=mmhdAvatarVector(value);
+ if(svg)target.replaceChildren(svg);
+ else target.textContent=String(value||'🎬');
+}
 /* MMHD · Gestión visual de perfiles locales. Sin dependencias externas. */
 (function mmhdProfileUI(){
 'use strict';
@@ -9621,7 +9703,7 @@ function firstProfileSetup(){
   notify('');
   $('mmhdProfileName').focus();
 }
-function labels(){const p=current();document.querySelectorAll('.mmhd-current-avatar').forEach(el=>el.textContent=p.avatar);document.querySelectorAll('.mmhd-current-name').forEach(el=>el.textContent=p.name);$('mmhdProfileMobile').textContent=p.avatar}
+function labels(){const p=current();document.querySelectorAll('.mmhd-current-avatar').forEach(el=>mmhdPaintAvatar(el,p.avatar));document.querySelectorAll('.mmhd-current-name').forEach(el=>el.textContent=p.name);mmhdPaintAvatar($('mmhdProfileMobile'),p.avatar)}
 function show(open=true){overlay.hidden=!open;document.body.style.overflow=open?'hidden':''; if(open){notify('');form.hidden=true;render();}}
 function select(p){
   try {localStorage.setItem(MMHD_PROFILE_ACTIVE_KEY,p.id);sessionStorage.setItem(MMHD_PROFILE_TAB_KEY,p.id);sessionStorage.setItem(MMHD_PROFILE_CHOSEN_KEY,'1');}catch(_){notify('No se pudo seleccionar el perfil en este navegador.');return;}
@@ -9630,10 +9712,12 @@ function select(p){
 }
 function entry(p){
   const card=text('button','mmhd-profile-card');card.type='button';card.setAttribute('aria-label','Entrar con '+p.name);
-  card.append(text('span','mmhd-profile-icon',p.avatar),text('span','mmhd-profile-card-name',p.name));
+  const cardIcon=text('span','mmhd-profile-icon');mmhdPaintAvatar(cardIcon,p.avatar);
+  card.append(cardIcon,text('span','mmhd-profile-card-name',p.name));
   if(!editing){card.addEventListener('click',()=>select(p));grid.append(card);return;}
   const group=text('div','mmhd-profile-card');group.style.cursor='default';
-  group.append(text('span','mmhd-profile-icon',p.avatar),text('span','mmhd-profile-card-name',p.name));
+  const groupIcon=text('span','mmhd-profile-icon');mmhdPaintAvatar(groupIcon,p.avatar);
+  group.append(groupIcon,text('span','mmhd-profile-card-name',p.name));
   grid.append(group);
   const ctr=text('div','mmhd-profile-edit-actions');
   const edit=text('button','', 'Editar');edit.type='button';edit.addEventListener('click',()=>editProfile(p));ctr.append(edit);
@@ -9654,7 +9738,7 @@ function render(){
   $('mmhdCloseProfiles').hidden=!safeChosen();
 }
 function safeChosen(){try{return sessionStorage.getItem(MMHD_PROFILE_CHOSEN_KEY)==='1'}catch(_){return false}}
-function picker(){const holder=$('mmhdAvatarPicker');holder.replaceChildren();avatars.forEach(a=>{const b=text('button','',a);b.type='button';b.setAttribute('aria-label','Avatar '+a);b.setAttribute('aria-pressed',String(chosenAvatar===a));b.addEventListener('click',()=>{chosenAvatar=a;picker()});holder.append(b);});}
+function picker(){const holder=$('mmhdAvatarPicker');holder.replaceChildren();avatars.forEach(a=>{const b=text('button','');b.type='button';b.setAttribute('aria-label','Avatar '+(MMHD_AVATAR_ART[a]?.label||a));b.setAttribute('title',MMHD_AVATAR_ART[a]?.label||'Avatar');b.setAttribute('aria-pressed',String(chosenAvatar===a));mmhdPaintAvatar(b,a);b.addEventListener('click',()=>{chosenAvatar=a;picker()});holder.append(b);});}
 function newProfile(){
   if(profiles.length>=6){notify('Máximo 6 perfiles por dispositivo.');return;}
   editingId=null;chosenAvatar=avatars[profiles.length%avatars.length];$('mmhdProfileName').value='';form.hidden=false;picker();$('mmhdProfileName').focus();notify('');
