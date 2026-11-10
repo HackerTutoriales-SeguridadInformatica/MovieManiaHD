@@ -17,9 +17,10 @@
  .mmhd-chat-top strong{font-size:14px}.mmhd-chat-top p{font-size:11px;color:#b0bfd8;margin:3px 0 0}
  .mmhd-chat-heading{min-width:0;flex:1}
  .mmhd-chat-actions{display:flex;align-items:center;gap:9px;flex-shrink:0;min-width:0}
- .mmhd-chat-user-tag{display:inline-block;background:#273751;border:1px solid #466384;border-radius:20px;
+ .mmhd-chat-user-tag{display:inline-flex;align-items:center;gap:4px;background:#273751;border:1px solid #466384;border-radius:20px;
   padding:7px 10px;color:#cce7ff;font-size:11px;font-weight:750;max-width:145px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .mmhd-chat-user-tag-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
  .mmhd-chat-user-tag[hidden],.mmhd-chat-nickname-row[hidden]{display:none!important}
  .mmhd-chat-nickname-row{display:flex;flex-direction:column;gap:7px}
  .mmhd-chat-close{background:#253653;border-radius:9px;padding:7px 10px;font-size:20px;color:#e3eafb}
@@ -32,6 +33,15 @@
  .mmhd-chat-date{color:#8797b4;margin-left:auto;white-space:nowrap;font-size:10px}
  .mmhd-chat-avatar{width:29px;height:29px;border-radius:8px;background:#2e3858;display:grid;place-items:center;overflow:hidden;flex:none}
  .mmhd-chat-avatar svg{display:block;width:100%;height:100%}
+ .mmhd-chat-avatar.mmhd-chat-official-avatar{background:#fff;border:2px solid #429aff;border-radius:50%;box-shadow:0 0 0 2px #152f50}
+ .mmhd-chat-official-avatar img{width:100%;height:100%;object-fit:contain;display:block;transform:none;border-radius:50%}
+ .mmhd-chat-bubble.mmhd-chat-official-message{border-color:#3e6a9e;background:#172943}
+ .mmhd-chat-official-message .mmhd-chat-name{color:#e3f0ff}
+ .mmhd-chat-official-label{font:800 9px Inter,Arial,sans-serif;color:#b7dcff;background:#183b63;border:1px solid #2d79c6;border-radius:8px;padding:3px 5px;white-space:nowrap}
+ .mmhd-chat-verify{display:inline-flex;align-items:center;justify-content:center;flex:none;width:17px;height:17px;color:#248cff;vertical-align:middle}
+ .mmhd-chat-verify svg{display:block;width:17px;height:17px}
+ .mmhd-chat-user-tag .mmhd-chat-verify{margin-left:4px;width:14px;height:14px}
+ .mmhd-chat-user-tag .mmhd-chat-verify svg{width:14px;height:14px}
  .mmhd-chat-text{white-space:pre-wrap;font-size:13.5px;line-height:1.55;color:#edf2fb}
  .mmhd-chat-empty{color:#98a8c1;text-align:center;font-size:12px;margin:30px 10px}
  .mmhd-chat-compose{padding:10px 13px 12px;background:#151e31;border-top:1px solid #32445f;display:flex;flex-direction:column;gap:7px}
@@ -54,7 +64,7 @@
   #mmhdCommunityPanel{right:7px;left:7px;bottom:calc(71px + env(safe-area-inset-bottom,0px));width:auto;
    height:min(690px,calc(100dvh - 134px));max-height:calc(100dvh - 134px);border-radius:13px}
   .mmhd-chat-top{padding:9px 12px}.mmhd-chat-compose{padding:8px 11px}.mmhd-chat-messages{padding:10px 11px}
-  .mmhd-chat-user-tag{max-width:98px;padding:6px 8px;font-size:10px}.mmhd-chat-actions{gap:5px}}
+  .mmhd-chat-user-tag{max-width:133px;padding:6px 8px;font-size:10px}.mmhd-chat-actions{gap:5px}}
  `;
  const style=document.createElement('style');style.textContent=CSS;document.head.append(style);
  const launcher=document.createElement('button');launcher.type='button';launcher.id='mmhdCommunityLauncher';
@@ -77,6 +87,36 @@
  let opened=false,ready=false,fetching=false,refreshQueued=false,hasOlder=false,oldest=0,newest=0,lastServerCursor=0;
  let captchaToken='',captchaId=null,siteKey='',lastRefresh=0,pollTimer=0,initCaptchaPromise=null;
  const rows=new Map();
+ const officialCache=new Map();
+ function verifiedMark(){
+  const el=document.createElement('span');el.className='mmhd-chat-verify';el.title='Cuenta oficial verificada de Movie Mania HD';
+  el.setAttribute('role','img');el.setAttribute('aria-label','Cuenta oficial verificada');
+  el.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="11" fill="#278bff"/><path d="M6.7 12.3 10.2 15.7 17.5 8.4" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>';
+  return el;
+ }
+ function paintOfficialAvatar(el){
+  // Usar exactamente la imagen del icono circular superior del catálogo,
+  // evitando duplicar su PNG base64 o cargar servicios externos.
+  const catalogLogo=document.querySelector('.sfa-logo img');
+  if(!catalogLogo||!catalogLogo.getAttribute('src'))return false;
+  const img=document.createElement('img');img.src=catalogLogo.src;img.alt='Movie Mania HD';
+  el.replaceChildren(img);el.classList.add('mmhd-chat-official-avatar');return true;
+ }
+ function decorateHeaderOfficial(record){
+  const token=record?.claim?.token,nickname=record?.claim?.nickname;
+  if(!token||!nickname)return;
+  function show(){
+   if(elements.activeNick.textContent!=='@'+nickname)return;
+   if(!elements.activeNick.querySelector('.mmhd-chat-verify'))elements.activeNick.append(verifiedMark());
+  }
+  if(officialCache.has(token)){if(officialCache.get(token))show();return;}
+  fetch('/api/community',{method:'POST',headers:{'content-type':'application/json'},cache:'no-store',
+   body:JSON.stringify({action:'identity',nickname,claimToken:token})})
+   .then(r=>r.ok?r.json():Promise.reject(Error('Identidad no disponible')))
+   .then(data=>{officialCache.set(token,data.is_official===true);if(data.is_official===true)show()})
+   .catch(()=>{});
+ }
+
  function notify(text,bad=false){elements.info.textContent=text||'';elements.info.classList.toggle('error',!!bad);}
  function showAvailable(){
   // El selector de perfiles debe completarse antes de mostrar el botón del chat.
@@ -119,8 +159,11 @@
   if(claimed){
    elements.nick.value=record.claim.nickname;
    elements.nick.readOnly=true;
-   elements.activeNick.textContent='@'+record.claim.nickname;
+   elements.activeNick.replaceChildren();
+   const nickLabel=document.createElement('span');nickLabel.className='mmhd-chat-user-tag-label';nickLabel.textContent='@'+record.claim.nickname;
+   elements.activeNick.append(nickLabel);
    elements.activeNick.title='Tu apodo público: '+record.claim.nickname;
+   decorateHeaderOfficial(record);
    elements.nickNote.textContent='Apodo reservado para este perfil en este navegador.';
   }else{
    elements.activeNick.textContent='';
@@ -136,12 +179,16 @@
   const node=document.createElement('article');node.className='mmhd-chat-bubble';node.dataset.id=m.id;
   const head=document.createElement('div');head.className='mmhd-chat-meta';
   const avatar=document.createElement('span');avatar.className='mmhd-chat-avatar';
-  try{if(typeof mmhdPaintAvatar==='function')mmhdPaintAvatar(avatar,m.avatar);else avatar.textContent=m.avatar||'🎬';}
-  catch(_){avatar.textContent='🎬'}
+  const official=m.is_official===true;
+  if(official)node.classList.add('mmhd-chat-official-message');
+  if(!official||!paintOfficialAvatar(avatar)){
+   try{if(typeof mmhdPaintAvatar==='function')mmhdPaintAvatar(avatar,m.avatar);else avatar.textContent=m.avatar||'🎬';}
+   catch(_){avatar.textContent='🎬'}
+  }
   const name=document.createElement('span');name.className='mmhd-chat-name';name.textContent=m.nickname||'Visitante';
   const when=document.createElement('span');when.className='mmhd-chat-date';
   const date=new Date(m.created_at);when.textContent=Number.isNaN(date.getTime())?'':date.toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  head.append(avatar,name,when);
+  head.append(avatar,name);if(official){head.append(verifiedMark());const role=document.createElement('span');role.className='mmhd-chat-official-label';role.textContent='Oficial';head.append(role);}head.append(when);
   const text=document.createElement('div');text.className='mmhd-chat-text';text.textContent=m.message||'';
   node.append(head,text);return node;
  }
@@ -240,13 +287,14 @@
    const result=await response.json();if(!response.ok)throw Error(result.error||'No se pudo publicar.');
    // Persistir el nombre solo después de una publicación aceptada por el servidor.
    record.claim.nickname=data.nickname;
+   officialCache.set(record.claim.token,result.is_official===true);
    try{localStorage.setItem(record.key,JSON.stringify(record.claim));}catch(_){notify('Se publicó, pero este navegador no guardó tu apodo. No borres los datos.',true);}
    setName();elements.text.value='';
    // Mensaje aceptado por el servidor: mostrarlo ahora, sin esperar al siguiente GET,
    // al caché del CDN ni a que termine otra consulta en curso.
    const confirmedId=Number(result.id);
    if(Number.isSafeInteger(confirmedId)&&confirmedId>0){
-    addMessages([{id:confirmedId,nickname:data.nickname,avatar:data.avatar,
+    addMessages([{id:confirmedId,nickname:data.nickname,avatar:data.avatar,is_official:result.is_official===true,
      message:data.message,created_at:new Date().toISOString(),status:'visible'}],'recent',true);
    }
    notify('¡Tu mensaje ya es público!');

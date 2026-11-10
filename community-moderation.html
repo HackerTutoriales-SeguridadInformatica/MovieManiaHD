@@ -4,7 +4,15 @@
 <style>body{background:#090e1b;color:#e9eefc;font:14px Inter,Arial,sans-serif;margin:0}main{max-width:1000px;margin:35px auto;padding:18px}h1{font-size:23px}p{color:#aab9d4}input,button{font:inherit;border-radius:9px;padding:11px 13px}input{background:#131e33;border:1px solid #4d607d;color:white;width:min(480px,85%)}button{border:1px solid #465e7d;color:#e8eafa;background:#1c2c47;cursor:pointer;margin:5px 6px 5px 0}button:hover{background:#304665}button.danger{border-color:#703b47;color:#ffc2d4}article{background:#131d31;border:1px solid #344665;border-radius:10px;padding:13px;margin:10px 0}article.hidden-msg{opacity:.6}article p{color:#f3f6ff;white-space:pre-wrap;overflow-wrap:anywhere}small{color:#93a3be}#status{padding:9px 0;color:#fac5d0}</style></head>
 <body><main><h1>💬 Moderación · Chat comunitario</h1><p>Acceso para administradores. Utiliza la misma clave administrativa de «Solicitudes». No se almacena en el navegador.</p>
 <form id="login"><input id="key" type="password" placeholder="Clave administrativa de Solicitudes" autocomplete="off" required minlength="24"><button type="submit">Consultar mensajes</button></form>
-<div id="status" role="status"></div><div id="feed"></div><button id="older" hidden type="button">Ver mensajes anteriores</button>
+<div id="status" role="status"></div>
+<section style="background:#172942;border:1px solid #345b88;border-radius:12px;padding:16px;margin:16px 0">
+ <h2 style="font-size:17px;margin:0 0 8px">Cuenta oficial · Esteban MMHD</h2>
+ <p>Activa la insignia azul y el avatar del logo para el apodo ya reservado «Esteban MMHD».
+ Solo debes hacerlo si reconoces este apodo como tuyo. La autorización requiere la clave administrativa.</p>
+ <button id="promoteOfficial" type="button">Verificar Esteban MMHD ✓</button>
+ <button id="removeOfficial" type="button" class="danger">Retirar insignia</button>
+</section>
+<div id="feed"></div><button id="older" hidden type="button">Ver mensajes anteriores</button>
 <p>«Ocultar» retira inmediatamente el mensaje del chat público (puede persistir brevemente en caché). «Eliminar definitivamente» borra ese mensaje de la tabla.</p>
 </main><script>
 (()=>{'use strict';let token='',cursor='',loading=false;const $=id=>document.getElementById(id),feed=$('feed');
@@ -21,6 +29,19 @@ async function load(older=false){if(loading)return;loading=true;say('Consultando
  if(d.items?.length)cursor=d.items[0].id;
  $('older').hidden=!d.hasMore;say('Mensajes consultados.');
  }catch(e){say(e.message||'Sin conexión');}finally{loading=false}}
+$('promoteOfficial').onclick=async()=>{
+ if(!token){say('Primero introduce la clave administrativa y consulta los mensajes.');return;}
+ if(!window.confirm('¿Confirmas que el apodo Esteban MMHD es tuyo y quieres declararlo cuenta oficial de Movie Mania HD?'))return;
+ try{const d=await req('PATCH','/api/community',{action:'official',nickname:'Esteban MMHD',official:true});
+  say('Cuenta oficial activada. Mensajes existentes actualizados: '+d.updated+'. Actualiza el chat público para verla.');}
+ catch(e){say(e.message)}
+};
+$('removeOfficial').onclick=async()=>{
+ if(!token){say('Primero introduce la clave administrativa.');return;}
+ if(!window.confirm('¿Retirar la verificación de Esteban MMHD?'))return;
+ try{await req('PATCH','/api/community',{action:'official',nickname:'Esteban MMHD',official:false});
+  say('La insignia oficial se retiró.');}catch(e){say(e.message)}
+};
 $('login').onsubmit=e=>{e.preventDefault();token=$('key').value;$('key').value='';cursor='';load();};$('older').onclick=()=>load(true);
 })();
 </script></body></html>
