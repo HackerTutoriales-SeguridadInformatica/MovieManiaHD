@@ -2,7 +2,8 @@
 'use strict';
 const crypto = require('crypto');
 const AVATARS = new Set(['🎬','🍿','🎮','🌙','🦊','🐱','🚀','🌸','⭐','🐻']);
-const COLUMNS = 'id,nickname,avatar,message,created_at,status,is_official';
+const COLUMNS = 'id,nickname,avatar,message,created_at,status,is_official,likes_count,replies_count';
+const REPLY_COLUMNS = 'id,parent_id,nickname,avatar,message,created_at,status,is_official';
 function fail(res,status,error){return res.status(status).json({error});}
 function enabled(){return process.env.MMHD_COMMUNITY_ENABLED==='1';}
 function config(){return {enabled:enabled(),siteKey:enabled()?(process.env.MMHD_TURNSTILE_SITE_KEY||''):''};}
@@ -50,6 +51,10 @@ function unacceptable(text){
 function clean(s){return String(s??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim();}
 // Mayúsculas, tildes y espacios repetidos no dan derecho a un segundo apodo.
 function nicknameKey(s){return s.normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase().replace(/\s+/gu,' ').trim();}
+function ownerHash(claimToken){return crypto.createHmac('sha256',process.env.MMHD_REQUESTS_HASH_SECRET).update('mmhd-community-nickname-v1|'+claimToken).digest('hex');}
+function fingerprintOf(req){return crypto.createHmac('sha256',process.env.MMHD_REQUESTS_HASH_SECRET).update(new Date().toISOString().slice(0,10)+'|'+clientIp(req)).digest('hex');}
+function validClaim(raw){return /^[a-f0-9]{64}$/.test(raw);}
+function validId(value){return Number.isSafeInteger(Number(value))&&Number(value)>0;}
 const RESERVED_NICKS=new Set(['admin','administrador','administradora','moderador','moderadora','moderacion','soporte','staff','equipo mmhd','movie mania hd','moviemaniahd']);
 
 function isAdmin(req){
@@ -126,11 +131,31 @@ module.exports=async function handler(req,res){
   if(req.method==='GET'){
    const moderate=String(req.query?.moderate||'')==='1';
    if(moderate&&!(await authorizeAdmin(req,res)))return;
+   // Estadísticas públicas actualizadas para mensajes que ya están en pantalla.
+   if(!moderate&&String(req.query?.stats||'')==='1'){
+    const ids=String(req.query?.ids||'').split(',').filter(Boolean);
+    if(!ids.length||ids.length>50||ids.some(x=>!/^[1-9]\d{0,15}$/.test(x)))return fail(res,400,'Identificadores inválidos.');
+    const rows=await db('mmhd_community_messages?select=id,likes_count,replies_count&status=eq.visible&id=in.('+ids.join(',')+')&limit=50');
+    return res.status(200).json({items:rows||[]});
+   }
+   // Hilo de respuestas de un único comentario visible, con paginación.
+   if(!moderate&&req.query?.thread!==undefined){
+    const thread=String(req.query.thread),before=String(req.query?.before||'');
+    if(!/^[1-9]\d{0,15}$/.test(thread)||(before&&!/^[1-9]\d{0,15}$/.test(before)))return fail(res,400,'Comentario inválido.');
+    const parent=await db('mmhd_community_messages?select=id&status=eq.visible&id=eq.'+thread+'&limit=1');
+    if(!parent?.length)return fail(res,404,'Comentario no disponible.');
+    let path='mmhd_community_replies?select='+encodeURIComponent(REPLY_COLUMNS)+'&status=eq.visible&parent_id=eq.'+thread;
+    if(before)path+='&id=lt.'+before;
+    path+='&order=id.desc&limit=21';
+    const rows=await db(path),list=(rows||[]).slice(0,20);
+    return res.status(200).json({items:list.reverse(),hasMore:(rows||[]).length>20});
+   }
    let cursor=String(req.query?.before||'');const after=String(req.query?.after||'');
    if(cursor&&!/^[1-9]\d{0,17}$/.test(cursor))return fail(res,400,'Cursor inválido.');
    if(after&&!/^[1-9]\d{0,17}$/.test(after))return fail(res,400,'Cursor inválido.');
    if(cursor&&after)return fail(res,400,'Elige un único cursor.');
-   let path='mmhd_community_messages?select='+encodeURIComponent(COLUMNS);
+   const isReplies=moderate&&String(req.query?.replies||'')==='1';
+   let path=(isReplies?'mmhd_community_replies?select='+encodeURIComponent(REPLY_COLUMNS):'mmhd_community_messages?select='+encodeURIComponent(COLUMNS));
    if(!moderate)path+='&status=eq.visible';
    if(cursor)path+='&id=lt.'+cursor;
    if(after)path+='&id=gt.'+after;
@@ -155,9 +180,10 @@ module.exports=async function handler(req,res){
     return res.status(200).json({ok:true,nickname:'Esteban MMHD',is_official:official,updated:outcome.updated});
    }
    const id=Number(req.body?.id),status=String(req.body?.status||'');
+   const table=req.body?.type==='reply'?'mmhd_community_replies':'mmhd_community_messages';
    if(!Number.isSafeInteger(id)||id<1||(req.method==='PATCH'&&!['visible','hidden'].includes(status)))return fail(res,400,'Datos inválidos.');
-   if(req.method==='DELETE')await db('mmhd_community_messages?id=eq.'+id,{method:'DELETE',prefer:'return=minimal'});
-   else await db('mmhd_community_messages?id=eq.'+id,{method:'PATCH',body:{status},prefer:'return=minimal'});
+   if(req.method==='DELETE')await db(table+'?id=eq.'+id,{method:'DELETE',prefer:'return=minimal'});
+   else await db(table+'?id=eq.'+id,{method:'PATCH',body:{status},prefer:'return=minimal'});
    return res.status(200).json({ok:true});
   }
   const raw=req.body||{};
@@ -165,16 +191,43 @@ module.exports=async function handler(req,res){
   const token=String(raw.turnstileToken||'');
   const claimToken=String(raw.claimToken||'');
   const nickKey=nicknameKey(nickname);
+  if(['like','likes','reply'].includes(raw.action)){
+   if(!validClaim(claimToken))return fail(res,400,'Primero reserva tu apodo publicando un comentario.');
+   if(!process.env.MMHD_REQUESTS_HASH_SECRET||process.env.MMHD_REQUESTS_HASH_SECRET.length<32)return fail(res,503,'Identidad no configurada.');
+   const hash=ownerHash(claimToken);
+   if(raw.action==='likes'){
+    const ids=raw.ids;
+    if(!Array.isArray(ids)||ids.length>50||ids.some(x=>!validId(x)))return fail(res,400,'Lista de comentarios inválida.');
+    const result=await db('rpc/mmhd_community_my_likes',{method:'POST',body:{p_owner_hash:hash,p_message_ids:ids.map(Number)}});
+    return res.status(200).json({likedIds:Array.isArray(result)?result:[]});
+   }
+   if(!validId(raw.id))return fail(res,400,'Comentario inválido.');
+   if(raw.action==='like'){
+    const result=await db('rpc/mmhd_community_toggle_like',{method:'POST',body:{p_message_id:Number(raw.id),p_owner_hash:hash}});
+    if(!result?.ok)return fail(res,result?.code==='profile_required'?403:400,result?.error||'No se pudo dar Me gusta.');
+    return res.status(200).json({ok:true,id:Number(raw.id),liked:result.liked===true,likes_count:result.likes_count});
+   }
+   if(message.length<1||message.length>50)return fail(res,400,'La respuesta debe tener máximo 50 caracteres.');
+   if(!AVATARS.has(avatar))return fail(res,400,'Avatar inválido.');
+   const reason=unacceptable(message);
+   if(reason)return fail(res,400,reason);
+   const result=await db('rpc/mmhd_community_reply_submit',{method:'POST',body:{
+    p_message_id:Number(raw.id),p_owner_hash:hash,p_avatar:avatar,p_message:message,p_fingerprint:fingerprintOf(req)
+   }});
+   if(result?.limited)return fail(res,429,result.error||'Espera antes de responder de nuevo.');
+   if(!result?.ok)return fail(res,result?.code==='profile_required'?403:400,result?.error||'No se pudo publicar la respuesta.');
+   return res.status(201).json({ok:true,id:result.id,parent_id:Number(raw.id),nickname:result.nickname,
+    avatar,message,is_official:result.is_official===true,created_at:new Date().toISOString()});
+  }
   if(raw.action==='identity'){
    // Consultar solo la identidad propia: el secreto no va en URLs ni en la respuesta.
-   if(!/^[a-f0-9]{64}$/.test(claimToken)||nickKey.length<2||nickKey.length>100)
+   if(!validClaim(claimToken)||nickKey.length<2||nickKey.length>100)
     return fail(res,400,'Identidad inválida.');
    const hashSecret=process.env.MMHD_REQUESTS_HASH_SECRET;
    if(!hashSecret||hashSecret.length<32)return fail(res,503,'Identidad no configurada.');
-   const ownerHash=crypto.createHmac('sha256',hashSecret)
-    .update('mmhd-community-nickname-v1|'+claimToken).digest('hex');
+   const identityHash=ownerHash(claimToken);
    const found=await db('mmhd_community_nicknames?select=is_official,legacy&nickname_key=eq.'+
-    encodeURIComponent(nickKey)+'&owner_hash=eq.'+ownerHash+'&limit=1');
+    encodeURIComponent(nickKey)+'&owner_hash=eq.'+identityHash+'&limit=1');
    return res.status(200).json({is_official:found?.[0]?.is_official===true&&found?.[0]?.legacy===false});
   }
   if(!/^[a-f0-9]{64}$/.test(claimToken))return fail(res,400,'No se pudo conservar tu apodo. Activa el almacenamiento de este navegador.');
@@ -184,20 +237,22 @@ module.exports=async function handler(req,res){
   // El apodo exacto Esteban MMHD sigue disponible para su propietario legítimo.
   if(nickKey!=='esteban mmhd'&&nickKey.replace(/[ ._-]+/g,'').includes('estebanmmhd'))
    return fail(res,400,'Ese nombre es demasiado parecido al del equipo oficial.');
-  if(nickname.length<2||nickname.length>24||message.length<8||message.length>500)return fail(res,400,'Nombre (2 a 24 caracteres) y mensaje (8 a 500) obligatorios.');
+  if(nickname.length<2||nickname.length>24||message.length<8)return fail(res,400,'Nombre (2 a 24 caracteres) y mensaje (mínimo 8 caracteres) obligatorios.');
   if(!AVATARS.has(avatar))return fail(res,400,'Avatar inválido.');
   const reason=unacceptable(nickname+' '+message);
   if(reason)return fail(res,400,reason);
   if(!process.env.MMHD_REQUESTS_HASH_SECRET||process.env.MMHD_REQUESTS_HASH_SECRET.length<32)return fail(res,503,'Protección contra spam sin configurar.');
+  const hash=ownerHash(claimToken);
+  // El límite se decide en el servidor consultando la identidad oficialmente aprobada.
+  // Supabase aplica el mismo control en la función SQL, incluso si se omite esta verificación.
+  const verified=await db('mmhd_community_nicknames?select=is_official,legacy&nickname_key=eq.'+
+   encodeURIComponent(nickKey)+'&owner_hash=eq.'+hash+'&limit=1');
+  const admin=verified?.[0]?.is_official===true&&verified?.[0]?.legacy===false;
+  if(!admin&&message.length>200)return fail(res,400,'Máximo de 200 caracteres por comentario.');
   if(!(await turnstileOk(token,req)))return fail(res,403,'Verificación anti-bots fallida o caducada.');
-  const day=new Date().toISOString().slice(0,10);
-  const fingerprint=crypto.createHmac('sha256',process.env.MMHD_REQUESTS_HASH_SECRET)
-   .update(day+'|'+clientIp(req)).digest('hex');
-  const ownerHash=crypto.createHmac('sha256',process.env.MMHD_REQUESTS_HASH_SECRET)
-   .update('mmhd-community-nickname-v1|'+claimToken).digest('hex');
   const result=await db('rpc/mmhd_community_submit',{method:'POST',body:{
-   p_nickname:nickname,p_nickname_key:nickKey,p_owner_hash:ownerHash,
-   p_avatar:avatar,p_message:message,p_fingerprint:fingerprint
+   p_nickname:nickname,p_nickname_key:nickKey,p_owner_hash:hash,
+   p_avatar:avatar,p_message:message,p_fingerprint:fingerprintOf(req)
   }});
   if(result?.limited)return fail(res,429,result.error||'Límite de mensajes alcanzado.');
   if(result?.code==='nickname_taken')return fail(res,409,result.error||'Este apodo ya está ocupado. Elige otro.');
