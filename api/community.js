@@ -54,9 +54,53 @@ const RESERVED_NICKS=new Set(['admin','administrador','administradora','moderado
 
 function isAdmin(req){
  const expected=String(process.env.MMHD_REQUESTS_ADMIN_TOKEN||'');
- const given=String(req.headers['x-mmhd-admin-key']||'');
- const a=Buffer.from(expected),b=Buffer.from(given);
- return a.length>=24&&a.length===b.length&&crypto.timingSafeEqual(a,b);
+ const supplied=typeof req.headers['x-mmhd-admin-key']==='string'?req.headers['x-mmhd-admin-key']:'';
+ // La comparación de resúmenes evita diferencias de tiempo según la longitud.
+ const a=crypto.createHash('sha256').update(expected).digest();
+ const b=crypto.createHash('sha256').update(supplied.slice(0,1024)).digest();
+ return expected.length>=24&&supplied.length<=1024&&crypto.timingSafeEqual(a,b);
+}
+function adminOriginOk(req){
+ const origin=req.headers.origin;
+ if(!origin)return true; // Peticiones GET de mismo origen pueden omitir Origin.
+ if(typeof origin!=='string')return false;
+ const origins=new Set(['https://moviemaniahd.vercel.app']);
+ for(const value of [process.env.MMHD_COMMUNITY_ALLOWED_ORIGIN,process.env.MMHD_REQUESTS_ALLOWED_ORIGIN]){
+  if(!value)continue;
+  try{const parsed=new URL(value);if(parsed.protocol==='https:')origins.add(parsed.origin);}catch{}
+ }
+ if(process.env.VERCEL_URL)origins.add('https://'+process.env.VERCEL_URL);
+ return origins.has(origin);
+}
+async function authorizeAdmin(req,res){
+ if(!adminOriginOk(req)){
+  fail(res,403,'Origen administrativo no autorizado.');return false;
+ }
+ const secret=String(process.env.MMHD_REQUESTS_HASH_SECRET||'');
+ if(String(process.env.MMHD_REQUESTS_ADMIN_TOKEN||'').length<24||secret.length<32){
+  fail(res,503,'Acceso administrativo no configurado.');return false;
+ }
+ const accepted=isAdmin(req);
+ // HMAC del IP: no se registra la dirección en Supabase ni en logs.
+ const fingerprint=crypto.createHmac('sha256',secret)
+  .update('mmhd-community-admin-v1|'+clientIp(req)).digest('hex');
+ // Contador atómico en Supabase, compartido por todas las funciones de Vercel.
+ // Si no se ha instalado la migración SQL, la operación falla sin conceder permisos.
+ const attempt=await db('rpc/mmhd_community_admin_attempt',{method:'POST',body:{
+  p_ip_hash:fingerprint,p_valid:accepted
+ }});
+ if(!attempt||typeof attempt.allowed!=='boolean'){
+  fail(res,503,'Control de acceso temporalmente no disponible.');return false;
+ }
+ if(attempt.allowed!==true||!accepted){
+  const seconds=Number(attempt.retry_after)||0;
+  if(seconds>0){
+   res.setHeader('Retry-After',String(Math.min(900,Math.max(1,Math.ceil(seconds)))));
+   fail(res,429,'Demasiados intentos. Inténtalo de nuevo dentro de unos minutos.');
+  }else fail(res,401,'Clave administrativa incorrecta o ausente.');
+  return false;
+ }
+ return true;
 }
 async function turnstileOk(token,req){
  const secret=process.env.MMHD_TURNSTILE_SECRET_KEY;
@@ -74,12 +118,14 @@ async function turnstileOk(token,req){
 module.exports=async function handler(req,res){
  res.setHeader('X-Content-Type-Options','nosniff');
  res.setHeader('Cache-Control','no-store');
+ res.setHeader('Referrer-Policy','no-referrer');
+ res.setHeader('X-Frame-Options','DENY');
  if(!['GET','POST','PATCH','DELETE'].includes(req.method))return fail(res,405,'Método no permitido.');
  if(!enabled()){if(req.method==='GET')return res.status(200).json({enabled:false,items:[]});return fail(res,503,'El chat no está habilitado.');}
  try{
   if(req.method==='GET'){
    const moderate=String(req.query?.moderate||'')==='1';
-   if(moderate&&!isAdmin(req))return fail(res,401,'Acceso administrativo no autorizado.');
+   if(moderate&&!(await authorizeAdmin(req,res)))return;
    let cursor=String(req.query?.before||'');const after=String(req.query?.after||'');
    if(cursor&&!/^[1-9]\d{0,17}$/.test(cursor))return fail(res,400,'Cursor inválido.');
    if(after&&!/^[1-9]\d{0,17}$/.test(after))return fail(res,400,'Cursor inválido.');
@@ -97,7 +143,7 @@ module.exports=async function handler(req,res){
    return res.status(200).json({enabled:true,siteKey:process.env.MMHD_TURNSTILE_SITE_KEY||'',items:list,hasMore});
   }
   if(req.method==='PATCH'||req.method==='DELETE'){
-   if(!isAdmin(req))return fail(res,401,'Acceso administrativo no autorizado.');
+   if(!(await authorizeAdmin(req,res)))return;
    // Solo quien conoce la clave administrativa puede asignar una insignia oficial.
    // La API no concede insignias por el simple texto de un apodo.
    if(req.method==='PATCH'&&req.body?.action==='official'){
