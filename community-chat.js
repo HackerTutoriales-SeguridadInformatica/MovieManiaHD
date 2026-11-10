@@ -43,6 +43,27 @@
  .mmhd-chat-user-tag .mmhd-chat-verify{margin-left:4px;width:14px;height:14px}
  .mmhd-chat-user-tag .mmhd-chat-verify svg{width:14px;height:14px}
  .mmhd-chat-text{white-space:pre-wrap;font-size:13.5px;line-height:1.55;color:#edf2fb}
+ .mmhd-chat-message-actions{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:9px;padding-top:8px;border-top:1px solid #35445d}
+ .mmhd-chat-message-actions button,.mmhd-chat-thread-toggle{font:700 11px Inter,Arial,sans-serif;color:#acc7ed;
+  background:#192b46;border:1px solid #354f78;border-radius:19px;padding:6px 10px;cursor:pointer}
+ .mmhd-chat-message-actions button:hover,.mmhd-chat-thread-toggle:hover{background:#254068}
+ .mmhd-chat-message-actions .mmhd-chat-liked{color:#ff9abb;border-color:#9d446a;background:#48203b}
+ .mmhd-chat-message-actions button:disabled,.mmhd-chat-reply-send:disabled{opacity:.55;cursor:wait}
+ .mmhd-chat-thread{margin-top:10px;border-left:2px solid #3b597d;padding-left:10px;display:flex;flex-direction:column;gap:8px}
+ .mmhd-chat-thread[hidden],.mmhd-chat-reply-form[hidden],.mmhd-chat-thread-toggle[hidden]{display:none!important}
+ .mmhd-chat-reply{background:#111c30;border:1px solid #30435f;border-radius:10px;padding:8px 9px}
+ .mmhd-chat-reply .mmhd-chat-meta{margin-bottom:3px}.mmhd-chat-reply .mmhd-chat-avatar{width:24px;height:24px}
+ .mmhd-chat-reply .mmhd-chat-text{font-size:12px;line-height:1.45}
+ .mmhd-chat-thread-toggle{align-self:flex-start;padding:5px 9px}
+ .mmhd-chat-reply-form{display:flex;flex-direction:column;gap:6px;margin-top:3px}
+ .mmhd-chat-reply-form textarea{width:100%;min-height:54px;box-sizing:border-box;resize:vertical;
+  background:#0d1729;color:#f3f7ff;border:1px solid #536984;border-radius:8px;padding:9px;
+  font:12px Inter,Arial,sans-serif}
+ .mmhd-chat-reply-footer{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+ .mmhd-chat-reply-send{background:#cd275b;color:white;border:0;border-radius:8px;padding:7px 11px;font-size:11px;font-weight:800;cursor:pointer}
+ .mmhd-chat-char-counter{font-size:10px;color:#a8bad2;font-weight:500;margin-left:auto}
+ .mmhd-chat-reply-help{font-size:10px;color:#9cacc5}
+ .mmhd-chat-reply-error{font-size:11px;color:#ffadc4;margin:0} .mmhd-chat-reply-error:empty{display:none}
  .mmhd-chat-empty{color:#98a8c1;text-align:center;font-size:12px;margin:30px 10px}
  .mmhd-chat-compose{padding:10px 13px 12px;background:#151e31;border-top:1px solid #32445f;display:flex;flex-direction:column;gap:7px}
  .mmhd-chat-compose label{font-size:11px;color:#aec0dc;font-weight:700}
@@ -77,17 +98,17 @@
  <form class="mmhd-chat-compose" id="mmhdChatForm"><div class="mmhd-chat-nickname-row" id="mmhdChatNicknameRow"><label for="mmhdChatNickname">Tu apodo público</label>
  <input type="text" id="mmhdChatNickname" minlength="2" maxlength="24" required autocomplete="nickname" placeholder="Ej. CineFan"/>
  <p class="mmhd-chat-nicknote" id="mmhdChatNickNote">El apodo se reserva con tu primer mensaje. No puede repetirse.</p></div>
- <label for="mmhdChatMessage">Tu opinión o sugerencia</label><textarea id="mmhdChatMessage" maxlength="500" minlength="8" rows="2" required placeholder="¿Qué te gusta o qué mejorarías?" ></textarea>
+ <label for="mmhdChatMessage">Tu opinión o sugerencia <span class="mmhd-chat-char-counter" id="mmhdChatChars">0 / 200</span></label><textarea id="mmhdChatMessage" maxlength="200" minlength="8" rows="2" required placeholder="¿Qué te gusta o qué mejorarías?" ></textarea>
  <p class="mmhd-chat-privacy">Tu apodo y mensaje serán visibles para todos, incluso después. No publiques datos personales, enlaces ni insultos.</p>
  <div id="mmhdCommunityCaptcha"></div><p class="mmhd-chat-info" id="mmhdChatInfo" role="status"></p>
  <button class="mmhd-chat-submit" type="submit" id="mmhdChatSend" disabled>Publicar mensaje</button></form>`;
  document.body.append(launcher,panel);
  const $=id=>document.getElementById(id);
- const elements={messages:$('mmhdChatMessages'),older:$('mmhdChatOlder'),nick:$('mmhdChatNickname'),nickRow:$('mmhdChatNicknameRow'),activeNick:$('mmhdChatActiveNick'),nickNote:$('mmhdChatNickNote'),text:$('mmhdChatMessage'),info:$('mmhdChatInfo'),send:$('mmhdChatSend'),captcha:$('mmhdCommunityCaptcha')};
+ const elements={messages:$('mmhdChatMessages'),older:$('mmhdChatOlder'),nick:$('mmhdChatNickname'),nickRow:$('mmhdChatNicknameRow'),activeNick:$('mmhdChatActiveNick'),nickNote:$('mmhdChatNickNote'),text:$('mmhdChatMessage'),charCount:$('mmhdChatChars'),info:$('mmhdChatInfo'),send:$('mmhdChatSend'),captcha:$('mmhdCommunityCaptcha')};
  let opened=false,ready=false,fetching=false,refreshQueued=false,hasOlder=false,oldest=0,newest=0,lastServerCursor=0;
  let captchaToken='',captchaId=null,siteKey='',lastRefresh=0,pollTimer=0,initCaptchaPromise=null;
  const rows=new Map();
- const officialCache=new Map();
+ const officialCache=new Map(),likedIds=new Set(),likesChecked=new Set(),engagement=new Map();
  function verifiedMark(){
   const el=document.createElement('span');el.className='mmhd-chat-verify';el.title='Cuenta oficial verificada de Movie Mania HD';
   el.setAttribute('role','img');el.setAttribute('aria-label','Cuenta oficial verificada');
@@ -109,11 +130,11 @@
    if(elements.activeNick.textContent!=='@'+nickname)return;
    if(!elements.activeNick.querySelector('.mmhd-chat-verify'))elements.activeNick.append(verifiedMark());
   }
-  if(officialCache.has(token)){if(officialCache.get(token))show();return;}
+  if(officialCache.has(token)){if(officialCache.get(token))show();updateCharLimit();return;}
   fetch('/api/community',{method:'POST',headers:{'content-type':'application/json'},cache:'no-store',
    body:JSON.stringify({action:'identity',nickname,claimToken:token})})
    .then(r=>r.ok?r.json():Promise.reject(Error('Identidad no disponible')))
-   .then(data=>{officialCache.set(token,data.is_official===true);if(data.is_official===true)show()})
+   .then(data=>{officialCache.set(token,data.is_official===true);if(data.is_official===true)show();updateCharLimit()})
    .catch(()=>{});
  }
 
@@ -153,6 +174,8 @@
  }
  function setName(){
   const pid=profileId(),p=profile(),record=loadClaim(false);
+  // Evitar que el borrador de un perfil se vea o publique desde otro.
+  if(lastProfileId&&lastProfileId!==pid)elements.text.value='';
   const claimed=!!record?.claim?.nickname;
   elements.nickRow.hidden=claimed;
   elements.activeNick.hidden=!claimed;
@@ -172,7 +195,146 @@
    else if(!elements.nick.value&&p?.name&&p.name!=='Principal')elements.nick.value=p.name;
    elements.nickNote.textContent='El apodo se reserva con tu primer mensaje. No puede repetirse.';
   }
-  lastProfileId=pid;
+  lastProfileId=pid;updateCharLimit();
+ }
+
+ function countChars(value){return Array.from(String(value||'')).length;}
+ function updateCharLimit(){
+  const claim=loadClaim(false)?.claim;
+  const official=!!claim?.nickname&&officialCache.get(claim.token)===true;
+  if(official)elements.text.removeAttribute('maxlength');else elements.text.setAttribute('maxlength','200');
+  const count=countChars(elements.text.value),max=official?null:200;
+  elements.charCount.textContent=max===null?count+' caracteres · cuenta oficial':count+' / '+max;
+  elements.charCount.style.color=max!==null&&count>max?'#ff98a9':'';
+  canPost();
+ }
+ function profileClaim(){
+  const claim=loadClaim(false)?.claim;
+  if(!claim?.nickname||!/^[a-f0-9]{64}$/.test(claim.token||'')){
+   notify('Para dar Me gusta o responder, primero publica un comentario y reserva tu apodo.',true);return null;
+  }
+  return claim;
+ }
+ async function postCommunity(body){
+  const response=await fetch('/api/community',{method:'POST',cache:'no-store',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+  let result={};try{result=await response.json()}catch{}
+  if(!response.ok)throw Error(result.error||'No se pudo completar la acción.');
+  return result;
+ }
+ function makeReply(m){
+  const node=document.createElement('div');node.className='mmhd-chat-reply';node.dataset.replyId=m.id;
+  const meta=document.createElement('div');meta.className='mmhd-chat-meta';
+  const avatar=document.createElement('span');avatar.className='mmhd-chat-avatar';
+  if(m.is_official===true&&!paintOfficialAvatar(avatar)){avatar.textContent='🎬'}
+  else if(m.is_official!==true){try{if(typeof mmhdPaintAvatar==='function')mmhdPaintAvatar(avatar,m.avatar);else avatar.textContent=m.avatar||'🎬';}catch{avatar.textContent='🎬'}}
+  const name=document.createElement('span');name.className='mmhd-chat-name';name.textContent=m.nickname||'Visitante';
+  meta.append(avatar,name);
+  if(m.is_official===true)meta.append(verifiedMark());
+  const when=document.createElement('span');when.className='mmhd-chat-date';
+  const date=new Date(m.created_at);when.textContent=Number.isNaN(date.getTime())?'':date.toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  meta.append(when);
+  const message=document.createElement('div');message.className='mmhd-chat-text';message.textContent=m.message||'';
+  node.append(meta,message);return node;
+ }
+ function updateEngagement(id,stats){
+  const entry=engagement.get(Number(id));if(!entry)return;
+  if(stats.likes_count!==undefined)entry.likes=Number(stats.likes_count)||0;
+  if(stats.replies_count!==undefined)entry.replies=Number(stats.replies_count)||0;
+  entry.like.textContent=(likedIds.has(Number(id))?'♥ Te gusta':'♡ Me gusta')+' · '+entry.likes;
+  entry.like.classList.toggle('mmhd-chat-liked',likedIds.has(Number(id)));
+  entry.view.textContent=entry.replies+' '+(entry.replies===1?'respuesta':'respuestas')+(entry.expanded?' · ocultar':' · ver');
+  entry.view.hidden=!entry.replies&&!entry.expanded;
+ }
+ async function syncLikes(messages){
+  const record=loadClaim(false)?.claim;
+  if(!record?.nickname)return;
+  const ids=messages.map(m=>Number(m.id)).filter(id=>Number.isSafeInteger(id)&&!likesChecked.has(id)).slice(0,50);
+  if(!ids.length)return;
+  try{
+   const result=await postCommunity({action:'likes',claimToken:record.token,ids});
+   for(const id of ids){likesChecked.add(id);if((result.likedIds||[]).includes(id))likedIds.add(id);else likedIds.delete(id);updateEngagement(id,{})}
+  }catch{} // El botón sigue disponible; se actualiza al primer clic.
+ }
+ async function refreshStats(){
+  if(!opened)return;
+  const ids=Array.from(engagement.keys()).slice(-50);
+  if(!ids.length)return;
+  try{
+   const data=await get('stats=1&ids='+ids.join(','));
+   for(const m of data.items||[])updateEngagement(m.id,m);
+  }catch{} // Un fallo de contadores no interrumpe la conversación.
+ }
+ async function loadThread(id,older=false){
+  const entry=engagement.get(Number(id));if(!entry||entry.loading)return;
+  entry.loading=true;
+  try{
+   const data=await get('thread='+Number(id)+(older&&entry.oldest?'&before='+entry.oldest:''));
+   for(const reply of (older?[...(data.items||[])].reverse():(data.items||[]))){
+    const replyId=Number(reply.id);if(entry.seen.has(replyId))continue;
+    entry.seen.add(replyId);entry.oldest=entry.oldest?Math.min(replyId,entry.oldest):replyId;
+    const node=makeReply(reply);
+    if(older)entry.list.prepend(node);else entry.list.append(node);
+   }
+   entry.loaded=true;
+   entry.more.hidden=!data.hasMore;
+  }catch(err){entry.error.textContent=err.message||'No se pudieron cargar respuestas.';}
+  finally{entry.loading=false;}
+ }
+ function attachEngagement(node,m){
+  const id=Number(m.id),likes=Number(m.likes_count)||0,replies=Number(m.replies_count)||0;
+  const actions=document.createElement('div');actions.className='mmhd-chat-message-actions';
+  const like=document.createElement('button');like.type='button';
+  const respond=document.createElement('button');respond.type='button';respond.textContent='↩ Responder';
+  const view=document.createElement('button');view.type='button';
+  actions.append(like,respond,view);
+  const thread=document.createElement('div');thread.className='mmhd-chat-thread';thread.hidden=true;
+  const list=document.createElement('div');list.className='mmhd-chat-thread';list.style.marginTop='0';list.style.paddingLeft='0';list.style.borderLeft='0';
+  const more=document.createElement('button');more.type='button';more.className='mmhd-chat-thread-toggle';more.textContent='↑ Ver respuestas anteriores';more.hidden=true;
+  const form=document.createElement('form');form.className='mmhd-chat-reply-form';form.hidden=true;
+  const input=document.createElement('textarea');input.maxLength=50;input.rows=2;input.required=true;input.setAttribute('aria-label','Respuesta de máximo 50 caracteres');input.placeholder='Escribe tu respuesta (máximo 50 caracteres)…';
+  const footer=document.createElement('div');footer.className='mmhd-chat-reply-footer';
+  const counter=document.createElement('span');counter.className='mmhd-chat-char-counter';counter.textContent='0 / 50';
+  const send=document.createElement('button');send.type='submit';send.className='mmhd-chat-reply-send';send.textContent='Enviar respuesta';send.disabled=true;
+  footer.append(counter,send);
+  const help=document.createElement('span');help.className='mmhd-chat-reply-help';help.textContent='Respuesta pública · máximo 50 caracteres';
+  const error=document.createElement('p');error.className='mmhd-chat-reply-error';error.setAttribute('role','status');
+  form.append(input,footer,help,error);thread.append(list,more,form);
+  node.append(actions,thread);
+  const entry={like,view,thread,list,form,input,send,counter,error,more,likes,replies,expanded:false,loaded:false,loading:false,oldest:0,seen:new Set()};
+  engagement.set(id,entry);updateEngagement(id,{});
+  async function expand(){entry.expanded=true;thread.hidden=false;updateEngagement(id,{});if(entry.replies)await loadThread(id);}
+  function collapse(){entry.expanded=false;entry.form.hidden=true;thread.hidden=true;updateEngagement(id,{})}
+  like.addEventListener('click',async()=>{
+   const claim=profileClaim();if(!claim)return;
+   like.disabled=true;
+   try{const data=await postCommunity({action:'like',id,claimToken:claim.token});
+    likesChecked.add(id);if(data.liked)likedIds.add(id);else likedIds.delete(id);
+    updateEngagement(id,{likes_count:data.likes_count});
+   }catch(err){notify(err.message,true)}finally{like.disabled=false;}
+  });
+  view.addEventListener('click',()=>{if(entry.expanded)collapse();else void expand()});
+  respond.addEventListener('click',async()=>{
+   if(!profileClaim())return;
+   if(!entry.expanded)await expand();
+   entry.form.hidden=!entry.form.hidden;
+   if(!entry.form.hidden)entry.input.focus();
+  });
+  more.addEventListener('click',()=>loadThread(id,true));
+  input.addEventListener('input',()=>{
+   const n=countChars(input.value);counter.textContent=n+' / 50';send.disabled=!input.value.trim()||n>50;
+  });
+  form.addEventListener('submit',async event=>{
+   event.preventDefault();const claim=profileClaim();if(!claim||send.disabled)return;
+   const message=input.value.trim();if(countChars(message)>50||!message)return;
+   send.disabled=true;error.textContent='';
+   try{
+    const result=await postCommunity({action:'reply',id,claimToken:claim.token,avatar:profile().avatar||'🎬',message});
+    if(!entry.seen.has(Number(result.id))){entry.seen.add(Number(result.id));entry.list.append(makeReply(result));}
+    entry.loaded=true;entry.replies+=1;updateEngagement(id,{});input.value='';counter.textContent='0 / 50';
+    form.hidden=true;notify('Respuesta publicada.');
+   }catch(err){error.textContent=err.message||'No se pudo publicar la respuesta.';}
+   finally{send.disabled=false;}
+  });
  }
 
  function makeRow(m){
@@ -190,7 +352,7 @@
   const date=new Date(m.created_at);when.textContent=Number.isNaN(date.getTime())?'':date.toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
   head.append(avatar,name);if(official){head.append(verifiedMark());const role=document.createElement('span');role.className='mmhd-chat-official-label';role.textContent='Oficial';head.append(role);}head.append(when);
   const text=document.createElement('div');text.className='mmhd-chat-text';text.textContent=m.message||'';
-  node.append(head,text);return node;
+  node.append(head,text);attachEngagement(node,m);return node;
  }
  function showEmpty(){
   let empty=elements.messages.querySelector('.mmhd-chat-empty');
@@ -216,6 +378,7 @@
    oldest=oldest?Math.min(oldest,id):id;newest=Math.max(newest,id);
   }
   showEmpty();
+  void syncLikes(list);
   if(mode==='older')container.scrollTop=oldTop+(container.scrollHeight-oldHeight);
   else if(forceScroll||stayBottom||mode==='initial')container.scrollTop=container.scrollHeight;
   // En una visita larguísima, limitar DOM a lo que se ha consultado para evitar saturación.
@@ -242,12 +405,17 @@
     const id=Number(item.id);if(Number.isSafeInteger(id))lastServerCursor=Math.max(lastServerCursor,id);
    }
    lastRefresh=Date.now();
+   if(mode==='recent')void refreshStats();
   }catch(err){notify(err.message||'No se pudieron cargar mensajes.',true)}finally{
    fetching=false;
    if(refreshQueued){refreshQueued=false;if(opened)void refresh('recent');}
   }
  }
- function canPost(){elements.send.disabled=!captchaToken||!elements.nick.value.trim()||elements.text.value.trim().length<8;}
+ function canPost(){
+  const claim=loadClaim(false)?.claim;const official=!!claim?.nickname&&officialCache.get(claim.token)===true;
+  const n=countChars(elements.text.value.trim());
+  elements.send.disabled=!captchaToken||!elements.nick.value.trim()||n<8||(!official&&n>200);
+ }
  function loadScript(){return new Promise((resolve,reject)=>{
   if(window.turnstile)return resolve();
   let tag=document.getElementById('mmhd-turnstile-script');
@@ -275,7 +443,7 @@
  }
  launcher.addEventListener('click',()=>toggle(!opened));$('mmhdChatClose').addEventListener('click',()=>toggle(false));
  elements.older.addEventListener('click',()=>refresh('older'));
- elements.nick.addEventListener('input',canPost);elements.text.addEventListener('input',canPost);
+ elements.nick.addEventListener('input',canPost);elements.text.addEventListener('input',updateCharLimit);
  $('mmhdChatForm').addEventListener('submit',async event=>{
   event.preventDefault();if(elements.send.disabled)return;
   elements.send.disabled=true;notify('Publicando…');
@@ -289,13 +457,13 @@
    record.claim.nickname=data.nickname;
    officialCache.set(record.claim.token,result.is_official===true);
    try{localStorage.setItem(record.key,JSON.stringify(record.claim));}catch(_){notify('Se publicó, pero este navegador no guardó tu apodo. No borres los datos.',true);}
-   setName();elements.text.value='';
+   setName();elements.text.value='';updateCharLimit();
    // Mensaje aceptado por el servidor: mostrarlo ahora, sin esperar al siguiente GET,
    // al caché del CDN ni a que termine otra consulta en curso.
    const confirmedId=Number(result.id);
    if(Number.isSafeInteger(confirmedId)&&confirmedId>0){
     addMessages([{id:confirmedId,nickname:data.nickname,avatar:data.avatar,is_official:result.is_official===true,
-     message:data.message,created_at:new Date().toISOString(),status:'visible'}],'recent',true);
+     message:data.message,created_at:new Date().toISOString(),status:'visible',likes_count:0,replies_count:0}],'recent',true);
    }
    notify('¡Tu mensaje ya es público!');
    void refresh('recent');
