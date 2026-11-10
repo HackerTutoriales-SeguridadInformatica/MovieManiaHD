@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>Movie Mania HD · Moderación del chat</title>
+<style>body{background:#090e1b;color:#e9eefc;font:14px Inter,Arial,sans-serif;margin:0}main{max-width:1000px;margin:35px auto;padding:18px}h1{font-size:23px}p{color:#aab9d4}input,button{font:inherit;border-radius:9px;padding:11px 13px}input{background:#131e33;border:1px solid #4d607d;color:white;width:min(480px,85%)}button{border:1px solid #465e7d;color:#e8eafa;background:#1c2c47;cursor:pointer;margin:5px 6px 5px 0}button:hover{background:#304665}button.danger{border-color:#703b47;color:#ffc2d4}article{background:#131d31;border:1px solid #344665;border-radius:10px;padding:13px;margin:10px 0}article.hidden-msg{opacity:.6}article p{color:#f3f6ff;white-space:pre-wrap;overflow-wrap:anywhere}small{color:#93a3be}#status{padding:9px 0;color:#fac5d0}</style></head>
+<body><main><h1>💬 Moderación · Chat comunitario</h1><p>Acceso para administradores. Utiliza la misma clave administrativa de «Solicitudes». No se almacena en el navegador.</p>
+<form id="login"><input id="key" type="password" placeholder="Clave administrativa de Solicitudes" autocomplete="off" required minlength="24"><button type="submit">Consultar mensajes</button></form>
+<div id="status" role="status"></div><div id="feed"></div><button id="older" hidden type="button">Ver mensajes anteriores</button>
+<p>«Ocultar» retira inmediatamente el mensaje del chat público (puede persistir brevemente en caché). «Eliminar definitivamente» borra ese mensaje de la tabla.</p>
+</main><script>
+(()=>{'use strict';let token='',cursor='',loading=false;const $=id=>document.getElementById(id),feed=$('feed');
+function say(m){$('status').textContent=m;}
+async function req(method,url,body){const r=await fetch(url,{method,headers:{'x-mmhd-admin-key':token,'content-type':'application/json'},body:body?JSON.stringify(body):undefined,cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'Error');return d;}
+function render(m){const a=document.createElement('article');if(m.status==='hidden')a.className='hidden-msg';const h=document.createElement('strong');h.textContent=m.nickname+' · '+m.status;const date=document.createElement('small');date.textContent=' · '+new Date(m.created_at).toLocaleString();const p=document.createElement('p');p.textContent=m.message;const hide=document.createElement('button');hide.textContent=m.status==='hidden'?'Volver a mostrar':'Ocultar';
+ hide.onclick=async()=>{if(!window.confirm('¿Actualizar visibilidad de este mensaje?'))return;try{await req('PATCH','/api/community',{id:m.id,status:m.status==='hidden'?'visible':'hidden'});say('Estado actualizado. Recarga la lista para ver los cambios.');}catch(e){say(e.message)}};
+ const del=document.createElement('button');del.className='danger';del.textContent='Eliminar definitivamente';del.onclick=async()=>{if(!window.confirm('¿Eliminar definitivamente este mensaje? Esta acción no se puede deshacer.'))return;try{await req('DELETE','/api/community',{id:m.id});a.remove();say('Mensaje eliminado.');}catch(e){say(e.message)}};
+ a.append(h,date,p,hide,del);return a;}
+async function load(older=false){if(loading)return;loading=true;say('Consultando…');try{
+ const url='/api/community?moderate=1'+(older&&cursor?'&before='+cursor:'');const d=await req('GET',url);
+ if(!d.enabled)throw Error('El chat está deshabilitado en Vercel.');if(!older)feed.replaceChildren();
+ for(const m of (d.items||[]).slice().reverse())feed.append(render(m));
+ if(d.items?.length)cursor=d.items[0].id;
+ $('older').hidden=!d.hasMore;say('Mensajes consultados.');
+ }catch(e){say(e.message||'Sin conexión');}finally{loading=false}}
+$('login').onsubmit=e=>{e.preventDefault();token=$('key').value;$('key').value='';cursor='';load();};$('older').onclick=()=>load(true);
+})();
+</script></body></html>
