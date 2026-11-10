@@ -2,7 +2,7 @@
 'use strict';
 const crypto = require('crypto');
 const AVATARS = new Set(['🎬','🍿','🎮','🌙','🦊','🐱','🚀','🌸','⭐','🐻']);
-const COLUMNS = 'id,nickname,avatar,message,created_at,status';
+const COLUMNS = 'id,nickname,avatar,message,created_at,status,is_official';
 function fail(res,status,error){return res.status(status).json({error});}
 function enabled(){return process.env.MMHD_COMMUNITY_ENABLED==='1';}
 function config(){return {enabled:enabled(),siteKey:enabled()?(process.env.MMHD_TURNSTILE_SITE_KEY||''):''};}
@@ -98,6 +98,16 @@ module.exports=async function handler(req,res){
   }
   if(req.method==='PATCH'||req.method==='DELETE'){
    if(!isAdmin(req))return fail(res,401,'Acceso administrativo no autorizado.');
+   // Solo quien conoce la clave administrativa puede asignar una insignia oficial.
+   // La API no concede insignias por el simple texto de un apodo.
+   if(req.method==='PATCH'&&req.body?.action==='official'){
+    const target=nicknameKey(clean(req.body?.nickname));
+    const official=req.body?.official;
+    if(target!=='esteban mmhd'||typeof official!=='boolean')return fail(res,400,'Solo se puede administrar el perfil oficial autorizado.');
+    const outcome=await db('rpc/mmhd_community_manage_official',{method:'POST',body:{p_nickname_key:target,p_official:official}});
+    if(!outcome?.ok)return fail(res,409,outcome?.error||'No se puede verificar este apodo.');
+    return res.status(200).json({ok:true,nickname:'Esteban MMHD',is_official:official,updated:outcome.updated});
+   }
    const id=Number(req.body?.id),status=String(req.body?.status||'');
    if(!Number.isSafeInteger(id)||id<1||(req.method==='PATCH'&&!['visible','hidden'].includes(status)))return fail(res,400,'Datos inválidos.');
    if(req.method==='DELETE')await db('mmhd_community_messages?id=eq.'+id,{method:'DELETE',prefer:'return=minimal'});
@@ -109,9 +119,25 @@ module.exports=async function handler(req,res){
   const token=String(raw.turnstileToken||'');
   const claimToken=String(raw.claimToken||'');
   const nickKey=nicknameKey(nickname);
+  if(raw.action==='identity'){
+   // Consultar solo la identidad propia: el secreto no va en URLs ni en la respuesta.
+   if(!/^[a-f0-9]{64}$/.test(claimToken)||nickKey.length<2||nickKey.length>100)
+    return fail(res,400,'Identidad inválida.');
+   const hashSecret=process.env.MMHD_REQUESTS_HASH_SECRET;
+   if(!hashSecret||hashSecret.length<32)return fail(res,503,'Identidad no configurada.');
+   const ownerHash=crypto.createHmac('sha256',hashSecret)
+    .update('mmhd-community-nickname-v1|'+claimToken).digest('hex');
+   const found=await db('mmhd_community_nicknames?select=is_official,legacy&nickname_key=eq.'+
+    encodeURIComponent(nickKey)+'&owner_hash=eq.'+ownerHash+'&limit=1');
+   return res.status(200).json({is_official:found?.[0]?.is_official===true&&found?.[0]?.legacy===false});
+  }
   if(!/^[a-f0-9]{64}$/.test(claimToken))return fail(res,400,'No se pudo conservar tu apodo. Activa el almacenamiento de este navegador.');
   if(!/^[\p{L}\p{N}][\p{L}\p{N} ._-]*$/u.test(nickname))return fail(res,400,'El apodo solo puede contener letras, números, espacios, puntos, guiones o guion bajo.');
   if(RESERVED_NICKS.has(nickKey))return fail(res,400,'Ese apodo está reservado para el equipo de Movie Mania HD.');
+  // Evitar imitaciones evidentes como Esteban_MMHD o Esteban-MMHD.
+  // El apodo exacto Esteban MMHD sigue disponible para su propietario legítimo.
+  if(nickKey!=='esteban mmhd'&&nickKey.replace(/[ ._-]+/g,'').includes('estebanmmhd'))
+   return fail(res,400,'Ese nombre es demasiado parecido al del equipo oficial.');
   if(nickname.length<2||nickname.length>24||message.length<8||message.length>500)return fail(res,400,'Nombre (2 a 24 caracteres) y mensaje (8 a 500) obligatorios.');
   if(!AVATARS.has(avatar))return fail(res,400,'Avatar inválido.');
   const reason=unacceptable(nickname+' '+message);
@@ -131,7 +157,7 @@ module.exports=async function handler(req,res){
   if(result?.code==='nickname_taken')return fail(res,409,result.error||'Este apodo ya está ocupado. Elige otro.');
   if(result?.code==='nickname_locked')return fail(res,409,result.error||'Ya tienes otro apodo reservado en este perfil.');
   if(!result?.ok)return fail(res,400,result?.error||'No se pudo publicar.');
-  return res.status(201).json({ok:true,id:result.id});
+  return res.status(201).json({ok:true,id:result.id,is_official:result.is_official===true});
  }catch(err){console.error('MMHD community error:',err?.message);return fail(res,503,'El chat no está disponible temporalmente.');}
 };
 module.exports._test={unacceptable,clean,normalized,nicknameKey,RESERVED_NICKS};
