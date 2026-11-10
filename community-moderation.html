@@ -19,6 +19,8 @@ article.hidden-msg{opacity:.6}article p{color:#f3f6ff;white-space:pre-wrap;overf
 small{color:#93a3be}#status{padding:9px 0;color:#fac5d0;min-height:1.2em}
 .official-panel{background:#172942;border:1px solid #345b88;border-radius:12px;padding:16px;margin:16px 0}
 .official-panel h2{font-size:17px;margin:0 0 8px}#logout{float:right}
+h2.feed-title{font-size:17px;margin:22px 0 10px;border-bottom:1px solid #30405b;padding-bottom:9px}
+article.reply-admin{border-left:3px solid #548ed0;background:#111c2c}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -38,18 +40,22 @@ small{color:#93a3be}#status{padding:9px 0;color:#fac5d0;min-height:1.2em}
   <button id="promoteOfficial" type="button">Verificar Esteban MMHD ✓</button>
   <button id="removeOfficial" type="button" class="danger">Retirar insignia</button>
  </section>
+ <h2 class="feed-title">Comentarios</h2>
  <div id="feed"></div>
  <button id="older" hidden type="button">Ver mensajes anteriores</button>
- <p>«Ocultar» retira inmediatamente el mensaje del chat público (puede persistir brevemente en caché). «Eliminar definitivamente» borra ese mensaje de la tabla.</p>
+ <h2 class="feed-title">Respuestas a comentarios</h2>
+ <div id="replyFeed"></div>
+ <button id="olderReplies" hidden type="button">Ver respuestas anteriores</button>
+ <p>«Ocultar» retira un comentario o respuesta del chat público. «Eliminar definitivamente» borra ese contenido de Supabase.</p>
 </div>
 </main>
 <script>
 (()=>{'use strict';
-let token='',cursor='',loading=false,authenticated=false;
-const $=id=>document.getElementById(id),feed=$('feed');
+let token='',cursor='',replyCursor='',loading=false,replyLoading=false,authenticated=false;
+const $=id=>document.getElementById(id),feed=$('feed'),replyFeed=$('replyFeed');
 function say(message){$('status').textContent=message;}
-function lock(){token='';cursor='';authenticated=false;$('key').value='';$('login').hidden=false;
- $('adminTools').hidden=true;feed.replaceChildren();$('older').hidden=true;}
+function lock(){token='';cursor='';replyCursor='';authenticated=false;$('key').value='';$('login').hidden=false;
+ $('adminTools').hidden=true;feed.replaceChildren();replyFeed.replaceChildren();$('older').hidden=true;$('olderReplies').hidden=true;}
 async function request(method,url,body){
  const r=await fetch(url,{method,headers:{'x-mmhd-admin-key':token,'content-type':'application/json'},
   body:body===undefined?undefined:JSON.stringify(body),cache:'no-store',credentials:'same-origin'});
@@ -60,10 +66,12 @@ async function request(method,url,body){
  }
  return data;
 }
-function render(m){
+function render(m,type='message'){
+ const isReply=type==='reply';
  const article=document.createElement('article');
- if(m.status==='hidden')article.className='hidden-msg';
- const heading=document.createElement('strong');heading.textContent=m.nickname+' · '+m.status;
+ if(isReply)article.classList.add('reply-admin');
+ if(m.status==='hidden')article.classList.add('hidden-msg');
+ const heading=document.createElement('strong');heading.textContent=(isReply?'↪ Respuesta a #'+m.parent_id+' · ':'')+m.nickname+' · '+m.status;
  const date=document.createElement('small');date.textContent=' · '+new Date(m.created_at).toLocaleString();
  const message=document.createElement('p');message.textContent=m.message;
  const hide=document.createElement('button');hide.textContent=m.status==='hidden'?'Volver a mostrar':'Ocultar';
@@ -71,9 +79,9 @@ function render(m){
   if(!window.confirm('¿Actualizar visibilidad de este mensaje?'))return;
   hide.disabled=true;
   try{const newStatus=m.status==='hidden'?'visible':'hidden';
-   await request('PATCH','/api/community',{id:m.id,status:newStatus});
-   m.status=newStatus;article.className=newStatus==='hidden'?'hidden-msg':'';
-   heading.textContent=m.nickname+' · '+newStatus;
+   await request('PATCH','/api/community',{id:m.id,status:newStatus,type});
+   m.status=newStatus;article.className=(newStatus==='hidden'?'hidden-msg ':'')+(isReply?'reply-admin':'');
+   heading.textContent=(isReply?'↪ Respuesta a #'+m.parent_id+' · ':'')+m.nickname+' · '+newStatus;
    hide.textContent=newStatus==='hidden'?'Volver a mostrar':'Ocultar';say('Estado actualizado.');
   }catch(error){say(error.message);}finally{hide.disabled=false;}
  };
@@ -81,10 +89,23 @@ function render(m){
  remove.onclick=async()=>{
   if(!window.confirm('¿Eliminar definitivamente este mensaje? Esta acción no se puede deshacer.'))return;
   remove.disabled=true;
-  try{await request('DELETE','/api/community',{id:m.id});article.remove();say('Mensaje eliminado.');}
+  try{await request('DELETE','/api/community',{id:m.id,type});article.remove();say('Mensaje eliminado.');}
   catch(error){say(error.message);}finally{remove.disabled=false;}
  };
  article.append(heading,date,message,hide,remove);return article;
+}
+async function loadReplies(older=false){
+ if(replyLoading||!token)return;
+ replyLoading=true;
+ try{
+  const url='/api/community?moderate=1&replies=1'+(older&&replyCursor?'&before='+encodeURIComponent(replyCursor):'');
+  const data=await request('GET',url);
+  if(!older)replyFeed.replaceChildren();
+  for(const reply of (data.items||[]).slice().reverse())replyFeed.append(render(reply,'reply'));
+  if(data.items?.length)replyCursor=data.items[0].id;
+  $('olderReplies').hidden=!data.hasMore;
+ }catch(error){say('No se pudieron consultar las respuestas: '+error.message)}
+ finally{replyLoading=false;}
 }
 async function load(older=false){
  if(loading||!token)return false;
@@ -98,7 +119,7 @@ async function load(older=false){
   if(data.items?.length)cursor=data.items[0].id;
   $('older').hidden=!data.hasMore;
   authenticated=true;$('login').hidden=true;$('adminTools').hidden=false;
-  say('Mensajes consultados.');return true;
+  say('Mensajes consultados.');if(!older)void loadReplies(false);return true;
  }catch(error){
   if(!authenticated)lock();say(error.message||'Sin conexión');return false;
  }finally{loading=false;}
@@ -111,6 +132,7 @@ $('login').onsubmit=async event=>{
 };
 $('logout').onclick=()=>{lock();say('Sesión administrativa cerrada.');};
 $('older').onclick=()=>load(true);
+$('olderReplies').onclick=()=>loadReplies(true);
 $('promoteOfficial').onclick=async()=>{
  if(!authenticated)return;
  if(!window.confirm('¿Confirmas que el apodo Esteban MMHD es tuyo y quieres declararlo cuenta oficial de Movie Mania HD?'))return;
