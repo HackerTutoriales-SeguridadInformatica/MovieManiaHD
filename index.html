@@ -2873,8 +2873,59 @@ body.mmhd-player-active #mmhdProfileMobile{display:none!important}
 .mmhd-req-privacy-note{font-size:12px!important;color:#c6d1e5!important;background:#192436;border:1px solid #3a526f;border-radius:9px;padding:12px;margin:4px 0 12px}
 .mmhd-req-required-note{font-size:11px;color:#abb8d3;margin-top:0}
 </style>
+
+<!-- Aviso de mudanza: solo en el index de Vercel -->
+<style id="mmhd-migration-styles">
+  #mmhd-migration-overlay{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(4,7,17,.95);color:#f8fafc;font-family:Inter,Arial,sans-serif;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;}
+  #mmhd-migration-overlay *,#mmhd-migration-overlay *::before,#mmhd-migration-overlay *::after{box-sizing:border-box;}
+  #mmhd-migration-card{width:min(100%,510px);padding:clamp(24px,5vw,42px);border:1px solid rgba(148,163,184,.22);border-radius:24px;text-align:center;background:linear-gradient(155deg,#1b2034 0%,#111525 65%,#14101b 100%);box-shadow:0 25px 90px rgba(0,0,0,.6);}
+  .mmhd-migration-icon{width:72px;height:72px;margin:0 auto 20px;border-radius:20px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fb923c,#f59e0b);font-size:37px;}
+  #mmhd-migration-card h1{font-size:clamp(25px,5vw,34px);line-height:1.18;margin:0 0 16px;font-weight:800;letter-spacing:-.7px;color:#fff;}
+  #mmhd-migration-card p{color:#cbd5e1;line-height:1.65;font-size:15px;margin:0 0 17px;}
+  #mmhd-migration-card .mmhd-migration-domain{display:inline-block;color:#fbbf24;font-size:18px;font-weight:800;margin:0 0 15px;overflow-wrap:anywhere;}
+  #mmhd-migration-card .mmhd-migration-thanks{color:#f1f5f9;font-weight:600;}
+  #mmhd-migration-go{display:flex;align-items:center;justify-content:center;min-height:52px;padding:12px 18px;margin-top:20px;border-radius:12px;background:linear-gradient(100deg,#f59e0b,#f97316);color:#17110b!important;text-decoration:none!important;font-size:15px;font-weight:800;transition:filter .2s,transform .2s;}
+  #mmhd-migration-go:hover{filter:brightness(1.1);transform:translateY(-1px);}
+  #mmhd-migration-go:focus-visible{outline:3px solid white;outline-offset:3px;}
+  #mmhd-migration-card .mmhd-migration-timer{font-size:13px;color:#94a3b8;margin:17px 0 0;}
+  @media(max-width:420px){#mmhd-migration-overlay{padding:12px;}#mmhd-migration-card{padding:25px 19px;border-radius:18px;}.mmhd-migration-icon{width:60px;height:60px;font-size:31px;margin-bottom:15px;}}
+</style>
 </head>
 <body>
+<!-- Aviso de cambio de dominio: Vercel -> moviemaniahd.com -->
+<div id="mmhd-migration-overlay" role="dialog" aria-modal="true" aria-labelledby="mmhd-migration-title" aria-describedby="mmhd-migration-description">
+  <div id="mmhd-migration-card">
+    <div class="mmhd-migration-icon" aria-hidden="true">🍿</div>
+    <h1 id="mmhd-migration-title">¡Nos hemos mudado!</h1>
+    <p id="mmhd-migration-description">Movie Mania HD tiene un nuevo hogar. Ahora puedes seguir disfrutando de todas tus películas, series y episodios favoritos, además de mucho más contenido en nuestra nueva página web.</p>
+    <div class="mmhd-migration-domain">moviemaniahd.com</div>
+    <p class="mmhd-migration-thanks">¡Gracias por todo su apoyo! Seguimos mejorando cada día para ofrecerles una mejor experiencia. ❤️</p>
+    <a id="mmhd-migration-go" href="https://moviemaniahd.com/">Ir a la nueva página web →</a>
+    <p class="mmhd-migration-timer" aria-live="off">Serás redirigido automáticamente en <strong id="mmhd-migration-seconds">18</strong> segundos.</p>
+  </div>
+</div>
+<script id="mmhd-migration-script">
+(function(){
+  'use strict';
+  var destination='https://moviemaniahd.com/';
+  var seconds=18;
+  var counter=document.getElementById('mmhd-migration-seconds');
+  var button=document.getElementById('mmhd-migration-go');
+  var redirected=false;
+  function go(){
+    if(redirected)return;
+    redirected=true;
+    window.location.replace(destination);
+  }
+  button.addEventListener('click',function(){redirected=true;});
+  var timer=setInterval(function(){
+    seconds-=1;
+    if(counter)counter.textContent=String(Math.max(0,seconds));
+    if(seconds<=0){clearInterval(timer);go();}
+  },1000);
+})();
+</script>
+
 <!-- Día del Niño: la bienvenida vive en catalogo-template.html y se incluye al publicar index.html. -->
 <div id="mmhd-kids" role="dialog" aria-label="Bienvenida del Día del Niño a Movie Mania HD" aria-modal="true">
   <div class="kids-glow" aria-hidden="true"></div>
